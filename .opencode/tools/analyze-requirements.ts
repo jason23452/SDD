@@ -8,6 +8,17 @@ function normalize(value?: string): string {
   return normalized.length > 0 ? normalized : "待補"
 }
 
+export type AnalyzeRequirementsInput = {
+  majorRequirement: string
+  targetUsers: string
+  constraints: string
+  existingSystem: string
+  referenceCases: string
+  deliverables: string
+  extraNotes: string
+  mode: string
+}
+
 function splitSubRequirements(text: string): string[] {
   const raw = normalize(text)
 
@@ -57,16 +68,7 @@ function deriveKpi(extraNotes: string, deliverables: string): string {
   return `交付《${deliverables}》滿足 FE/BE/Test 各自目標`
 }
 
-function buildReport(args: {
-  majorRequirement: string
-  targetUsers: string
-  constraints: string
-  existingSystem: string
-  referenceCases: string
-  deliverables: string
-  extraNotes: string
-  mode: string
-}) {
+export function buildReport(args: AnalyzeRequirementsInput) {
   const majorRequirement = normalize(args.majorRequirement)
   const targetUsers = normalize(args.targetUsers)
   const constraints = normalize(args.constraints)
@@ -76,7 +78,7 @@ function buildReport(args: {
   const extraNotes = normalize(args.extraNotes)
   const mode = normalize(args.mode)
 
-  const [sr1, sr2, sr3] = buildSubRequirements(`${majorRequirement}；${targetUsers}`)
+  const [sr1, sr2, sr3] = buildSubRequirements(majorRequirement)
   const [feLine, beLine, testLine] = [sr1, sr2, sr3]
   const reportHeader = `# 需求分析報告（精簡固定模板）`
   const timestamp = new Date().toISOString()
@@ -300,16 +302,34 @@ export default tool({
   },
   async execute(args, context) {
     const safeWorktree = context?.worktree ? context.worktree : process.cwd()
-    const outputDir = path.join(safeWorktree, ".opencode", "outputs", "analyze-requirements")
-    const fileName = `analyze-requirements_${randomUUID()}_${Date.now()}.md`
-    const filePath = path.join(outputDir, fileName)
-
-    await mkdir(outputDir, { recursive: true })
-
-    const report = buildReport(args)
-
-    await writeFile(filePath, report, "utf-8")
+    const { report, filePath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
 
     return `${report}\n\n## 產出檔案\n${filePath}`
   },
 })
+
+export async function writeAnalyzeRequirementsOutput(
+  args: AnalyzeRequirementsInput,
+  worktree: string,
+  outputDir?: string,
+): Promise<{ report: string; filePath: string }> {
+  const safeWorktree = worktree ? worktree : process.cwd()
+  const relativeOutputDir =
+    typeof outputDir === "string" && outputDir.trim().length > 0
+      ? outputDir.trim()
+      : path.join(".opencode", "outputs", "analyze-requirements")
+
+  const outputPath = path.isAbsolute(relativeOutputDir)
+    ? relativeOutputDir
+    : path.resolve(safeWorktree, relativeOutputDir)
+
+  const fileName = `analyze-requirements_${randomUUID()}_${Date.now()}.md`
+  const filePath = path.join(outputPath, fileName)
+
+  await mkdir(outputPath, { recursive: true })
+
+  const report = buildReport(args)
+  await writeFile(filePath, report, "utf-8")
+
+  return { report, filePath }
+}
