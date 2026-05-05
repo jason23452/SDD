@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { access, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { tool } from "@opencode-ai/plugin"
@@ -18,6 +18,29 @@ export type AnalyzeRequirementsInput = {
   deliverables: string
   extraNotes: string
   mode: string
+  targetFileName?: string
+}
+
+function safeTargetFilePath(outputPath: string, targetFileName?: string): string | undefined {
+  const normalized = normalize(targetFileName)
+  if (normalized === "待補") return undefined
+
+  if (normalized !== path.basename(normalized) || !normalized.toLowerCase().endsWith(".md")) {
+    throw new Error("targetFileName 必須是輸出目錄內的 Markdown 檔名")
+  }
+
+  return path.join(outputPath, normalized)
+}
+
+function buildIterativeUpdate(existingReport: string, nextReport: string, timestamp: string): string {
+  return [
+    existingReport.trimEnd(),
+    "",
+    "---",
+    `## 迭代更新舊需求（${timestamp}）`,
+    "",
+    nextReport,
+  ].join("\n")
 }
 
 function splitSubRequirements(text: string): string[] {
@@ -300,6 +323,10 @@ export default tool({
     deliverables: tool.schema.string().describe("希望交付內容（PRD、規格、排程）").default("待補"),
     extraNotes: tool.schema.string().describe("其他補充").default("待補"),
     mode: tool.schema.string().describe("使用者要求 initial 或 final").default("initial"),
+    targetFileName: tool.schema
+      .string()
+      .describe("若新需求要迭代既有需求，填輸出目錄內的 Markdown 檔名；空白才建立新檔")
+      .default(""),
   },
   async execute(args, context) {
     const safeWorktree = context?.worktree ? context.worktree : process.cwd()
@@ -316,14 +343,15 @@ export async function writeAnalyzeRequirementsOutput(
 ): Promise<{ report: string; filePath: string }> {
   const safeWorktree = worktree || process.cwd()
   const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
-
-  const fileName = `analyze-requirements_${randomUUID()}_${Date.now()}.md`
-  const filePath = path.join(outputPath, fileName)
+  const targetPath = safeTargetFilePath(outputPath, args.targetFileName)
+  const filePath = targetPath || path.join(outputPath, `analyze-requirements_${randomUUID()}_${Date.now()}.md`)
 
   await mkdir(outputPath, { recursive: true })
+  if (targetPath) await access(targetPath)
 
   const report = buildReport(args)
-  await writeFile(filePath, report, "utf-8")
+  const output = targetPath ? buildIterativeUpdate(await readFile(targetPath, "utf-8"), report, new Date().toISOString()) : report
+  await writeFile(filePath, output, "utf-8")
 
   return { report, filePath }
 }

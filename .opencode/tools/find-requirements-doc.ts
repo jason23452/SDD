@@ -1,4 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
+import { readFile } from "node:fs/promises"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 import {
   DEFAULT_REQUIREMENTS_DIR,
   listRequirementDocs,
@@ -8,12 +11,44 @@ import {
 } from "./requirement-docs"
 import type { RequirementDoc } from "./requirement-docs"
 
+const execFileAsync = promisify(execFile)
+
 type ScoredDoc = RequirementDoc & {
   score: number
+  matchedTerms: string[]
+  matchedAreas: string[]
 }
+
+const STOP_TERMS = new Set([
+  "需求",
+  "功能",
+  "新增",
+  "修改",
+  "調整",
+  "優化",
+  "原有",
+  "基礎",
+  "可以",
+  "需要",
+  "幫我",
+  "這個",
+  "一個",
+  "後續",
+])
+
+const SEARCH_AREAS = [
+  { name: "摘要", heading: /大需求|摘要|子需求/, weight: 5 },
+  { name: "故事", heading: /使用者故事|情境|流程/, weight: 4 },
+  { name: "驗收", heading: /驗收|交付|限制|非功能/, weight: 3 },
+  { name: "分工", heading: /FE|BE|Test|分工|畫面|API|資料/, weight: 3 },
+]
 
 function unique(items: string[]): string[] {
   return [...new Set(items.filter((item) => item.length > 0))]
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 function extractTerms(query: string): string[] {
@@ -21,12 +56,71 @@ function extractTerms(query: string): string[] {
   const coarseTerms = normalized
     .split(/[\s,，。；;、:：/\\|()（）\[\]{}<>「」『』"'`]+/)
     .map((item) => item.trim())
-    .filter((item) => item.length >= 2)
+    .filter((item) => item.length >= 2 && !STOP_TERMS.has(item))
 
   const compactQuery = normalized.replace(/\s+/g, "")
-  const phraseTerms = compactQuery.length >= 2 ? [compactQuery] : []
+  const phraseTerms = compactQuery.length >= 2 && compactQuery.length <= 40 ? [compactQuery] : []
+  const cjkTerms = Array.from(normalized.matchAll(/[\p{Script=Han}]{2,}/gu)).flatMap((match) => {
+    const value = match[0]
+    const terms = value.length <= 8 && !STOP_TERMS.has(value) ? [value] : []
 
-  return unique([...phraseTerms, ...coarseTerms])
+    for (let size = 2; size <= 3; size += 1) {
+      for (let index = 0; index <= value.length - size; index += 1) {
+        const term = value.slice(index, index + size)
+        if (!STOP_TERMS.has(term)) terms.push(term)
+      }
+    }
+
+    return terms
+  })
+
+  return unique([...phraseTerms, ...coarseTerms, ...cjkTerms]).slice(0, 50)
+}
+
+function buildSearchRegex(query: string): string {
+  const terms = extractTerms(query)
+    .filter((term) => term.length >= 2)
+    .sort((a, b) => b.length - a.length)
+    .slice(0, 24)
+
+  return terms.map(escapeRegex).join("|")
+}
+
+async function grepCandidateNames(outputDir: string, query: string): Promise<Set<string> | undefined> {
+  const pattern = buildSearchRegex(query)
+  if (pattern.length === 0) return new Set()
+
+  try {
+    const { stdout } = await execFileAsync("rg", [
+      "--files-with-matches",
+      "--ignore-case",
+      "--glob",
+      "*.md",
+      "--regexp",
+      pattern,
+      outputDir,
+    ])
+
+    return new Set(
+      stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((filePath) => filePath.split(/[\\/]/).pop() || ""),
+    )
+  } catch (error) {
+    if ((error as { code?: number }).code === 1) return new Set()
+    return undefined
+  }
+}
+
+async function loadContent(docs: RequirementDoc[]): Promise<RequirementDoc[]> {
+  return Promise.all(
+    docs.map(async (doc) => ({
+      ...doc,
+      content: await readFile(doc.filePath, "utf-8"),
+    })),
+  )
 }
 
 function firstNonEmptyLine(content: string): string {
@@ -38,32 +132,66 @@ function firstNonEmptyLine(content: string): string {
   return line || "需求分析文件"
 }
 
+function countMatches(content: string, term: string): number {
+  return content.split(term).length - 1
+}
+
+function sectionText(content: string, heading: RegExp): string {
+  const lines = content.split(/\r?\n/)
+  const matched: string[] = []
+  let active = false
+
+  for (const line of lines) {
+    if (/^#{1,3}\s/.test(line)) active = heading.test(line)
+    if (active) matched.push(line)
+  }
+
+  return matched.join("\n").toLowerCase()
+}
+
 function scoreDoc(doc: RequirementDoc, query: string): ScoredDoc {
   const terms = extractTerms(query)
   const content = doc.content || ""
   const lowerContent = content.toLowerCase()
   const lowerTitle = firstNonEmptyLine(content).toLowerCase()
   const lowerName = doc.name.toLowerCase()
+  const matchedTerms = new Set<string>()
+  const matchedAreas = new Set<string>()
   let score = 0
 
   for (const term of terms) {
     if (lowerTitle.includes(term)) {
       score += 10
+      matchedTerms.add(term)
+      matchedAreas.add("標題")
     }
 
     if (lowerName.includes(term)) {
       score += 4
+      matchedTerms.add(term)
+      matchedAreas.add("檔名")
     }
 
-    const count = lowerContent.split(term).length - 1
+    const count = countMatches(lowerContent, term)
     if (count > 0) {
-      score += Math.min(count, 8)
+      score += Math.min(count, 4)
+      matchedTerms.add(term)
+    }
+
+    for (const area of SEARCH_AREAS) {
+      const areaCount = countMatches(sectionText(content, area.heading), term)
+      if (areaCount === 0) continue
+      score += Math.min(areaCount * area.weight, area.weight * 3)
+      matchedTerms.add(term)
+      matchedAreas.add(area.name)
     }
   }
 
   return {
     ...doc,
     score,
+    matchedTerms: [...matchedTerms].slice(0, 5),
+    matchedAreas: [...matchedAreas].slice(0, 4),
   }
 }
 
@@ -108,7 +236,14 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
   ]
 
   docs.forEach((doc) => {
-    lines.push(`- ${doc.name}`)
+    const reason = [
+      doc.matchedAreas.length > 0 ? `區塊:${doc.matchedAreas.join("/")}` : "",
+      doc.matchedTerms.length > 0 ? `詞:${doc.matchedTerms.join("/")}` : "",
+    ]
+      .filter(Boolean)
+      .join("；")
+
+    lines.push(`- ${doc.name}${reason ? `（${reason}）` : ""}`)
   })
 
   return lines.join("\n").trimEnd()
@@ -132,7 +267,7 @@ export default tool({
     const query = normalizeText(args.query)
     const limit = normalizeLimit(args.limit, 3)
 
-    const docs = await listRequirementDocs(resolvedDir, { readContent: query.length > 0 })
+    const docs = await listRequirementDocs(resolvedDir)
 
     if (query.length === 0) {
       return formatLatestList(displayDir, docs, limit)
@@ -142,7 +277,15 @@ export default tool({
       return formatNoMatches(displayDir, query, 0)
     }
 
-    const scored = docs
+    const grepNames = await grepCandidateNames(resolvedDir, query)
+    const candidateDocs = grepNames ? docs.filter((doc) => grepNames.has(doc.name)) : docs
+
+    if (candidateDocs.length === 0) {
+      return formatNoMatches(displayDir, query, docs.length)
+    }
+
+    const docsWithContent = await loadContent(candidateDocs)
+    const scored = docsWithContent
       .map((doc) => scoreDoc(doc, query))
       .filter((doc) => doc.score > 0)
       .sort((a, b) => b.score - a.score || b.mtimeMs - a.mtimeMs)
