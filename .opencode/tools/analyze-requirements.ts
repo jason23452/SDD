@@ -8,8 +8,8 @@ import {
   readRequirementRepoMap,
   resolveRequirementsDir,
   writeRequirementRepoMap,
-} from "./requirement-docs"
-import type { RequirementRepoMapEntry } from "./requirement-docs"
+} from "../lib/requirement-docs"
+import type { RequirementRepoMapEntry } from "../lib/requirement-docs"
 
 function normalize(value?: string): string {
   const normalized = typeof value === "string" ? value.trim() : ""
@@ -460,7 +460,7 @@ function buildOpenQuestions(constraints: string, existingSystem: string, referen
   return questions.slice(0, 5)
 }
 
-export function buildReport(args: AnalyzeRequirementsInput) {
+function buildReport(args: AnalyzeRequirementsInput) {
   const majorRequirement = normalize(args.majorRequirement)
   const targetUsers = normalize(args.targetUsers)
   const constraints = normalize(args.constraints)
@@ -722,7 +722,7 @@ export default tool({
   },
 })
 
-export async function writeAnalyzeRequirementsOutput(
+async function writeAnalyzeRequirementsOutput(
   args: AnalyzeRequirementsInput,
   worktree: string,
   outputDir?: string,

@@ -11,8 +11,8 @@ import {
   normalizeText,
   readRequirementRepoMap,
   resolveRequirementsDir,
-} from "./requirement-docs"
-import type { RequirementDoc, RequirementRepoMapEntry } from "./requirement-docs"
+} from "../lib/requirement-docs"
+import type { RequirementDoc, RequirementRepoMapEntry } from "../lib/requirement-docs"
 
 const execFileAsync = promisify(execFile)
 

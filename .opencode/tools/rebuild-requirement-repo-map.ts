@@ -5,8 +5,8 @@ import {
   normalizeText,
   resolveRequirementsDir,
   writeRequirementRepoMap,
-} from "./requirement-docs"
-import type { RequirementDoc, RequirementRepoMapEntry } from "./requirement-docs"
+} from "../lib/requirement-docs"
+import type { RequirementDoc, RequirementRepoMapEntry } from "../lib/requirement-docs"
 
 function cleanMarkdown(value: string): string {
   return normalizeText(value)

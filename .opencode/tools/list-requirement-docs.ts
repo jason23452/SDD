@@ -1,5 +1,5 @@
 import { tool } from "@opencode-ai/plugin"
-import { DEFAULT_REQUIREMENTS_DIR, listRequirementDocs, normalizeLimit, resolveRequirementsDir } from "./requirement-docs"
+import { DEFAULT_REQUIREMENTS_DIR, listRequirementDocs, normalizeLimit, resolveRequirementsDir } from "../lib/requirement-docs"
 
 export default tool({
   description: "列出需求分析歷史 Markdown 檔案名稱。",
