@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { tool } from "@opencode-ai/plugin"
+import { DEFAULT_REQUIREMENTS_DIR, resolveRequirementsDir } from "./requirement-docs"
 
 function normalize(value?: string): string {
   const normalized = typeof value === "string" ? value.trim() : ""
@@ -313,15 +314,8 @@ export async function writeAnalyzeRequirementsOutput(
   worktree: string,
   outputDir?: string,
 ): Promise<{ report: string; filePath: string }> {
-  const safeWorktree = worktree ? worktree : process.cwd()
-  const relativeOutputDir =
-    typeof outputDir === "string" && outputDir.trim().length > 0
-      ? outputDir.trim()
-      : path.join(".opencode", "outputs", "analyze-requirements")
-
-  const outputPath = path.isAbsolute(relativeOutputDir)
-    ? relativeOutputDir
-    : path.resolve(safeWorktree, relativeOutputDir)
+  const safeWorktree = worktree || process.cwd()
+  const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
 
   const fileName = `analyze-requirements_${randomUUID()}_${Date.now()}.md`
   const filePath = path.join(outputPath, fileName)
