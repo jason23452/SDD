@@ -7,9 +7,10 @@ import {
   listRequirementDocs,
   normalizeLimit,
   normalizeText,
+  readRequirementRepoMap,
   resolveRequirementsDir,
 } from "./requirement-docs"
-import type { RequirementDoc } from "./requirement-docs"
+import type { RequirementDoc, RequirementRepoMapEntry } from "./requirement-docs"
 
 const execFileAsync = promisify(execFile)
 
@@ -121,6 +122,35 @@ async function loadContent(docs: RequirementDoc[]): Promise<RequirementDoc[]> {
       content: await readFile(doc.filePath, "utf-8"),
     })),
   )
+}
+
+function repoMapDoc(entry: RequirementRepoMapEntry): RequirementDoc {
+  return {
+    name: entry.fileName,
+    filePath: "",
+    size: 0,
+    mtimeMs: Date.parse(entry.updatedAt) || 0,
+    content: [
+      `# ${entry.fileName}`,
+      "## 摘要",
+      entry.summary,
+      "## 交付與限制",
+      entry.scope,
+      "## 關聯",
+      entry.relation,
+      "## 關鍵字",
+      entry.keywords,
+    ].join("\n"),
+  }
+}
+
+async function scoreRepoMapEntries(outputDir: string, query: string): Promise<Map<string, ScoredDoc>> {
+  const entries = await readRequirementRepoMap(outputDir)
+  const scoredEntries = entries
+    .map((entry) => scoreDoc(repoMapDoc(entry), query))
+    .filter((doc) => doc.score > 0)
+
+  return new Map(scoredEntries.map((doc) => [doc.name, doc]))
 }
 
 function firstNonEmptyLine(content: string): string {
@@ -277,8 +307,19 @@ export default tool({
       return formatNoMatches(displayDir, query, 0)
     }
 
-    const grepNames = await grepCandidateNames(resolvedDir, query)
-    const candidateDocs = grepNames ? docs.filter((doc) => grepNames.has(doc.name)) : docs
+    const [mapScores, grepNames] = await Promise.all([
+      scoreRepoMapEntries(resolvedDir, query),
+      grepCandidateNames(resolvedDir, query),
+    ])
+    const candidateNames = new Set([
+      ...mapScores.keys(),
+      ...(grepNames ? [...grepNames] : []),
+    ])
+    const candidateDocs = candidateNames.size > 0
+      ? docs.filter((doc) => candidateNames.has(doc.name))
+      : grepNames
+        ? []
+        : docs
 
     if (candidateDocs.length === 0) {
       return formatNoMatches(displayDir, query, docs.length)
@@ -286,7 +327,18 @@ export default tool({
 
     const docsWithContent = await loadContent(candidateDocs)
     const scored = docsWithContent
-      .map((doc) => scoreDoc(doc, query))
+      .map((doc) => {
+        const scoredDoc = scoreDoc(doc, query)
+        const mapScore = mapScores.get(doc.name)
+        if (!mapScore) return scoredDoc
+
+        return {
+          ...scoredDoc,
+          score: scoredDoc.score + mapScore.score + 8,
+          matchedTerms: [...new Set([...mapScore.matchedTerms, ...scoredDoc.matchedTerms])].slice(0, 5),
+          matchedAreas: [...new Set(["RepoMap", ...mapScore.matchedAreas, ...scoredDoc.matchedAreas])].slice(0, 4),
+        }
+      })
       .filter((doc) => doc.score > 0)
       .sort((a, b) => b.score - a.score || b.mtimeMs - a.mtimeMs)
       .slice(0, limit)

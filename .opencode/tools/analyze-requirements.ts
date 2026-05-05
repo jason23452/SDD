@@ -2,7 +2,13 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { tool } from "@opencode-ai/plugin"
-import { DEFAULT_REQUIREMENTS_DIR, resolveRequirementsDir } from "./requirement-docs"
+import {
+  DEFAULT_REQUIREMENTS_DIR,
+  readRequirementRepoMap,
+  resolveRequirementsDir,
+  writeRequirementRepoMap,
+} from "./requirement-docs"
+import type { RequirementRepoMapEntry } from "./requirement-docs"
 
 function normalize(value?: string): string {
   const normalized = typeof value === "string" ? value.trim() : ""
@@ -43,6 +49,60 @@ function buildIterativeUpdate(existingReport: string, nextReport: string, timest
   ].join("\n")
 }
 
+function compactMapValue(value?: string, maxLength = 180): string {
+  const normalized = normalize(value).replace(/\s+/g, " ")
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, maxLength - 1)}…`
+}
+
+function deriveRelation(extraNotes: string, hasTargetFile: boolean): string {
+  const match = normalize(extraNotes).match(/關聯判斷[：: ]+(related|new|uncertain|相關|全新|不確定)/i)
+  if (!match) return hasTargetFile ? "related" : "new"
+
+  const value = match[1].toLowerCase()
+  if (value === "相關") return "related"
+  if (value === "全新") return "new"
+  if (value === "不確定") return "uncertain"
+  return value
+}
+
+function deriveKeywords(args: AnalyzeRequirementsInput): string {
+  const words = [
+    args.majorRequirement,
+    args.targetUsers,
+    args.constraints,
+    args.existingSystem,
+    args.deliverables,
+    args.extraNotes,
+  ]
+    .join(" ")
+    .split(/[\s,，。；;、:：/\\|()（）\[\]{}<>「」『』"'`]+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 2 && item !== "待補")
+
+  return [...new Set(words)].slice(0, 18).join("、") || "待補"
+}
+
+async function upsertRequirementRepoMap(
+  outputPath: string,
+  fileName: string,
+  args: AnalyzeRequirementsInput,
+  updatedAt: string,
+  hasTargetFile: boolean,
+): Promise<string> {
+  const entries = await readRequirementRepoMap(outputPath)
+  const nextEntry: RequirementRepoMapEntry = {
+    fileName,
+    updatedAt,
+    relation: deriveRelation(args.extraNotes, hasTargetFile),
+    summary: compactMapValue(`${args.majorRequirement}；交付：${args.deliverables}`, 220),
+    scope: compactMapValue(args.constraints, 160),
+    keywords: compactMapValue(deriveKeywords(args), 160),
+  }
+  const nextEntries = [nextEntry, ...entries.filter((entry) => entry.fileName !== fileName)]
+  return writeRequirementRepoMap(outputPath, nextEntries)
+}
+
 function splitSubRequirements(text: string): string[] {
   const raw = normalize(text)
 
@@ -59,9 +119,9 @@ function splitSubRequirements(text: string): string[] {
 function buildSubRequirements(primary: string): [string, string, string] {
   const parsed = splitSubRequirements(primary)
   const fallbackBase = [
-    `FE：${primary.includes("待補") ? "登入畫面" : primary} 的介面體驗、欄位互動與錯誤回饋`,
-    `BE：${primary.includes("待補") ? "登入流程" : primary} 的驗證、授權、安全防護與效能保障`,
-    `Test：依需求與執行文件建立登入流程、錯誤案例與回歸測試`,
+    `FE：${primary.includes("待補") ? "核心使用流程" : primary} 的畫面、互動、狀態與錯誤回饋`,
+    `BE：${primary.includes("待補") ? "核心業務流程" : primary} 的資料、規則、API、權限與整合`,
+    `Test：依需求邊界建立主流程、例外情境與回歸測試`,
   ]
 
   return [
@@ -82,7 +142,7 @@ function deriveKpi(extraNotes: string, deliverables: string): string {
   }
 
   if (fromExtra.includes("待補")) {
-    return `待補。建議以 FE 完成率、BE 驗證成功率、Test 用例通過率為主要 KPI（待補）`
+    return `待補。建議以核心流程完成率、錯誤率、回歸通過率與使用者回饋為主要 KPI（待補）`
   }
 
   if (normalize(deliverables) === "待補") {
@@ -90,6 +150,33 @@ function deriveKpi(extraNotes: string, deliverables: string): string {
   }
 
   return `交付《${deliverables}》滿足 FE/BE/Test 各自目標`
+}
+
+function inferMainFlow(majorRequirement: string, targetUsers: string): string {
+  const user = targetUsers.includes("待補") ? "目標使用者" : targetUsers
+  const goal = majorRequirement.includes("待補") ? "核心需求" : majorRequirement
+  return `${user} 進入相關情境 → 觸發或操作 ${goal} → 系統完成處理與回饋 → 使用者確認結果或進入下一步`
+}
+
+function buildReferenceSection(referenceCases: string): string {
+  if (normalize(referenceCases) !== "待補") {
+    return `- **參考依據：** ${referenceCases}\n- **採用判斷：** 僅採用可直接對應本需求目標、使用者情境、限制與交付邊界的做法。`
+  }
+
+  return [
+    "- **參考依據：** 待補。建議補充競品、既有系統、設計規範、API 規格或法規依據。",
+    "- **採用判斷：** 未補充前，先以可用性、穩定性、安全性、可維護性與可測試性作為通用基準。",
+  ].join("\n")
+}
+
+function buildOpenQuestions(constraints: string, existingSystem: string, referenceCases: string): string[] {
+  const questions = [
+    constraints.includes("待補") ? "確認本次必做、不做、時程、技術與合規限制" : `確認限制是否完整：${constraints}`,
+    existingSystem.includes("待補") ? "確認是否有既有系統、資料、API、權限或不可改動項" : `確認既有系統影響：${existingSystem}`,
+    referenceCases.includes("待補") ? "確認是否有參考案例、設計風格或驗收依據" : `確認參考案例採用範圍：${referenceCases}`,
+  ]
+
+  return questions.slice(0, 5)
 }
 
 export function buildReport(args: AnalyzeRequirementsInput) {
@@ -110,6 +197,8 @@ export function buildReport(args: AnalyzeRequirementsInput) {
   const executionRef = existingSystem.includes("待補")
     ? "待補。若無執行文件，請先補充需求驗收文件與測試清單"
     : existingSystem
+  const mainFlow = inferMainFlow(majorRequirement, targetUsers)
+  const openQuestions = buildOpenQuestions(constraints, existingSystem, referenceCases)
 
   return `${reportHeader}
 
@@ -121,16 +210,16 @@ ${sectionLine("需求編號", "DR-01")}
 
 ## 2. FE / BE / Test 分工與交付
 ### 2.1 FE（UI/UX）
-- **目標：** 建立可理解、可操作、低誤操作的登入畫面，降低使用門檻
+- **目標：** 讓使用者能理解需求入口、完成關鍵操作並取得明確回饋
 - **交付內容：** ${feLine}
-- **主要驗收：** 畫面可單頁完成輸入與提交，回饋訊息清楚、可重試
-- **依賴：** 字級版型、主題樣式與行動版需求
+- **主要驗收：** 關鍵畫面、狀態、錯誤訊息與操作路徑可被直接驗證
+- **依賴：** 設計規範、使用者情境、裝置支援與可用性要求
 
 ### 2.2 BE（穩定 / 安全 / 性能）
-- **目標：** 確保 ${majorRequirement.includes("待補") ? "登入流程" : majorRequirement} 認證正確、授權正確、可觀測可追溯
+- **目標：** 確保 ${majorRequirement.includes("待補") ? "核心流程" : majorRequirement} 的資料處理、商業規則、權限與整合一致可靠
 - **交付內容：** ${beLine}
-- **主要驗收：** 認證 API 成功率、錯誤碼一致性、速率限制與帳密安全機制到位
-- **依賴：** 認證服務、資料庫、密鑰策略、日誌平台
+- **主要驗收：** API/資料/規則處理正確，錯誤回應一致，必要紀錄與保護機制到位
+- **依賴：** 既有系統、資料模型、權限規則、外部服務與監控紀錄
 
 ### 2.3 Test（測試）
 - **目標：** 依需求與執行文件新增可執行測試，支援回歸
@@ -138,49 +227,34 @@ ${sectionLine("需求編號", "DR-01")}
 - **測試交付：** ${testLine}
 - **依賴：** ${targetUsers.includes("測試") ? targetUsers : "測試計畫、環境、Mock/Stub 資源"}
 
-## 3. 網路最佳實踐調研
-- **來源列表：**
-  - [來源代號 A] 名稱：OAuth 2.0 / RFC 6749 與相關安全補充文件
-  - 連結： https://datatracker.ietf.org/doc/html/rfc6749
-  - 重點摘要：授權流程、令牌使用與重導向規範
-  - 適配性：高，適用於驗證與權限處理
-  - 可採用設計：登入成功後以明確 token 交換與失敗回應策略處理
-  - [來源代號 B] 名稱：Material Design - Text fields and forms
-  - 連結： https://m3.material.io/styles
-  - 重點摘要：表單錯誤回饋、焦點順序、操作提示
-  - 適配性：高，提升前端可用性與錯誤修正效率
-  - 可採用設計：欄位錯誤文案一致、disabled/loading 狀態
-  - [來源代號 C] 名稱：OWASP Authentication Cheat Sheet
-  - 連結： https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
-  - 重點摘要：登入端點常見風險與緩解建議
-  - 適配性：高，適用於暴力破解、防重放與登入訊息保護
-  - 可採用設計：速率限制、登入失敗泛化回應、會話保護
-- **採用判斷：** 可全部採用，OAuth/OIDC 採用原則用於 BE 安全，Material Design 用於 FE 表單體驗，OWASP 做防護基準。參考案例：${referenceCases}
+## 3. 參考依據與最佳實踐
+${buildReferenceSection(referenceCases)}
+- **通用檢核：** 需求需同時檢查可用性、資料正確性、權限/隱私、錯誤處理、可觀測性與測試覆蓋。
 
 ## 4. 邊緣情境與嚴重程度總覽
 ### 4.1 風險分級定義
-- P0：核心登入完全中斷或帳號權限外洩，需立即處理
-- P1：大量登入失敗、登入 API 異常，影響主要流程
-- P2：局部登入流程退化（含錯誤訊息不明確）
-- P3：文字微調、視覺一致性與低影響體驗瑕疵
+- P0：核心流程完全中斷、資料遺失、權限外洩或重大合規風險
+- P1：主要功能不可用或大量使用者受影響
+- P2：局部流程退化、錯誤回饋不清或需人工補救
+- P3：文字、視覺一致性或低影響體驗瑕疵
 
 ### 4.2 主要邊緣情境
-- 情境名稱：同帳號異常嘗試造成 API 壓力升高
-  - 發生來源：惡意密碼嘗試、無效流量激增
+- 情境名稱：核心流程輸入或前置條件不完整
+  - 發生來源：使用者資料不足、狀態不符、必要欄位或條件缺漏
   - 發生機率：高
-  - 影響範圍：認證延遲上升、真實使用者登入退化
+  - 影響範圍：主要流程無法完成或結果不可信
+  - 嚴重程度：P2
+  - 建議修復優先度：第二優先
+- 情境名稱：既有系統或外部依賴不可用
+  - 發生來源：API、資料庫、第三方服務、權限或設定異常
+  - 發生機率：中
+  - 影響範圍：交付流程中斷、資料不同步或需要降級處理
   - 嚴重程度：P1
   - 建議修復優先度：第一優先
-- 情境名稱：認證服務或資料庫短暫不可用
-  - 發生來源：外部服務故障、維運異常
-  - 發生機率：中
-  - 影響範圍：整體登入中斷
-  - 嚴重程度：P0
-  - 建議修復優先度：第一優先
-- 情境名稱：前端錯誤訊息與可讀性不足
-  - 發生來源：驗證規則不清、錯誤語系缺失
+- 情境名稱：錯誤訊息、狀態或驗收規則不明確
+  - 發生來源：需求邊界不清、文案缺漏、驗收條件未定義
   - 發生機率：高
-  - 影響範圍：客服工單上升、重試率下降
+  - 影響範圍：使用者理解成本、客服/維運成本與測試返工上升
   - 嚴重程度：P2
   - 建議修復優先度：第三優先
 
@@ -192,75 +266,75 @@ ${sectionLine("需求編號", "DR-01")}
 
 ### 5.2 子需求 SR-01（FE）
 - **子需求名稱：** ${sr1}
-- **業務目標：** 提升登入完成率並降低表單輸入錯誤
+- **業務目標：** 降低使用者理解與操作成本，讓關鍵流程可完成、可回饋、可追蹤
 - **優先順序：** Must
-- **驗收判斷：** 欄位驗證、提示文字、導向與 CTA 設計可直接驗證
+- **驗收判斷：** 使用者入口、操作狀態、錯誤提示與完成回饋可直接驗證
 
 ### 5.3 子需求 SR-02（BE）
 - **子需求名稱：** ${sr2}
-- **業務目標：** 提供安全、穩定、可回溯的認證服務
+- **業務目標：** 提供穩定、正確、可維護且可追溯的業務處理能力
 - **優先順序：** Must
-- **驗收判斷：** 認證成功率、錯誤碼一致、稽核記錄可追溯
+- **驗收判斷：** 資料處理、商業規則、權限檢查、錯誤碼與紀錄符合需求
 
 ### 5.4 子需求 SR-03（Test）
 - **子需求名稱：** ${sr3}
 - **業務目標：** 用需求 + 執行文件建立可重複測試
 - **優先順序：** Should
-- **驗收判斷：** 核心流程與邊緣案例至少覆蓋 90% 覆蓋率（待補）
+- **驗收判斷：** 主流程、例外流程、權限/資料邊界與回歸場景均有測試依據
 
 ## 6. 每個子需求的最佳解決方案
 ### SR-01（FE）
 - **推薦做法：** 以最小可用畫面先上線，搭配漸進優化規則
-- **實作重點：** 表單欄位型態、即時驗證、焦點管理、Loading 與禁用邏輯、錯誤訊息文案
-- **預期效益：** 降低操作困擾與回填成本，縮短完成時間
+- **實作重點：** 資訊架構、操作入口、狀態呈現、錯誤回饋、Loading/空狀態與行動版可用性
+- **預期效益：** 降低操作困擾與返工成本，提升完成率與可理解性
 - **邊緣情境與影響分析：**
-  - 情境1：欄位未填即提交
+  - 情境1：必要資訊不足或狀態不符
   - 嚴重程度：P2
   - 是否阻斷上線：否
-  - 情境2：網路抖動造成重送
+  - 情境2：使用者重複操作、返回或中斷流程
   - 嚴重程度：P1
-  - 是否阻斷上線：否（含重試提示）
-- **最小可行版本（MVP）：** 一頁完成的帳密登入 + 清楚錯誤提示
-- **延展版本：** 顯示密碼、記住我、第三方登入入口
-- **依賴與風險：** 設計資源不足、文案一致性不清
+  - 是否阻斷上線：否（需有防重複與回復策略）
+- **最小可行版本（MVP）：** 完成核心操作入口、狀態與錯誤回饋
+- **延展版本：** 補齊進階互動、偏好設定、輔助說明或管理能力
+- **依賴與風險：** 設計資源不足、文案一致性不清、使用情境未完整定義
 - **替代方案對比：**
-  - 方案A：一次做完整互動動畫，開發成本高且影響時程（較快被拒）
-  - 方案B：先做核心互動與回饋（建議）
-- **最佳實踐參考：** 來源代號 B
+  - 方案A：一次完成完整體驗，成本高且需求變動風險大
+  - 方案B：先完成核心流程與回饋，再依驗證結果迭代（建議）
+- **最佳實踐參考：** ${referenceCases.includes("待補") ? "待補" : referenceCases}
 
 ### SR-02（BE）
-- **推薦做法：** 以安全第一的認證 API 為入口，並以統一錯誤碼輸出避免訊息洩漏
-- **實作重點：** 密碼雜湊驗證、限制重複嘗試、會話管理、速率限制、結合既有 IDP 或本地帳號
-- **預期效益：** 降低帳號風險並提高服務穩定性
+- **推薦做法：** 先定義資料、規則、權限、錯誤與整合邊界，再實作最小穩定 API/服務
+- **實作重點：** 資料模型、商業規則、權限檢查、錯誤碼、交易一致性、日誌與監控
+- **預期效益：** 降低資料錯誤與整合風險，提高服務穩定性與可追蹤性
 - **邊緣情境與影響分析：**
-  - 情境1：認證服務延遲高
+  - 情境1：外部依賴延遲或不可用
   - 嚴重程度：P1
   - 是否阻斷上線：否（可降級錯誤提示）
-  - 情境2：暴力破解嘗試
+  - 情境2：資料狀態衝突、重複提交或權限不足
   - 嚴重程度：P0
-  - 是否阻斷上線：是（需要速率限制）
-- **最小可行版本（MVP）：** 基礎帳密驗證、錯誤碼、基本風險防護
-- **延展版本：** 多因素登入、風險分級機制
-- **依賴與風險：** 需要安全審查窗口與帳號資料一致性
+  - 是否阻斷上線：是（需明確防護與回滾策略）
+- **最小可行版本（MVP）：** 支援核心資料處理、權限判斷、錯誤回應與必要紀錄
+- **延展版本：** 進階規則、批次處理、通知、審核、報表或自動化整合
+- **依賴與風險：** 既有資料品質、外部服務穩定性、權限模型與維運窗口
 - **替代方案對比：**
-  - 方案A：延用既有帳號系統直接改接（較快）
-  - 方案B：導入新認證服務（較穩但時程長，建議規劃下一版）
-- **最佳實踐參考：** 來源代號 A、來源代號 C
+  - 方案A：直接擴充既有流程（較快，但需確認技術債）
+  - 方案B：抽出獨立服務/模組（較穩，但時程較長）
+- **最佳實踐參考：** 參考依據：${executionRef}
 
 ### SR-03（Test）
 - **推薦做法：** 以需求拆解直接展開測試矩陣，與執行文件雙向綁定
-- **實作重點：** 功能測試、邊緣輸入測試、API 異常、登入安全測試、回歸套件
+- **實作重點：** 功能測試、邊界條件、權限/資料情境、API/整合異常、回歸套件
 - **預期效益：** 上線前可量化風險，減少回歸漏測
 - **邊緣情境與影響分析：**
-  - 情境1：測試案例未覆蓋錯誤輸入
+  - 情境1：測試案例未覆蓋例外流程
   - 嚴重程度：P2
   - 是否阻斷上線：否
   - 情境2：回歸腳本未更新
   - 嚴重程度：P1
   - 是否阻斷上線：是（高風險場景未被保護）
-- **最小可行版本（MVP）：** 先建核心 12 個測試用例（成功、失敗、欄位驗證）
-- **延展版本：** 加入自動化回歸與效能壓力
-- **依賴與風險：** 測試文件不完整、資料重置機制不足
+- **最小可行版本（MVP）：** 先建立主流程、失敗流程、權限/資料邊界與回歸測試
+- **延展版本：** 加入自動化回歸、效能壓力、資料一致性與可觀測性檢查
+- **依賴與風險：** 測試文件不完整、資料重置機制不足、環境差異造成誤判
 - **替代方案對比：**
   - 方案A：只做手動驗證（快但品質低）
   - 方案B：需求驅動自動化測試（建議）
@@ -269,42 +343,39 @@ ${sectionLine("需求編號", "DR-01")}
 ## 7. 使用者故事（可複製多條）
 - **故事編號：** US-01
 - **角色：** ${targetUsers.includes("待補") ? "一般使用者" : targetUsers}
-- **行為：** 輸入帳號與密碼完成登入
-- **目的：** 在最短時間內進入作業畫面
+- **行為：** 在指定情境中完成「${majorRequirement}」相關操作
+- **目的：** 以可理解、可驗證且低返工的方式達成需求目標
 - **對應子需求：** SR-01、SR-02
 
 ## 8. 非功能需求（NFR）
-- **效能：** 主要認證 API P95 < 1.5s；登入頁面首屏可在 2 秒內可操作
-- **可用性：** 錯誤訊息 2 秒內可見，鍵盤導向與行動裝置可用
-- **安全：** 密碼不可明文傳輸，登入失敗訊息不暴露帳號是否存在
-- **可觀測性：** 需記錄登入錯誤率、耗時、來源 IP 與失敗類型
+- **效能：** 核心操作需在可接受時間內完成；具體門檻待依系統規模補充
+- **可用性：** 主要狀態、錯誤訊息與下一步行動需清楚可理解
+- **安全/權限：** 涉及資料、角色、隱私或操作權限時，需明確檢查與紀錄
+- **可觀測性：** 需記錄成功率、錯誤率、耗時、關鍵事件與異常原因
 
 ## 9. 流程與畫面草案
-- **主流程：** 開啟頁面 → 輸入帳號/密碼 → 前端驗證 → 提交 → 成功轉向 or 失敗回饋
-- **關鍵節點：** 欄位即時驗證、提交鎖定、錯誤訊息、成功導向
-- **錯誤回饋策略：** 顯示可行動訊息（可修改欄位 / 重試 / 聯繫管理者）並保留操作上下文
+- **主流程：** ${mainFlow}
+- **關鍵節點：** 需求入口、必要資訊、系統處理、結果回饋、失敗/重試/取消路徑
+- **錯誤回饋策略：** 顯示可行動訊息（修正資料 / 重試 / 返回 / 聯繫管理者）並保留操作上下文
 
 ## 10. 驗收條件（至少 5 項）
-- AC-01：合法帳號在 3 秒內可完成登入並跳轉
-- AC-02：非法帳號/密碼回饋不超過 1.5 秒，訊息清楚且不外洩敏感資訊
-- AC-03：BE 能拒絕超過門檻的連續嘗試並有監控告警
-- AC-04：FE 在欄位缺漏/格式錯誤時阻擋提交，文案可讀
-- AC-05：測試文件對應每個核心情境並有結果可追蹤
+- AC-01：使用者可依主流程完成「${majorRequirement}」並取得明確結果
+- AC-02：必要資料缺漏、格式錯誤或狀態不符時，系統能阻擋並給出可行動回饋
+- AC-03：BE/API/資料處理符合需求規則，錯誤碼與紀錄可追蹤
+- AC-04：FE 需呈現主要狀態、錯誤、Loading/空狀態與成功回饋
+- AC-05：測試文件對應主流程、例外流程、權限/資料邊界與回歸場景
 
 ## 11. 里程碑建議
-- **MVP：** SR-01 + SR-02 同步交付，SR-03 建立最小手工測試
-- **Beta 測試：** 補齊 Test 自動化、錯誤邊界案例與壓力樣板
-- **正式上線：** 通過壓力與安全抽檢，完成回滾演練
+- **MVP：** 完成主流程、必要資料處理、基本錯誤回饋與最小測試集
+- **Beta 測試：** 補齊例外流程、權限/資料邊界、自動化回歸與觀測指標
+- **正式上線：** 通過驗收、完成風險確認、監控告警與回滾/補救方案
 
 ---
 ## 12. 版本附註
 - **待補資訊清單（3-5 項）：**
-  - 確認登入欄位規格（帳號型態、驗證規則、密碼政策）
-  - 確認失敗訊息策略與國際化/語系
-  - 確認執行文件與測試清單歸檔位置
-  - 確認會話時效、登出行為與 SSO 整合需求
+${openQuestions.map((question) => `  - ${question}`).join("\n")}
 - **需要你確認的關鍵決策：**
-  - ${constraints.includes("待補") ? "待補：是否優先上 SSO/社群登入" : `${constraints} 是否需要納入認證策略`}
+  - ${constraints.includes("待補") ? "待補：本次需求的必做/不做與優先順序" : `${constraints} 是否已完整涵蓋本次開發邊界`}
 
 ---
 輸出時間：${timestamp}
@@ -330,9 +401,9 @@ export default tool({
   },
   async execute(args, context) {
     const safeWorktree = context?.worktree ? context.worktree : process.cwd()
-    const { report, filePath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
+    const { report, filePath, repoMapPath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
 
-    return `${report}\n\n## 產出檔案\n${filePath}`
+    return `${report}\n\n## 產出檔案\n${filePath}\n\n## Repo Map\n${repoMapPath}`
   },
 })
 
@@ -340,18 +411,20 @@ export async function writeAnalyzeRequirementsOutput(
   args: AnalyzeRequirementsInput,
   worktree: string,
   outputDir?: string,
-): Promise<{ report: string; filePath: string }> {
+): Promise<{ report: string; filePath: string; repoMapPath: string }> {
   const safeWorktree = worktree || process.cwd()
   const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
   const targetPath = safeTargetFilePath(outputPath, args.targetFileName)
   const filePath = targetPath || path.join(outputPath, `analyze-requirements_${randomUUID()}_${Date.now()}.md`)
+  const timestamp = new Date().toISOString()
 
   await mkdir(outputPath, { recursive: true })
   if (targetPath) await access(targetPath)
 
   const report = buildReport(args)
-  const output = targetPath ? buildIterativeUpdate(await readFile(targetPath, "utf-8"), report, new Date().toISOString()) : report
+  const output = targetPath ? buildIterativeUpdate(await readFile(targetPath, "utf-8"), report, timestamp) : report
   await writeFile(filePath, output, "utf-8")
+  const repoMapPath = await upsertRequirementRepoMap(outputPath, path.basename(filePath), args, timestamp, Boolean(targetPath))
 
-  return { report, filePath }
+  return { report, filePath, repoMapPath }
 }
