@@ -52,6 +52,7 @@ permission:
 - 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。
 - 若新需求與舊需求有衝突、需求覆蓋不完整、或需要使用者決策，先輸出版本確認問題；在使用者未選版本前，`compatibility` 必須是 `conflict` 或 `needs_decision`，`versionDecision` 必須是 `needs_decision`，不可假裝相容。
 - 使用者確認版本後：保留舊版則 `versionDecision=keep_old` 且不應更新舊檔；採用新版或合併版本且衝突處理明確，才可把 `compatibility` 整理為 `compatible`；改成全新需求則 `relation=new`、`versionDecision=create_new`。
+- 當 `compatibility=compatible` 且有關聯舊檔時，`conflictResolution` 必須明確列出「保留舊需求」、「新版變更」、「不衝突原因」三點；不可只寫已確認、無衝突或待補。
 
 最後只輸出以下欄位，不呼叫 `analyze-requirements`：
 
@@ -67,5 +68,5 @@ permission:
 - `candidateFileName`：候選既有 Markdown 檔名；沒有或不確定則 `待補`。
 - `diffSummary`：本次新需求與候選舊需求的差異；全新需求則寫「全新需求」。
 - `compatibility`：`compatible` / `conflict` / `needs_decision`；全新需求寫 `compatible`。
-- `conflictResolution`：如何保留舊需求完整性並避免衝突；若需使用者決策，寫清楚待決策點。
+- `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時需包含「保留舊需求 / 新版變更 / 不衝突原因」，若需使用者決策，寫清楚待決策點。
 - `versionDecision`：`keep_old` / `use_new` / `merge` / `create_new` / `needs_decision`。
