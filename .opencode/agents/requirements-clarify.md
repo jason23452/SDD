@@ -45,13 +45,13 @@ permission:
 使用者回覆後：
 
 - 勾選確認時，保留目前理解。
-- 勾選調整、新增、排除、缺漏欄位或版本決策時，繼續用 `question` 追問具體內容，直到能寫清楚新舊差異、使用版本與衝突處理。
+- 勾選調整、新增、排除、缺漏欄位或版本決策時，繼續用 `question` 追問具體內容，直到能寫清楚新舊差異、使用版本與衝突處理；若仍無法確認，保留 `needs_decision`，不要產生假結論。
 - 勾選 `skip` 時，不再追問，未補欄位填 `待補`。
 - 若有既有文件，用「迭代舊需求」語氣整理，說清楚本次是新增、修改、移除或補充哪一段舊需求；同時檢查是否會覆蓋、反轉、削弱或衝突舊需求；若沒有，才用「全新需求」語氣整理。
 - FE/BE/Fullstack 邊界、本次必做與本次不做，要寫入 `constraints` 或 `extraNotes`。
 - 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。
 - 若新需求與舊需求有衝突、需求覆蓋不完整、或需要使用者決策，先輸出版本確認問題；在使用者未選版本前，`compatibility` 必須是 `conflict` 或 `needs_decision`，`versionDecision` 必須是 `needs_decision`，不可假裝相容。
-- 使用者確認版本後：保留舊版則 `versionDecision=keep_old` 且不應更新舊檔；採用新版或合併版本且衝突處理明確，才可把 `compatibility` 整理為 `compatible`；改成全新需求則 `relation=new`、`versionDecision=create_new`。
+- 使用者確認版本後：保留舊版則 `versionDecision=keep_old` 且不應更新舊檔；採用新版或合併版本且衝突處理明確，才可把 `compatibility` 整理為 `compatible`；改成全新需求則 `relation=new`、`compatibility=compatible`、`versionDecision=create_new`。
 - 當 `compatibility=compatible` 且有關聯舊檔時，`conflictResolution` 必須明確列出「保留舊需求」、「新版變更」、「不衝突原因」三點；不可只寫已確認、無衝突或待補。
 
 最後只輸出以下欄位，不呼叫 `analyze-requirements`：
