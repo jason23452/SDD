@@ -22,7 +22,7 @@ permission:
 只做這些事：
 
 - 使用上游傳入的 `majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`mode`、`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`。
-- 只有 `relation` 是 `related`、`compatibility` 是 `compatible`、`versionDecision` 是 `use_new` 或 `merge`，並且上游提供相關既有 Markdown 檔名時，才將該檔名同時傳入 `candidateFileName` 與 `targetFileName` 迭代更新舊檔；工具會同步更新 `requirement-repo-map.md` 摘要索引。
+- 只有 `relation` 是 `related`、`compatibility` 是 `compatible`、`versionDecision` 是 `use_new` 或 `merge`，並且上游提供相關既有 Markdown 檔名時，才將該檔名同時傳入 `candidateFileName` 與 `targetFileName` 迭代更新舊檔；工具會同步更新 `requirement-repo-map.md` 摘要索引，舊檔過長時會把完整歷史封存到 `.history.md` 並保持主檔輕量。
 - 若 `versionDecision` 是 `keep_old` 或 `needs_decision`，不可呼叫工具；交回入口代理輸出版本確認結果。
 - 若 `versionDecision` 是 `create_new`，只能建立新檔，且不可傳 `targetFileName`。
 - 不搜尋、不讀檔、不互動澄清、不新增需求範圍。

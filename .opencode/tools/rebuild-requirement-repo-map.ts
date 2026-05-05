@@ -77,6 +77,7 @@ function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
     markdownField("版本決策"),
     /版本決策[：:]\s*(.+)/,
   ])
+  const hasStructuredFields = Boolean(summary && scope && relation !== "unknown")
   const summaryText = compact([summary, diffSummary].filter(Boolean).join("；"), doc.name, 220)
   const scopeText = compact(scope, "待補", 160)
   const latestChange = [diffSummary, versionDecision ? `版本決策：${versionDecision}` : "", integrity ? `完整性：${integrity}` : ""]
@@ -91,6 +92,8 @@ function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
     scope: scopeText,
     latestChange: compact(latestChange, "待補", 180),
     versionDecision: compact(versionDecision, "unknown", 80),
+    source: "rebuild",
+    confidence: hasStructuredFields ? "medium" : "low",
     keywords: compact(deriveKeywords(`${doc.name} ${summaryText} ${scopeText} ${latestChange}`), "待補", 160),
   }
 }

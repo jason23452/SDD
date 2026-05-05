@@ -4,6 +4,7 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import {
   DEFAULT_REQUIREMENTS_DIR,
+  REQUIREMENT_HISTORY_SUFFIX,
   REQUIREMENT_REPO_MAP_FILE,
   listRequirementDocs,
   normalizeLimit,
@@ -19,6 +20,8 @@ type ScoredDoc = RequirementDoc & {
   score: number
   matchedTerms: string[]
   matchedAreas: string[]
+  source?: string
+  confidence?: string
 }
 
 const STOP_TERMS = new Set([
@@ -100,6 +103,8 @@ async function grepCandidateNames(outputDir: string, query: string): Promise<Set
       "*.md",
       "--glob",
       `!${REQUIREMENT_REPO_MAP_FILE}`,
+      "--glob",
+      `!*${REQUIREMENT_HISTORY_SUFFIX}`,
       "--regexp",
       pattern,
       outputDir,
@@ -145,6 +150,8 @@ function repoMapDoc(entry: RequirementRepoMapEntry): RequirementDoc {
       entry.latestChange,
       "## 版本決策",
       entry.versionDecision,
+      "## 來源與信心",
+      `${entry.source} ${entry.confidence}`,
       "## 關鍵字",
       entry.keywords,
     ].join("\n"),
@@ -154,7 +161,11 @@ function repoMapDoc(entry: RequirementRepoMapEntry): RequirementDoc {
 async function scoreRepoMapEntries(outputDir: string, query: string): Promise<Map<string, ScoredDoc>> {
   const entries = await readRequirementRepoMap(outputDir)
   const scoredEntries = entries
-    .map((entry) => scoreDoc(repoMapDoc(entry), query))
+    .map((entry) => ({
+      ...scoreDoc(repoMapDoc(entry), query),
+      source: entry.source,
+      confidence: entry.confidence,
+    }))
     .filter((doc) => doc.score > 0)
 
   return new Map(scoredEntries.map((doc) => [doc.name, doc]))
@@ -280,6 +291,8 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
     const reason = [
       doc.matchedAreas.length > 0 ? `區塊:${doc.matchedAreas.join("/")}` : "",
       doc.matchedTerms.length > 0 ? `詞:${doc.matchedTerms.join("/")}` : "",
+      doc.source ? `source:${doc.source}` : "",
+      doc.confidence ? `confidence:${doc.confidence}` : "",
     ]
       .filter(Boolean)
       .join("；")
@@ -348,6 +361,8 @@ export default tool({
           score: scoredDoc.score + mapScore.score + 8,
           matchedTerms: [...new Set([...mapScore.matchedTerms, ...scoredDoc.matchedTerms])].slice(0, 5),
           matchedAreas: [...new Set(["RepoMap", ...mapScore.matchedAreas, ...scoredDoc.matchedAreas])].slice(0, 4),
+          source: mapScore.source,
+          confidence: mapScore.confidence,
         }
       })
       .filter((doc) => doc.score > 0)

@@ -1,9 +1,10 @@
-import { access, mkdir, readFile, writeFile } from "node:fs/promises"
+import { access, appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 import { tool } from "@opencode-ai/plugin"
 import {
   DEFAULT_REQUIREMENTS_DIR,
+  REQUIREMENT_HISTORY_SUFFIX,
   readRequirementRepoMap,
   resolveRequirementsDir,
   writeRequirementRepoMap,
@@ -53,6 +54,52 @@ function buildIterativeUpdate(existingReport: string, nextReport: string, timest
     "",
     nextReport,
   ].join("\n")
+}
+
+const ITERATIVE_COMPACT_THRESHOLD = 60_000
+
+function historyFilePath(filePath: string): string {
+  const parsed = path.parse(filePath)
+  return path.join(parsed.dir, `${parsed.name}${REQUIREMENT_HISTORY_SUFFIX}`)
+}
+
+function buildCompactedIterativeReport(nextReport: string, timestamp: string, archiveFileName: string): string {
+  return [
+    "# 需求迭代摘要（已壓縮）",
+    "",
+    "此檔保留最新需求分析供搜尋與維護使用；完整歷史已封存至同目錄歷史檔。",
+    "",
+    `- **最新更新時間：** ${timestamp}`,
+    `- **完整歷史檔：** ${archiveFileName}`,
+    "",
+    "---",
+    "## 最新需求分析",
+    "",
+    nextReport,
+  ].join("\n")
+}
+
+async function buildIterativeOutput(filePath: string, nextReport: string, timestamp: string): Promise<{ output: string; archivePath?: string }> {
+  const existingReport = await readFile(filePath, "utf-8")
+  if (existingReport.length <= ITERATIVE_COMPACT_THRESHOLD) {
+    return { output: buildIterativeUpdate(existingReport, nextReport, timestamp) }
+  }
+
+  const archivePath = historyFilePath(filePath)
+  const archiveBlock = [
+    "",
+    "---",
+    `## 封存需求歷史（${timestamp}）`,
+    "",
+    existingReport.trimEnd(),
+    "",
+  ].join("\n")
+  await appendFile(archivePath, archiveBlock, "utf-8")
+
+  return {
+    output: buildCompactedIterativeReport(nextReport, timestamp, path.basename(archivePath)),
+    archivePath,
+  }
 }
 
 function compactMapValue(value?: string, maxLength = 180): string {
@@ -114,6 +161,41 @@ function deriveVersionDecision(args: AnalyzeRequirementsInput): string {
   return "needs_decision"
 }
 
+function deriveConfidence(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string {
+  const relation = deriveRelation(args, hasTargetFile)
+  const compatibility = deriveCompatibility(args)
+  const versionDecision = deriveVersionDecision(args)
+  if (relation === "related" && compatibility === "compatible" && ["use_new", "merge"].includes(versionDecision)) return "high"
+  if (relation === "new" && compatibility === "compatible" && versionDecision === "create_new") return "high"
+  if (relation === "uncertain" || compatibility === "needs_decision" || versionDecision === "needs_decision") return "low"
+  return "medium"
+}
+
+function assertConflictResolutionFormat(conflictResolution: string): void {
+  const requiredLabels = ["保留舊需求", "新版變更", "不衝突原因"]
+  const missing = requiredLabels.filter((label, index) => {
+    const start = conflictResolution.indexOf(label)
+    if (start < 0) return true
+
+    const nextStarts = requiredLabels
+      .filter((_, nextIndex) => nextIndex !== index)
+      .map((nextLabel) => conflictResolution.indexOf(nextLabel, start + label.length))
+      .filter((nextStart) => nextStart > start)
+    const end = nextStarts.length > 0 ? Math.min(...nextStarts) : conflictResolution.length
+    const value = conflictResolution
+      .slice(start + label.length, end)
+      .replace(/^[\s：:\-—/、]+/, "")
+      .replace(/[\s/、；;，,]+$/, "")
+      .trim()
+
+    return value.length === 0 || value.includes("待補")
+  })
+
+  if (missing.length > 0) {
+    throw new Error(`迭代更新既有需求時 conflictResolution 必須包含三點且不可待補：${requiredLabels.join("、")}`)
+  }
+}
+
 function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string): void {
   const relation = deriveRelation(args, Boolean(targetPath))
 
@@ -170,6 +252,8 @@ function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string)
   if (conflictResolution === "待補") {
     throw new Error("迭代更新既有需求時必須提供 conflictResolution，說明如何避免與舊需求衝突")
   }
+
+  assertConflictResolutionFormat(conflictResolution)
 }
 
 async function upsertRequirementRepoMap(
@@ -188,6 +272,8 @@ async function upsertRequirementRepoMap(
     scope: compactMapValue(`${args.constraints}；候選：${normalize(args.candidateFileName)}；相容性：${deriveCompatibility(args)}；版本決策：${deriveVersionDecision(args)}`, 160),
     latestChange: compactMapValue(`${normalize(args.diffSummary)}；版本決策：${deriveVersionDecision(args)}；衝突處理：${normalize(args.conflictResolution)}`, 180),
     versionDecision: deriveVersionDecision(args),
+    source: hasTargetFile ? "iterative_update" : "new_document",
+    confidence: deriveConfidence(args, hasTargetFile),
     keywords: compactMapValue(deriveKeywords(args), 160),
   }
   const nextEntries = [nextEntry, ...entries.filter((entry) => entry.fileName !== fileName)]
@@ -526,9 +612,9 @@ export default tool({
   },
   async execute(args, context) {
     const safeWorktree = context?.worktree ? context.worktree : process.cwd()
-    const { report, filePath, repoMapPath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
+    const { report, filePath, repoMapPath, archivePath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
 
-    return `${report}\n\n## 產出檔案\n${filePath}\n\n## Repo Map\n${repoMapPath}`
+    return `${report}\n\n## 產出檔案\n${filePath}\n\n## Repo Map\n${repoMapPath}${archivePath ? `\n\n## 歷史封存\n${archivePath}` : ""}`
   },
 })
 
@@ -536,7 +622,7 @@ export async function writeAnalyzeRequirementsOutput(
   args: AnalyzeRequirementsInput,
   worktree: string,
   outputDir?: string,
-): Promise<{ report: string; filePath: string; repoMapPath: string }> {
+): Promise<{ report: string; filePath: string; repoMapPath: string; archivePath?: string }> {
   const safeWorktree = worktree || process.cwd()
   const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
   const targetPath = safeTargetFilePath(outputPath, args.targetFileName)
@@ -549,9 +635,10 @@ export async function writeAnalyzeRequirementsOutput(
   if (targetPath) await access(targetPath)
 
   const report = buildReport(args)
-  const output = targetPath ? buildIterativeUpdate(await readFile(targetPath, "utf-8"), report, timestamp) : report
+  const iterativeResult = targetPath ? await buildIterativeOutput(targetPath, report, timestamp) : { output: report }
+  const output = iterativeResult.output
   await writeFile(filePath, output, "utf-8")
   const repoMapPath = await upsertRequirementRepoMap(outputPath, path.basename(filePath), args, timestamp, Boolean(targetPath))
 
-  return { report, filePath, repoMapPath }
+  return { report, filePath, repoMapPath, archivePath: iterativeResult.archivePath }
 }

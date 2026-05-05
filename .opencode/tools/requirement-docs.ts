@@ -3,6 +3,7 @@ import path from "node:path"
 
 export const DEFAULT_REQUIREMENTS_DIR = path.posix.join(".opencode", "outputs", "analyze-requirements")
 export const REQUIREMENT_REPO_MAP_FILE = "requirement-repo-map.md"
+export const REQUIREMENT_HISTORY_SUFFIX = ".history.md"
 
 export type RequirementDoc = {
   name: string
@@ -20,6 +21,8 @@ export type RequirementRepoMapEntry = {
   scope: string
   latestChange: string
   versionDecision: string
+  source: string
+  confidence: string
   keywords: string
 }
 
@@ -81,6 +84,8 @@ export async function readRequirementRepoMap(outputDir: string): Promise<Require
         scope: extractField(section, "scope"),
         latestChange: extractField(section, "latestChange"),
         versionDecision: extractField(section, "versionDecision"),
+        source: extractField(section, "source"),
+        confidence: extractField(section, "confidence"),
         keywords: extractField(section, "keywords"),
       }))
       .filter((entry) => entry.fileName.length > 0)
@@ -104,6 +109,8 @@ export async function writeRequirementRepoMap(outputDir: string, entries: Requir
       `- scope：${compactLine(entry.scope, 160)}`,
       `- latestChange：${compactLine(entry.latestChange, 180)}`,
       `- versionDecision：${compactLine(entry.versionDecision, 80)}`,
+      `- source：${compactLine(entry.source, 80)}`,
+      `- confidence：${compactLine(entry.confidence, 80)}`,
       `- keywords：${compactLine(entry.keywords, 160)}`,
       "",
     ].join("\n")),
@@ -122,7 +129,8 @@ export async function listRequirementDocs(outputDir: string, options: { readCont
         .filter((entry) =>
           entry.isFile() &&
           entry.name.toLowerCase().endsWith(".md") &&
-          entry.name !== REQUIREMENT_REPO_MAP_FILE,
+          entry.name !== REQUIREMENT_REPO_MAP_FILE &&
+          !entry.name.toLowerCase().endsWith(REQUIREMENT_HISTORY_SUFFIX),
         )
         .map(async (entry) => {
           const filePath = path.join(outputDir, entry.name)
