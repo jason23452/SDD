@@ -152,6 +152,8 @@ function repoMapDoc(entry: RequirementRepoMapEntry): RequirementDoc {
       entry.versionDecision,
       "## 來源與信心",
       `${entry.source} ${entry.confidence}`,
+      "## 品質檢查",
+      entry.quality,
       "## 關鍵字",
       entry.keywords,
     ].join("\n"),
@@ -293,6 +295,7 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
       doc.matchedTerms.length > 0 ? `詞:${doc.matchedTerms.join("/")}` : "",
       doc.source ? `source:${doc.source}` : "",
       doc.confidence ? `confidence:${doc.confidence}` : "",
+      doc.confidence?.includes("rule_low") ? "需人工確認" : "",
     ]
       .filter(Boolean)
       .join("；")

@@ -161,23 +161,97 @@ function deriveVersionDecision(args: AnalyzeRequirementsInput): string {
   return "needs_decision"
 }
 
+function missingCoreFields(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string[] {
+  const fields: [string, string | undefined][] = [
+    ["majorRequirement", args.majorRequirement],
+    ["targetUsers", args.targetUsers],
+    ["constraints", args.constraints],
+    ["deliverables", args.deliverables],
+    ["relation", args.relation],
+    ["compatibility", args.compatibility],
+    ["versionDecision", args.versionDecision],
+  ]
+
+  if (hasTargetFile) {
+    fields.push(
+      ["candidateFileName", args.candidateFileName],
+      ["diffSummary", args.diffSummary],
+      ["conflictResolution", args.conflictResolution],
+    )
+  }
+
+  return fields
+    .filter(([, value]) => normalize(value) === "待補")
+    .map(([field]) => field)
+}
+
+function deriveQuality(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string {
+  const issues = missingCoreFields(args, hasTargetFile)
+  const relation = deriveRelation(args, hasTargetFile)
+  const compatibility = deriveCompatibility(args)
+  const versionDecision = deriveVersionDecision(args)
+
+  if (relation === "related" && !hasTargetFile) issues.push("related_without_target")
+  if (hasTargetFile && normalize(args.candidateFileName) !== normalize(args.targetFileName)) issues.push("candidate_target_mismatch")
+  if (compatibility !== "compatible") issues.push(`compatibility_${compatibility}`)
+  if (["needs_decision", "keep_old"].includes(versionDecision)) issues.push(`version_${versionDecision}`)
+
+  return issues.length === 0 ? "ok" : compactMapValue(`issues:${[...new Set(issues)].join("|")}`, 180)
+}
+
 function deriveConfidence(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string {
   const relation = deriveRelation(args, hasTargetFile)
   const compatibility = deriveCompatibility(args)
   const versionDecision = deriveVersionDecision(args)
-  if (relation === "related" && compatibility === "compatible" && ["use_new", "merge"].includes(versionDecision)) return "high"
-  if (relation === "new" && compatibility === "compatible" && versionDecision === "create_new") return "high"
-  if (relation === "uncertain" || compatibility === "needs_decision" || versionDecision === "needs_decision") return "low"
-  return "medium"
+  let score = 40
+  const reasons: string[] = []
+
+  if (relation === "related" && hasTargetFile) {
+    score += 15
+    reasons.push("related_with_target")
+  } else if (relation === "new" && !hasTargetFile) {
+    score += 15
+    reasons.push("new_without_target")
+  } else {
+    score -= 20
+    reasons.push(`relation_${relation}`)
+  }
+
+  if (compatibility === "compatible") {
+    score += 20
+    reasons.push("compatible")
+  } else {
+    score -= 20
+    reasons.push(`compatibility_${compatibility}`)
+  }
+
+  if ((hasTargetFile && ["use_new", "merge"].includes(versionDecision)) || (!hasTargetFile && versionDecision === "create_new")) {
+    score += 20
+    reasons.push(`decision_${versionDecision}`)
+  } else {
+    score -= 15
+    reasons.push(`decision_${versionDecision}`)
+  }
+
+  const missing = missingCoreFields(args, hasTargetFile)
+  if (missing.length === 0) score += 5
+  else {
+    score -= Math.min(25, missing.length * 5)
+    reasons.push(`missing_${missing.join("+")}`)
+  }
+
+  const level = score >= 80 ? "rule_high" : score >= 55 ? "rule_medium" : "rule_low"
+  return compactMapValue(`${level}:${Math.max(0, Math.min(100, score))};${reasons.join("|")}`, 160)
 }
 
-function assertConflictResolutionFormat(conflictResolution: string): void {
-  const requiredLabels = ["保留舊需求", "新版變更", "不衝突原因"]
-  const missing = requiredLabels.filter((label, index) => {
-    const start = conflictResolution.indexOf(label)
-    if (start < 0) return true
+function extractConflictSections(conflictResolution: string): Map<string, string> {
+  const labels = ["保留舊需求", "新版變更", "不衝突原因"]
+  const sections = new Map<string, string>()
 
-    const nextStarts = requiredLabels
+  labels.forEach((label, index) => {
+    const start = conflictResolution.indexOf(label)
+    if (start < 0) return
+    const nextStarts = labels
       .filter((_, nextIndex) => nextIndex !== index)
       .map((nextLabel) => conflictResolution.indexOf(nextLabel, start + label.length))
       .filter((nextStart) => nextStart > start)
@@ -187,12 +261,41 @@ function assertConflictResolutionFormat(conflictResolution: string): void {
       .replace(/^[\s：:\-—/、]+/, "")
       .replace(/[\s/、；;，,]+$/, "")
       .trim()
+    sections.set(label, value)
+  })
 
-    return value.length === 0 || value.includes("待補")
+  return sections
+}
+
+function assertConflictResolutionFormat(conflictResolution: string): void {
+  const requiredLabels = ["保留舊需求", "新版變更", "不衝突原因"]
+  const sections = extractConflictSections(conflictResolution)
+  const vagueTerms = ["已確認", "無衝突", "不影響", "正常", "確認即可", "同上", "如上", "待確認"]
+  const missing = requiredLabels.filter((label) => {
+    const value = sections.get(label) || ""
+    return value.length < 8 || value.includes("待補") || vagueTerms.includes(value)
   })
 
   if (missing.length > 0) {
-    throw new Error(`迭代更新既有需求時 conflictResolution 必須包含三點且不可待補：${requiredLabels.join("、")}`)
+    throw new Error(`迭代更新既有需求時 conflictResolution 必須包含三點、每點需具體且不可待補/籠統：${requiredLabels.join("、")}`)
+  }
+
+  const uniqueValues = new Set(requiredLabels.map((label) => sections.get(label)))
+  if (uniqueValues.size < requiredLabels.length) {
+    throw new Error("conflictResolution 三點內容不可重複，需分別說明舊需求保留、新版變更與不衝突原因")
+  }
+
+  const keepOld = sections.get("保留舊需求") || ""
+  const useNew = sections.get("新版變更") || ""
+  const noConflict = sections.get("不衝突原因") || ""
+  if (!/(保留|沿用|不變|維持|既有|舊)/.test(keepOld)) {
+    throw new Error("conflictResolution 的「保留舊需求」需明確說明哪些舊需求會被保留或沿用")
+  }
+  if (!/(新增|修改|調整|變更|新版|本次|改為|補充)/.test(useNew)) {
+    throw new Error("conflictResolution 的「新版變更」需明確說明本次新增、修改、調整或補充內容")
+  }
+  if (!/(不衝突|相容|互補|不覆蓋|不取代|邊界|條件|原因)/.test(noConflict)) {
+    throw new Error("conflictResolution 的「不衝突原因」需明確說明新舊需求為何相容或如何避免覆蓋")
   }
 }
 
@@ -274,6 +377,7 @@ async function upsertRequirementRepoMap(
     versionDecision: deriveVersionDecision(args),
     source: hasTargetFile ? "iterative_update" : "new_document",
     confidence: deriveConfidence(args, hasTargetFile),
+    quality: deriveQuality(args, hasTargetFile),
     keywords: compactMapValue(deriveKeywords(args), 160),
   }
   const nextEntries = [nextEntry, ...entries.filter((entry) => entry.fileName !== fileName)]
@@ -599,7 +703,7 @@ export default tool({
       .default(""),
     conflictResolution: tool.schema
       .string()
-      .describe("若迭代舊需求，說明如何保留舊需求完整性並避免衝突")
+      .describe("若迭代舊需求，必須具體列出：保留舊需求、新版變更、不衝突原因")
       .default(""),
     versionDecision: tool.schema
       .string()

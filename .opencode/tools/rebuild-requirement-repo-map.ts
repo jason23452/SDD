@@ -45,6 +45,14 @@ function deriveKeywords(value: string): string {
   return [...new Set(words)].slice(0, 18).join("、") || "待補"
 }
 
+function buildQuality(fields: Record<string, string>): string {
+  const missing = Object.entries(fields)
+    .filter(([, value]) => compact(value, "") === "")
+    .map(([key]) => key)
+
+  return missing.length === 0 ? "ok" : `issues:missing_${missing.join("+")}`
+}
+
 function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
   const content = doc.content || ""
   const summary = lastMatch(content, [
@@ -78,6 +86,7 @@ function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
     /版本決策[：:]\s*(.+)/,
   ])
   const hasStructuredFields = Boolean(summary && scope && relation !== "unknown")
+  const quality = buildQuality({ summary, scope, relation, versionDecision })
   const summaryText = compact([summary, diffSummary].filter(Boolean).join("；"), doc.name, 220)
   const scopeText = compact(scope, "待補", 160)
   const latestChange = [diffSummary, versionDecision ? `版本決策：${versionDecision}` : "", integrity ? `完整性：${integrity}` : ""]
@@ -93,7 +102,8 @@ function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
     latestChange: compact(latestChange, "待補", 180),
     versionDecision: compact(versionDecision, "unknown", 80),
     source: "rebuild",
-    confidence: hasStructuredFields ? "medium" : "low",
+    confidence: hasStructuredFields ? "rule_medium:65;rebuild_structured_fields" : "rule_low:35;rebuild_missing_structured_fields",
+    quality: compact(quality, "ok", 180),
     keywords: compact(deriveKeywords(`${doc.name} ${summaryText} ${scopeText} ${latestChange}`), "待補", 160),
   }
 }

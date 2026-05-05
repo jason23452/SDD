@@ -21,7 +21,7 @@ permission:
 
 流程：
 
-- 用原始需求呼叫 `find-requirements-doc`，`outputDir` 固定，`limit` 預設 3；工具會優先用 `requirement-repo-map.md` 最新摘要、`source/confidence` 與 regex/grep 縮小候選，再判斷可沿用或修改的相似需求文件；歷史封存檔不可當候選需求。
+- 用原始需求呼叫 `find-requirements-doc`，`outputDir` 固定，`limit` 預設 3；工具會優先用 `requirement-repo-map.md` 最新摘要、`source/confidence/quality` 與 regex/grep 縮小候選，再判斷可沿用或修改的相似需求文件；歷史封存檔不可當候選需求。
 - 若找到明確相關檔案，依工具回傳的候選判斷、命中區塊/詞選第一候選，只讀第一個、只取必要片段，且路徑必須在固定目錄內；不要把相關新需求另開新檔。
 - 若工具回傳候選不明確、候選分數接近、或你無法判定第一候選是否正確，必須進入確認模式：用 `question` 讓使用者選舊檔、全新需求或不確定；不可自行猜測更新哪一份。
 - 必須呼叫 `requirements-clarify`：傳原始需求；若有既有文件，只附檔名與必要片段，要求它釐清「新需求如何迭代舊需求」，不貼整份長文。

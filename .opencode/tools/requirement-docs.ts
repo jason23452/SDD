@@ -23,6 +23,7 @@ export type RequirementRepoMapEntry = {
   versionDecision: string
   source: string
   confidence: string
+  quality: string
   keywords: string
 }
 
@@ -86,6 +87,7 @@ export async function readRequirementRepoMap(outputDir: string): Promise<Require
         versionDecision: extractField(section, "versionDecision"),
         source: extractField(section, "source"),
         confidence: extractField(section, "confidence"),
+        quality: extractField(section, "quality"),
         keywords: extractField(section, "keywords"),
       }))
       .filter((entry) => entry.fileName.length > 0)
@@ -99,7 +101,7 @@ export async function writeRequirementRepoMap(outputDir: string, entries: Requir
   const content = [
     "# Requirement Repo Map",
     "",
-    "此檔只記錄需求文件最新摘要，供搜尋與判斷關聯使用；完整歷史仍保留在各 Markdown 需求檔。",
+    "此檔只記錄需求文件最新摘要、來源、規則信心與品質檢查，供搜尋與判斷關聯使用；完整歷史仍保留在各 Markdown 需求檔。",
     "",
     ...entries.map((entry) => [
       `## ${entry.fileName}`,
@@ -111,6 +113,7 @@ export async function writeRequirementRepoMap(outputDir: string, entries: Requir
       `- versionDecision：${compactLine(entry.versionDecision, 80)}`,
       `- source：${compactLine(entry.source, 80)}`,
       `- confidence：${compactLine(entry.confidence, 80)}`,
+      `- quality：${compactLine(entry.quality, 180)}`,
       `- keywords：${compactLine(entry.keywords, 160)}`,
       "",
     ].join("\n")),
