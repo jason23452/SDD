@@ -24,6 +24,9 @@ export type AnalyzeRequirementsInput = {
   deliverables: string
   extraNotes: string
   mode: string
+  relation?: string
+  candidateFileName?: string
+  diffSummary?: string
   targetFileName?: string
 }
 
@@ -55,15 +58,13 @@ function compactMapValue(value?: string, maxLength = 180): string {
   return `${normalized.slice(0, maxLength - 1)}…`
 }
 
-function deriveRelation(extraNotes: string, hasTargetFile: boolean): string {
-  const match = normalize(extraNotes).match(/關聯判斷[：: ]+(related|new|uncertain|相關|全新|不確定)/i)
-  if (!match) return hasTargetFile ? "related" : "new"
-
-  const value = match[1].toLowerCase()
-  if (value === "相關") return "related"
-  if (value === "全新") return "new"
-  if (value === "不確定") return "uncertain"
-  return value
+function deriveRelation(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string {
+  const relation = normalize(args.relation)
+  if (["related", "new", "uncertain"].includes(relation.toLowerCase())) return relation.toLowerCase()
+  if (relation === "相關") return "related"
+  if (relation === "全新") return "new"
+  if (relation === "不確定") return "uncertain"
+  return hasTargetFile ? "related" : "new"
 }
 
 function deriveKeywords(args: AnalyzeRequirementsInput): string {
@@ -73,6 +74,9 @@ function deriveKeywords(args: AnalyzeRequirementsInput): string {
     args.constraints,
     args.existingSystem,
     args.deliverables,
+    args.relation,
+    args.candidateFileName,
+    args.diffSummary,
     args.extraNotes,
   ]
     .join(" ")
@@ -94,9 +98,9 @@ async function upsertRequirementRepoMap(
   const nextEntry: RequirementRepoMapEntry = {
     fileName,
     updatedAt,
-    relation: deriveRelation(args.extraNotes, hasTargetFile),
-    summary: compactMapValue(`${args.majorRequirement}；交付：${args.deliverables}`, 220),
-    scope: compactMapValue(args.constraints, 160),
+    relation: deriveRelation(args, hasTargetFile),
+    summary: compactMapValue(`${args.majorRequirement}；差異：${normalize(args.diffSummary)}；交付：${args.deliverables}`, 220),
+    scope: compactMapValue(`${args.constraints}；候選：${normalize(args.candidateFileName)}`, 160),
     keywords: compactMapValue(deriveKeywords(args), 160),
   }
   const nextEntries = [nextEntry, ...entries.filter((entry) => entry.fileName !== fileName)]
@@ -188,6 +192,9 @@ export function buildReport(args: AnalyzeRequirementsInput) {
   const deliverables = normalize(args.deliverables)
   const extraNotes = normalize(args.extraNotes)
   const mode = normalize(args.mode)
+  const relation = deriveRelation(args, Boolean(args.targetFileName))
+  const candidateFileName = normalize(args.candidateFileName)
+  const diffSummary = normalize(args.diffSummary)
 
   const [sr1, sr2, sr3] = buildSubRequirements(majorRequirement)
   const [feLine, beLine, testLine] = [sr1, sr2, sr3]
@@ -205,6 +212,8 @@ export function buildReport(args: AnalyzeRequirementsInput) {
 ## 1. 大需求摘要
 ${sectionLine("需求編號", "DR-01")}
 - **一句話目標：** ${majorRequirement}
+- **關聯判斷：** ${relation}（候選檔案：${candidateFileName}）
+- **新舊差異：** ${diffSummary}
 - **成功指標：** ${successIndicator}
 - **影響範圍：** ${constraints.includes("待補") ? "待補" : `${constraints}、測試資源、使用者體驗`}
 
@@ -394,6 +403,18 @@ export default tool({
     deliverables: tool.schema.string().describe("希望交付內容（PRD、規格、排程）").default("待補"),
     extraNotes: tool.schema.string().describe("其他補充").default("待補"),
     mode: tool.schema.string().describe("使用者要求 initial 或 final").default("initial"),
+    relation: tool.schema
+      .string()
+      .describe("需求關聯判斷：related、new 或 uncertain")
+      .default(""),
+    candidateFileName: tool.schema
+      .string()
+      .describe("候選既有需求 Markdown 檔名；沒有則空白")
+      .default(""),
+    diffSummary: tool.schema
+      .string()
+      .describe("本次新需求與候選舊需求的差異摘要")
+      .default(""),
     targetFileName: tool.schema
       .string()
       .describe("若新需求要迭代既有需求，填輸出目錄內的 Markdown 檔名；空白才建立新檔")

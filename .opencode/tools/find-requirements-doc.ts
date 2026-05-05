@@ -257,11 +257,15 @@ function formatNoMatches(outputDir: string, query: string, scanned: number): str
 }
 
 function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scanned: number): string {
+  const topScore = docs[0]?.score || 0
+  const secondScore = docs[1]?.score || 0
+  const ambiguous = docs.length > 1 && secondScore >= topScore * 0.8
   const lines = [
     "需求文件名稱搜尋結果",
     `- 搜尋目錄：${outputDir}`,
     `- 查詢內容：${query}`,
     `- 找到文件數：${docs.length}/${scanned}`,
+    `- 候選判斷：${ambiguous ? "不明確，請讓使用者選擇候選檔" : "明確"}`,
     "",
   ]
 
