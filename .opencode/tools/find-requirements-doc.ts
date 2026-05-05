@@ -273,6 +273,7 @@ function formatNoMatches(outputDir: string, query: string, scanned: number): str
     `- 查詢內容：${query}`,
     `- 找到文件數：0/${scanned}`,
     "目前沒有找到明確相關的需求分析文件。",
+    "下一步：視為全新需求，直接進入 requirements-clarify 的全新需求澄清；不要停在候選確認。",
   ].join("\n")
 }
 
