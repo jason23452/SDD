@@ -4,6 +4,7 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import {
   DEFAULT_REQUIREMENTS_DIR,
+  REQUIREMENT_REPO_MAP_FILE,
   listRequirementDocs,
   normalizeLimit,
   normalizeText,
@@ -97,6 +98,8 @@ async function grepCandidateNames(outputDir: string, query: string): Promise<Set
       "--ignore-case",
       "--glob",
       "*.md",
+      "--glob",
+      `!${REQUIREMENT_REPO_MAP_FILE}`,
       "--regexp",
       pattern,
       outputDir,
@@ -138,6 +141,10 @@ function repoMapDoc(entry: RequirementRepoMapEntry): RequirementDoc {
       entry.scope,
       "## 關聯",
       entry.relation,
+      "## 最新變更",
+      entry.latestChange,
+      "## 版本決策",
+      entry.versionDecision,
       "## 關鍵字",
       entry.keywords,
     ].join("\n"),

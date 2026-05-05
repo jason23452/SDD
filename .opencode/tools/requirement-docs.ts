@@ -18,6 +18,8 @@ export type RequirementRepoMapEntry = {
   relation: string
   summary: string
   scope: string
+  latestChange: string
+  versionDecision: string
   keywords: string
 }
 
@@ -77,6 +79,8 @@ export async function readRequirementRepoMap(outputDir: string): Promise<Require
         relation: extractField(section, "relation"),
         summary: extractField(section, "summary"),
         scope: extractField(section, "scope"),
+        latestChange: extractField(section, "latestChange"),
+        versionDecision: extractField(section, "versionDecision"),
         keywords: extractField(section, "keywords"),
       }))
       .filter((entry) => entry.fileName.length > 0)
@@ -98,6 +102,8 @@ export async function writeRequirementRepoMap(outputDir: string, entries: Requir
       `- relation：${compactLine(entry.relation, 80)}`,
       `- summary：${compactLine(entry.summary, 220)}`,
       `- scope：${compactLine(entry.scope, 160)}`,
+      `- latestChange：${compactLine(entry.latestChange, 180)}`,
+      `- versionDecision：${compactLine(entry.versionDecision, 80)}`,
       `- keywords：${compactLine(entry.keywords, 160)}`,
       "",
     ].join("\n")),

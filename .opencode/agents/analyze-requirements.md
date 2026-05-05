@@ -21,8 +21,9 @@ permission:
 
 只做這些事：
 
-- 使用上游傳入的 `majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`mode`、`relation`、`candidateFileName`、`diffSummary`。
-- 若 `relation` 是 `related` 且上游提供相關既有 Markdown 檔名，將該檔名同時傳入 `candidateFileName` 與 `targetFileName` 迭代更新舊檔；工具會同步更新 `requirement-repo-map.md` 摘要索引。
+- 使用上游傳入的 `majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`mode`、`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`。
+- 只有 `relation` 是 `related`、`compatibility` 是 `compatible`、`versionDecision` 是 `use_new` 或 `merge`，並且上游提供相關既有 Markdown 檔名時，才將該檔名同時傳入 `candidateFileName` 與 `targetFileName` 迭代更新舊檔；工具會同步更新 `requirement-repo-map.md` 摘要索引。
+- 若 `versionDecision` 是 `keep_old`、`create_new` 或 `needs_decision`，不可更新舊檔；`create_new` 只能建立新檔。
 - 不搜尋、不讀檔、不互動澄清、不新增需求範圍。
-- 保持固定 12 段報告架構，但內容必須依上游 8 欄位推導，不可硬套特定需求情境。
+- 保持固定 12 段報告架構，但內容必須依上游結構化欄位推導，不可硬套特定需求情境。
 - 回傳最後一次 `analyze-requirements` 工具輸出，不補充說明。

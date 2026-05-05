@@ -27,6 +27,9 @@ export type AnalyzeRequirementsInput = {
   relation?: string
   candidateFileName?: string
   diffSummary?: string
+  compatibility?: string
+  conflictResolution?: string
+  versionDecision?: string
   targetFileName?: string
 }
 
@@ -77,6 +80,9 @@ function deriveKeywords(args: AnalyzeRequirementsInput): string {
     args.relation,
     args.candidateFileName,
     args.diffSummary,
+    args.compatibility,
+    args.conflictResolution,
+    args.versionDecision,
     args.extraNotes,
   ]
     .join(" ")
@@ -85,6 +91,85 @@ function deriveKeywords(args: AnalyzeRequirementsInput): string {
     .filter((item) => item.length >= 2 && item !== "待補")
 
   return [...new Set(words)].slice(0, 18).join("、") || "待補"
+}
+
+function deriveCompatibility(args: AnalyzeRequirementsInput): string {
+  const compatibility = normalize(args.compatibility).toLowerCase()
+  if (["compatible", "conflict", "needs_decision"].includes(compatibility)) return compatibility
+  if (compatibility === "相容") return "compatible"
+  if (compatibility === "衝突") return "conflict"
+  if (compatibility === "需決策" || compatibility === "需要決策") return "needs_decision"
+  if (deriveRelation(args, Boolean(args.targetFileName)) === "new") return "compatible"
+  return "needs_decision"
+}
+
+function deriveVersionDecision(args: AnalyzeRequirementsInput): string {
+  const decision = normalize(args.versionDecision).toLowerCase()
+  if (["keep_old", "use_new", "merge", "create_new", "needs_decision"].includes(decision)) return decision
+  if (decision === "保留舊版") return "keep_old"
+  if (decision === "採用新版") return "use_new"
+  if (decision === "合併") return "merge"
+  if (decision === "建立新需求") return "create_new"
+  if (deriveRelation(args, Boolean(args.targetFileName)) === "new") return "create_new"
+  return "needs_decision"
+}
+
+function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string): void {
+  const relation = deriveRelation(args, Boolean(targetPath))
+
+  if (relation === "uncertain") {
+    throw new Error("relation 為 uncertain 時不可產檔或更新；請先讓使用者確認候選檔或改為 new")
+  }
+
+  if (relation === "related" && !targetPath) {
+    throw new Error("relation 為 related 時必須提供 targetFileName，避免相關需求被誤建成新檔")
+  }
+
+  const compatibility = deriveCompatibility(args)
+  const versionDecision = deriveVersionDecision(args)
+
+  if (!targetPath) {
+    if (versionDecision !== "create_new") {
+      throw new Error("建立新需求檔時 versionDecision 必須是 create_new；保留舊版、採用新版、合併或需決策不可直接建新檔")
+    }
+    if (compatibility !== "compatible") {
+      throw new Error("建立新需求檔前 compatibility 必須是 compatible；若仍有衝突或需決策，請先完成版本確認")
+    }
+    return
+  }
+
+  const diffSummary = normalize(args.diffSummary)
+  const conflictResolution = normalize(args.conflictResolution)
+  const candidateFileName = normalize(args.candidateFileName)
+  const targetFileName = normalize(args.targetFileName)
+
+  if (relation !== "related") {
+    throw new Error("只有 relation 為 related 時才可更新既有需求檔")
+  }
+
+  if (candidateFileName === "待補") {
+    throw new Error("迭代更新既有需求時必須提供 candidateFileName")
+  }
+
+  if (candidateFileName !== targetFileName) {
+    throw new Error("candidateFileName 必須與 targetFileName 一致，避免更新錯誤舊需求")
+  }
+
+  if (diffSummary === "待補") {
+    throw new Error("迭代更新既有需求時必須提供 diffSummary，說明新舊需求差異")
+  }
+
+  if (compatibility !== "compatible") {
+    throw new Error("迭代更新既有需求前，compatibility 必須是 compatible；若有衝突或需決策，請先回到澄清流程")
+  }
+
+  if (["keep_old", "create_new", "needs_decision"].includes(versionDecision)) {
+    throw new Error("迭代更新既有需求前，versionDecision 必須是 use_new 或 merge；保留舊版、建立新需求或需決策時不可更新舊檔")
+  }
+
+  if (conflictResolution === "待補") {
+    throw new Error("迭代更新既有需求時必須提供 conflictResolution，說明如何避免與舊需求衝突")
+  }
 }
 
 async function upsertRequirementRepoMap(
@@ -100,7 +185,9 @@ async function upsertRequirementRepoMap(
     updatedAt,
     relation: deriveRelation(args, hasTargetFile),
     summary: compactMapValue(`${args.majorRequirement}；差異：${normalize(args.diffSummary)}；交付：${args.deliverables}`, 220),
-    scope: compactMapValue(`${args.constraints}；候選：${normalize(args.candidateFileName)}`, 160),
+    scope: compactMapValue(`${args.constraints}；候選：${normalize(args.candidateFileName)}；相容性：${deriveCompatibility(args)}；版本決策：${deriveVersionDecision(args)}`, 160),
+    latestChange: compactMapValue(`${normalize(args.diffSummary)}；版本決策：${deriveVersionDecision(args)}；衝突處理：${normalize(args.conflictResolution)}`, 180),
+    versionDecision: deriveVersionDecision(args),
     keywords: compactMapValue(deriveKeywords(args), 160),
   }
   const nextEntries = [nextEntry, ...entries.filter((entry) => entry.fileName !== fileName)]
@@ -195,6 +282,9 @@ export function buildReport(args: AnalyzeRequirementsInput) {
   const relation = deriveRelation(args, Boolean(args.targetFileName))
   const candidateFileName = normalize(args.candidateFileName)
   const diffSummary = normalize(args.diffSummary)
+  const compatibility = deriveCompatibility(args)
+  const conflictResolution = normalize(args.conflictResolution)
+  const versionDecision = deriveVersionDecision(args)
 
   const [sr1, sr2, sr3] = buildSubRequirements(majorRequirement)
   const [feLine, beLine, testLine] = [sr1, sr2, sr3]
@@ -214,6 +304,8 @@ ${sectionLine("需求編號", "DR-01")}
 - **一句話目標：** ${majorRequirement}
 - **關聯判斷：** ${relation}（候選檔案：${candidateFileName}）
 - **新舊差異：** ${diffSummary}
+- **迭代完整性：** ${compatibility}；${conflictResolution}
+- **版本決策：** ${versionDecision}
 - **成功指標：** ${successIndicator}
 - **影響範圍：** ${constraints.includes("待補") ? "待補" : `${constraints}、測試資源、使用者體驗`}
 
@@ -415,6 +507,18 @@ export default tool({
       .string()
       .describe("本次新需求與候選舊需求的差異摘要")
       .default(""),
+    compatibility: tool.schema
+      .string()
+      .describe("新需求與舊需求相容性：compatible、conflict 或 needs_decision")
+      .default(""),
+    conflictResolution: tool.schema
+      .string()
+      .describe("若迭代舊需求，說明如何保留舊需求完整性並避免衝突")
+      .default(""),
+    versionDecision: tool.schema
+      .string()
+      .describe("衝突或不確定確認後的版本決策：keep_old、use_new、merge、create_new 或 needs_decision")
+      .default(""),
     targetFileName: tool.schema
       .string()
       .describe("若新需求要迭代既有需求，填輸出目錄內的 Markdown 檔名；空白才建立新檔")
@@ -436,6 +540,8 @@ export async function writeAnalyzeRequirementsOutput(
   const safeWorktree = worktree || process.cwd()
   const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
   const targetPath = safeTargetFilePath(outputPath, args.targetFileName)
+  assertOutputIntent(args, targetPath)
+
   const filePath = targetPath || path.join(outputPath, `analyze-requirements_${randomUUID()}_${Date.now()}.md`)
   const timestamp = new Date().toISOString()
 
