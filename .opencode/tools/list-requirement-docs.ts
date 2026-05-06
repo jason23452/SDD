@@ -2,13 +2,13 @@ import { tool } from "@opencode-ai/plugin"
 import { DEFAULT_REQUIREMENTS_DIR, listRequirementDocs, normalizeLimit, resolveRequirementsDir } from "../lib/requirement-docs"
 
 export default tool({
-  description: "列出需求分析歷史 Markdown 檔案名稱。",
+  description: "列出需求 Markdown。",
   args: {
     outputDir: tool.schema
       .string()
-      .describe("需求分析輸出目錄，預設為 .opencode/outputs/analyze-requirements")
+      .describe("需求文件目錄")
       .default(DEFAULT_REQUIREMENTS_DIR),
-    limit: tool.schema.number().describe("最多列出幾份，預設 10，最大 20").default(10),
+    limit: tool.schema.number().describe("列出數，最大 20").default(10),
   },
   async execute(args, context) {
     const worktree = context?.worktree ? context.worktree : process.cwd()

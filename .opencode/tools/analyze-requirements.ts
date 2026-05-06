@@ -477,7 +477,7 @@ function buildOpenQuestions(constraints: string, existingSystem: string, referen
   const questions = [
     constraints.includes("待補") ? "確認本次必做、不做、時程、合規與營運限制" : `確認限制是否完整：${constraints}`,
     existingSystem.includes("待補") ? "確認是否有既有流程、既有規則、角色限制或不可改動項" : `確認既有系統影響：${existingSystem}`,
-    referenceCases.includes("待補") ? "確認是否有參考案例、設計風格或驗收依據" : `確認參考案例採用範圍：${referenceCases}`,
+    referenceCases.includes("待補") ? "確認是否有參考案例、使用者情境或驗收依據" : `確認參考案例採用範圍：${referenceCases}`,
   ]
 
   return questions.slice(0, 5)
@@ -666,44 +666,43 @@ ${openQuestions.map((question) => `  - ${question}`).join("\n")}
 }
 
 export default tool({
-  description:
-    "根據固定欄位產生需求分析報告，輸出中文內容並寫入 .opencode/outputs/analyze-requirements；只整理需求，不產生實作方案。",
+  description: "依欄位產生中文需求報告；只整理需求，不產生實作方案。",
   args: {
-    majorRequirement: tool.schema.string().describe("大需求主題（可一段話）").default("待補"),
-    targetUsers: tool.schema.string().describe("目標使用者與使用情境").default("待補"),
-    constraints: tool.schema.string().describe("已知約束（時間、預算、法規、營運限制、排除範圍）").default("待補"),
-    existingSystem: tool.schema.string().describe("既有系統資訊（若有）").default("待補"),
-    referenceCases: tool.schema.string().describe("參考對象或想借鏡的案例（若有）").default("待補"),
-    deliverables: tool.schema.string().describe("希望交付內容（需求文件、功能規格、驗收清單、排程）").default("待補"),
-    extraNotes: tool.schema.string().describe("其他補充").default("待補"),
-    mode: tool.schema.string().describe("使用者要求 initial 或 final").default("initial"),
+    majorRequirement: tool.schema.string().describe("需求主題/價值").default("待補"),
+    targetUsers: tool.schema.string().describe("使用者/情境").default("待補"),
+    constraints: tool.schema.string().describe("限制/邊界/排除").default("待補"),
+    existingSystem: tool.schema.string().describe("既有需求/不可改項").default("待補"),
+    referenceCases: tool.schema.string().describe("參考依據").default("待補"),
+    deliverables: tool.schema.string().describe("交付/不交付").default("待補"),
+    extraNotes: tool.schema.string().describe("補充/風險/驗收").default("待補"),
+    mode: tool.schema.string().describe("initial 或 final").default("initial"),
     relation: tool.schema
       .string()
-      .describe("需求關聯判斷：related、new 或 uncertain")
+      .describe("related/new/uncertain")
       .default(""),
     candidateFileName: tool.schema
       .string()
-      .describe("候選既有需求 Markdown 檔名；沒有則空白")
+      .describe("候選舊檔名")
       .default(""),
     diffSummary: tool.schema
       .string()
-      .describe("本次新需求與候選舊需求的差異摘要")
+      .describe("新舊差異")
       .default(""),
     compatibility: tool.schema
       .string()
-      .describe("新需求與舊需求相容性：compatible、conflict 或 needs_decision")
+      .describe("compatible/conflict/needs_decision")
       .default(""),
     conflictResolution: tool.schema
       .string()
-      .describe("若迭代舊需求，必須具體列出：保留舊需求、新版變更、不衝突原因；不衝突原因需說明相容、互補、不覆蓋、不取代或避免覆蓋的邊界條件")
+      .describe("迭代需含：保留舊需求、新版變更、不衝突原因")
       .default(""),
     versionDecision: tool.schema
       .string()
-      .describe("衝突或不確定確認後的版本決策：keep_old、use_new、merge、create_new 或 needs_decision")
+      .describe("keep_old/use_new/merge/create_new/needs_decision")
       .default(""),
     targetFileName: tool.schema
       .string()
-      .describe("relation=related 時必填，且必須等於 candidateFileName；只有全新需求才可空白以建立新檔")
+      .describe("related 時等於 candidateFileName")
       .default(""),
   },
   async execute(args, context) {

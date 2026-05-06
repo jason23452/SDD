@@ -309,15 +309,14 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
 }
 
 export default tool({
-  description:
-    "在 .opencode/outputs/analyze-requirements 中依需求描述查找最相關的需求分析 Markdown 檔案名稱。",
+  description: "依需求描述查找相關需求 Markdown。",
   args: {
-    query: tool.schema.string().describe("需求描述、關鍵字、功能名稱或問題情境").default(""),
+    query: tool.schema.string().describe("需求描述/關鍵字").default(""),
     outputDir: tool.schema
       .string()
-      .describe("需求分析文件目錄，預設為 .opencode/outputs/analyze-requirements")
+      .describe("需求文件目錄")
       .default(DEFAULT_REQUIREMENTS_DIR),
-    limit: tool.schema.number().describe("最多回傳幾份文件，預設 3，最大 20").default(3),
+    limit: tool.schema.number().describe("回傳數，最大 20").default(3),
   },
   async execute(args, context) {
     const worktree = context?.worktree ? context.worktree : process.cwd()

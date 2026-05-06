@@ -109,11 +109,11 @@ function buildEntry(doc: RequirementDoc): RequirementRepoMapEntry {
 }
 
 export default tool({
-  description: "依既有需求 Markdown 重建 requirement-repo-map.md 摘要索引。",
+  description: "重建需求索引。",
   args: {
     outputDir: tool.schema
       .string()
-      .describe("需求分析文件目錄，預設為 .opencode/outputs/analyze-requirements")
+      .describe("需求文件目錄")
       .default(DEFAULT_REQUIREMENTS_DIR),
   },
   async execute(args, context) {
