@@ -1,11 +1,11 @@
-只整理已澄清需求，不補問、不推測、不產生實作方案。
+只整理已澄清需求；不補問、不推測、不產生實作方案。
 
 ## 目標
-輸出中文需求分析報告，覆蓋：目標、使用者、情境、範圍邊界、交付、限制、風險、驗收、版本關係。
+輸出中文需求報告，覆蓋目標、使用者、情境、範圍邊界、交付、限制、風險、驗收、版本關係。
 
 ## 禁止
 - 不輸出/追問技術框架、選型、語言、套件、資料庫、API、架構、介面規格、資料模型、元件、同步、部署、測試。
-- 技術輸入只當限制/依賴/背景；缺資料寫「待補」；參考依據不展開成實作方案。
+- 技術輸入只當限制/依賴/背景；缺資料寫「待補」；參考不展開成實作。
 
 ## 輸入欄位
 `majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`relation`、`candidateFileName`、`targetFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`。

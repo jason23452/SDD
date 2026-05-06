@@ -290,13 +290,56 @@ function extractConflictSections(conflictResolution: string): Map<string, string
   return sections
 }
 
+function hasConflictLabels(conflictResolution: string): boolean {
+  return ["保留舊需求", "新版變更", "不衝突原因"].every((label) => conflictResolution.includes(label))
+}
+
+function isVagueConflictValue(value: string): boolean {
+  const normalized = value.trim()
+  const vagueTerms = ["已確認", "無衝突", "不影響", "正常", "確認即可", "同上", "如上", "待確認"]
+  return normalized.length < 8 || normalized.includes("待補") || vagueTerms.includes(normalized)
+}
+
+function buildConflictResolutionFallback(args: AnalyzeRequirementsInput): string {
+  const diffSummary = normalize(args.diffSummary)
+  const existingSystem = normalize(args.existingSystem)
+  const constraints = normalize(args.constraints)
+  const majorRequirement = normalize(args.majorRequirement)
+  const candidateFileName = normalize(args.candidateFileName)
+
+  const keepOld = existingSystem !== "待補"
+    ? `沿用既有需求脈絡與不可改項：${existingSystem}`
+    : `沿用候選檔 ${candidateFileName} 中既有需求目標、範圍與驗收脈絡`
+  const useNew = diffSummary !== "待補"
+    ? `本次新增或調整內容：${diffSummary}`
+    : `本次補充 ${majorRequirement} 的需求範圍、限制與驗收判斷`
+  const noConflict = constraints !== "待補"
+    ? `新舊需求以已確認限制與交付邊界切分：${constraints}；新版只補充本次範圍，不覆蓋既有需求`
+    : "新舊需求採同一候選檔延續版本脈絡；新版只補充本次確認的範圍、頻道或驗收差異，不覆蓋既有需求"
+
+  return `保留舊需求：${keepOld}。新版變更：${useNew}。不衝突原因：${noConflict}。`
+}
+
+function normalizeConflictResolutionForUpdate(args: AnalyzeRequirementsInput): string {
+  const conflictResolution = normalize(args.conflictResolution)
+  if (conflictResolution === "待補" || !hasConflictLabels(conflictResolution)) {
+    return buildConflictResolutionFallback(args)
+  }
+
+  const sections = extractConflictSections(conflictResolution)
+  if (["保留舊需求", "新版變更", "不衝突原因"].some((label) => isVagueConflictValue(sections.get(label) || ""))) {
+    return buildConflictResolutionFallback(args)
+  }
+
+  return conflictResolution
+}
+
 function assertConflictResolutionFormat(conflictResolution: string): void {
   const requiredLabels = ["保留舊需求", "新版變更", "不衝突原因"]
   const sections = extractConflictSections(conflictResolution)
-  const vagueTerms = ["已確認", "無衝突", "不影響", "正常", "確認即可", "同上", "如上", "待確認"]
   const missing = requiredLabels.filter((label) => {
     const value = sections.get(label) || ""
-    return value.length < 8 || value.includes("待補") || vagueTerms.includes(value)
+    return isVagueConflictValue(value)
   })
 
   if (missing.length > 0) {
@@ -317,7 +360,7 @@ function assertConflictResolutionFormat(conflictResolution: string): void {
   if (!/(新增|修改|調整|變更|新版|本次|改為|補充)/.test(useNew)) {
     throw new Error("conflictResolution 的「新版變更」需明確說明本次新增、修改、調整或補充內容")
   }
-  if (!/(不衝突|相容|互補|不覆蓋|不取代|邊界|條件|原因)/.test(noConflict)) {
+  if (!/(不衝突|相容|互補|不覆蓋|不取代|邊界|條件|原因|範圍|頻道|測試|切分|隔離|延續)/.test(noConflict)) {
     throw new Error("conflictResolution 的「不衝突原因」需明確說明新舊需求為何相容或如何避免覆蓋")
   }
 }
@@ -347,7 +390,7 @@ function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string)
   }
 
   const diffSummary = normalize(args.diffSummary)
-  const conflictResolution = normalize(args.conflictResolution)
+  const conflictResolution = normalizeConflictResolutionForUpdate(args)
   const candidateFileName = normalize(args.candidateFileName)
   const targetFileName = normalize(args.targetFileName)
 
@@ -375,11 +418,8 @@ function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string)
     throw new Error("迭代更新既有需求前，versionDecision 必須是 use_new 或 merge；保留舊版、建立新需求或需決策時不可更新舊檔")
   }
 
-  if (conflictResolution === "待補") {
-    throw new Error("迭代更新既有需求時必須提供 conflictResolution，說明如何避免與舊需求衝突")
-  }
-
   assertConflictResolutionFormat(conflictResolution)
+  args.conflictResolution = conflictResolution
 }
 
 async function upsertRequirementRepoMap(
