@@ -1,6 +1,6 @@
 {
   "name": "sdd-opencode-flow",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Install the custom .opencode requirements-analysis workflow without publishing to npm.",
   "private": true,
   "bin": {
@@ -14,7 +14,6 @@
     ".opencode/package.json",
     ".opencode/package-lock.json",
     ".opencode/bun.lock",
-    ".opencode/.gitignore",
     "FLOW_1.md",
     "README.md"
   ],

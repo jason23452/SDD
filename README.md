@@ -26,7 +26,8 @@ The installer copies:
 - `.opencode/package.json`
 - `.opencode/package-lock.json`
 - `.opencode/bun.lock`
-- `.opencode/.gitignore`
 - `FLOW_1.md`
+
+It also creates `.opencode/.gitignore` during installation.
 
 For the workflow design and architecture diagrams, read [FLOW_1.md](./FLOW_1.md).

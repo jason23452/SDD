@@ -12,9 +12,21 @@ const copyEntries = [
   [".opencode/package.json", ".opencode/package.json"],
   [".opencode/package-lock.json", ".opencode/package-lock.json"],
   [".opencode/bun.lock", ".opencode/bun.lock"],
-  [".opencode/.gitignore", ".opencode/.gitignore"],
   ["FLOW_1.md", "FLOW_1.md"],
 ]
+
+const opencodeGitignore = [
+  "node_modules",
+  "package.json",
+  "bun.lock",
+  ".gitignore",
+  "outputs/",
+  "!outputs/",
+  "!outputs/analyze-requirements/",
+  "!outputs/analyze-requirements/*.md",
+  "!outputs/analyze-requirements/**/*.md",
+  "",
+].join("\n")
 
 function usage() {
   return [
@@ -102,6 +114,12 @@ function copyFile(sourcePath, targetPath) {
   fs.copyFileSync(sourcePath, targetPath)
 }
 
+function writeTextFile(targetPath, content, force) {
+  if (fs.existsSync(targetPath) && !force) return
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true })
+  fs.writeFileSync(targetPath, content, "utf8")
+}
+
 function main() {
   const { targetDir, force } = parseArgs(process.argv.slice(2))
   const copies = plannedCopies()
@@ -128,6 +146,7 @@ function main() {
   fs.mkdirSync(path.join(targetDir, ".opencode", "outputs", "analyze-requirements"), { recursive: true })
   fs.mkdirSync(path.join(targetDir, ".opencode", "commands"), { recursive: true })
   fs.mkdirSync(path.join(targetDir, ".opencode", "skills"), { recursive: true })
+  writeTextFile(path.join(targetDir, ".opencode", ".gitignore"), opencodeGitignore, force)
 
   console.log("Installed .opencode requirements workflow.")
   console.log(`Target: ${targetDir}`)
