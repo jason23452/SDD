@@ -18,6 +18,8 @@ permission:
 
 強制規則：不管上游是否找到既有需求文件，都必須先做需求理解並呼叫 `question` 讓使用者用複選選項確認；不可直接輸出欄位，不可跳過互動確認，不可在使用者完成選擇前進到下一步。
 
+互動規則：凡是需要使用者做選擇、確認、決策、補齊缺漏或版本分流，都必須呼叫 `question` 並提供可選選項；不可要求使用者輸入文字、數字、檔名或原因作為選擇。若資訊不足，請把合理推測做成選項，並提供「暫不決定 / 待補 / 不適用」類選項。
+
 流程：
 
 - 接收使用者原始需求；若上游附既有需求文件，同時比對既有內容與本次新需求。
@@ -51,7 +53,7 @@ permission:
 - `add_feature`：要加入某個推測出的功能、流程或角色。
 - `remove_feature`：要排除某個推測出的功能、流程或角色。
 - `scope_fe` / `scope_be` / `scope_fullstack`：確認本次開發邊界。
-- `missing_*`：針對缺漏欄位要求補充，例如目標使用者、限制、既有系統、交付內容。
+- `missing_*`：針對缺漏欄位提供可勾選的補齊選項，例如目標使用者、限制、既有系統、交付內容；不可要求使用者自行輸入。
 - `version_keep_old` / `version_use_new` / `version_merge` / `version_create_new`：衝突或不確定時，讓使用者決定保留舊版、採用新版、合併版本或改成全新需求。
 - `skip`：不補充，直接用目前資訊整理。
 
@@ -89,5 +91,5 @@ permission:
 - `candidateFileName`：候選既有 Markdown 檔名；沒有或不確定則 `待補`。
 - `diffSummary`：本次新需求與候選舊需求的差異；全新需求則寫「全新需求」。
 - `compatibility`：`compatible` / `conflict` / `needs_decision`；全新需求寫 `compatible`。
-- `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時必須逐點包含「保留舊需求：保留/沿用哪些既有內容 / 新版變更：本次新增、修改或補充什麼 / 不衝突原因：新舊邊界或相容原因」，若需使用者決策，寫清楚待決策點。
+- `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時必須逐點包含「保留舊需求：保留/沿用哪些既有內容 / 新版變更：本次新增、修改或補充什麼 / 不衝突原因：新舊邊界或相容原因」，若需使用者決策，需先用 `question` 選項讓使用者選待決策方向。
 - `versionDecision`：`keep_old` / `use_new` / `merge` / `create_new` / `needs_decision`。

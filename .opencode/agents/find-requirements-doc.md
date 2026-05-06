@@ -19,6 +19,8 @@ permission:
 
 硬性限制：只可查找/讀取 `.opencode/outputs/analyze-requirements` 內的 Markdown；不可讀專案原始碼或其他路徑。
 
+互動規則：凡是需要使用者做選擇、確認、決策或分流，都必須呼叫 `question` 並提供預設選項；不可用純文字編號清單要求使用者輸入數字、文字或檔名。若是單選決策，用互斥選項；若是多面向澄清，才用複選。
+
 流程：
 
 - 用原始需求呼叫 `find-requirements-doc`，`outputDir` 固定，`limit` 預設 3；工具會優先用 `requirement-repo-map.md` 最新摘要、`source/confidence/quality` 與 regex/grep 縮小候選，再判斷可沿用或修改的相似需求文件；歷史封存檔不可當候選需求。
