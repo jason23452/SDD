@@ -304,6 +304,13 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
     lines.push(`- ${doc.name}${reason ? `（${reason}）` : ""}`)
   })
 
+  lines.push("")
+  if (ambiguous) {
+    lines.push("流程指示：候選不明確，先用 question 讓使用者選定候選或全新需求；選定後仍必須立刻進入 requirements-clarify，不可停在候選清單。")
+  } else {
+    lines.push("流程指示：第一候選為明確相關檔案，讀取第一候選的必要片段後必須立刻進入 requirements-clarify；不可把候選結果當作最終回應。")
+  }
+
   return lines.join("\n").trimEnd()
 }
 

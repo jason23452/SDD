@@ -2,7 +2,7 @@
 description: 需求分析流程入口代理（先查找、必澄清、必產檔）
 mode: subagent
 temperature: 0.0
-steps: 7
+steps: 12
 permission:
   find-requirements-doc: allow
   analyze-requirements: allow
