@@ -685,9 +685,21 @@ export default tool({
   },
   async execute(args, context) {
     const safeWorktree = context?.worktree ? context.worktree : process.cwd()
-    const { report, filePath, repoMapPath, archivePath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
+    const { filePath, repoMapPath, archivePath } = await writeAnalyzeRequirementsOutput(args, safeWorktree)
+    const relation = deriveRelation(args, Boolean(args.targetFileName))
+    const versionDecision = deriveVersionDecision(args)
+    const compatibility = deriveCompatibility(args)
 
-    return `${report}\n\n## 產出檔案\n${filePath}\n\n## Repo Map\n${repoMapPath}${archivePath ? `\n\n## 歷史封存\n${archivePath}` : ""}`
+    return [
+      "需求分析文件已產生。",
+      `- file: ${filePath}`,
+      `- repoMap: ${repoMapPath}`,
+      archivePath ? `- history: ${archivePath}` : "",
+      `- relation: ${relation}`,
+      `- versionDecision: ${versionDecision}`,
+      `- compatibility: ${compatibility}`,
+      "完整內容已寫入檔案；工具回傳保持精簡以節省 token。",
+    ].filter(Boolean).join("\n")
   },
 })
 
@@ -695,7 +707,7 @@ async function writeAnalyzeRequirementsOutput(
   args: AnalyzeRequirementsInput,
   worktree: string,
   outputDir?: string,
-): Promise<{ report: string; filePath: string; repoMapPath: string; archivePath?: string }> {
+): Promise<{ filePath: string; repoMapPath: string; archivePath?: string }> {
   const safeWorktree = worktree || process.cwd()
   const outputPath = resolveRequirementsDir(safeWorktree, outputDir || DEFAULT_REQUIREMENTS_DIR)
   const targetPath = safeTargetFilePath(outputPath, args.targetFileName)
@@ -713,5 +725,5 @@ async function writeAnalyzeRequirementsOutput(
   await writeFile(filePath, output, "utf-8")
   const repoMapPath = await upsertRequirementRepoMap(outputPath, path.basename(filePath), args, timestamp, Boolean(targetPath))
 
-  return { report, filePath, repoMapPath, archivePath: iterativeResult.archivePath }
+  return { filePath, repoMapPath, archivePath: iterativeResult.archivePath }
 }

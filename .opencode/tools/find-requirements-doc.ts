@@ -248,19 +248,15 @@ function scoreDoc(doc: RequirementDoc, query: string): ScoredDoc {
 function formatLatestList(outputDir: string, docs: RequirementDoc[], limit: number): string {
   if (docs.length === 0) {
     return [
-      "需求文件搜尋結果",
-      `- 搜尋目錄：${outputDir}`,
-      "- 查詢內容：(空)",
-      "- 找到文件數：0/0",
-      "目前沒有可搜尋的需求分析文件。",
+      "需求文件搜尋：0/0",
+      `dir: ${outputDir}`,
+      "無既有需求文件。",
     ].join("\n")
   }
 
   return [
-    "最新需求文件名稱清單",
-    `- 搜尋目錄：${outputDir}`,
-    "- 查詢內容：(空)",
-    `- 顯示文件數：${Math.min(limit, docs.length)}/${docs.length}`,
+    `最新需求文件：${Math.min(limit, docs.length)}/${docs.length}`,
+    `dir: ${outputDir}`,
     "",
     ...docs.slice(0, limit).map((doc) => `- ${doc.name}`),
   ].join("\n")
@@ -268,12 +264,11 @@ function formatLatestList(outputDir: string, docs: RequirementDoc[], limit: numb
 
 function formatNoMatches(outputDir: string, query: string, scanned: number): string {
   return [
-    "需求文件搜尋結果",
-    `- 搜尋目錄：${outputDir}`,
-    `- 查詢內容：${query}`,
-    `- 找到文件數：0/${scanned}`,
-    "目前沒有找到明確相關的需求分析文件。",
-    "流程指示：視為全新需求，直接進入 requirements-clarify 的全新需求澄清；不要停在候選確認或輸出下一步選單。",
+    `需求文件搜尋：0/${scanned}`,
+    `dir: ${outputDir}`,
+    `query: ${query}`,
+    "decision: new",
+    "next: call requirements-clarify as new; do not ask candidate question.",
   ].join("\n")
 }
 
@@ -282,11 +277,10 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
   const secondScore = docs[1]?.score || 0
   const ambiguous = docs.length > 1 && secondScore >= topScore * 0.8
   const lines = [
-    "需求文件名稱搜尋結果",
-    `- 搜尋目錄：${outputDir}`,
-    `- 查詢內容：${query}`,
-    `- 找到文件數：${docs.length}/${scanned}`,
-    `- 候選判斷：${ambiguous ? "不明確，請讓使用者選擇候選檔" : "明確"}`,
+    `需求文件搜尋：${docs.length}/${scanned}`,
+    `dir: ${outputDir}`,
+    `query: ${query}`,
+    `decision: ${ambiguous ? "ambiguous" : "clear"}`,
     "",
   ]
 
@@ -306,9 +300,9 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
 
   lines.push("")
   if (ambiguous) {
-    lines.push("流程指示：候選不明確，先用 question 讓使用者選定候選或全新需求；選定後仍必須立刻進入 requirements-clarify，不可停在候選清單。")
+    lines.push("next: ask question to select candidate or new; then call requirements-clarify.")
   } else {
-    lines.push("流程指示：第一候選為明確相關檔案，讀取第一候選的必要片段後必須立刻進入 requirements-clarify；不可把候選結果當作最終回應。")
+    lines.push("next: read first candidate snippet; then call requirements-clarify.")
   }
 
   return lines.join("\n").trimEnd()
