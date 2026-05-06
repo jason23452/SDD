@@ -1,0 +1,25 @@
+{
+  "name": "sdd-opencode-flow",
+  "version": "0.1.0",
+  "description": "Install the custom .opencode requirements-analysis workflow without publishing to npm.",
+  "private": true,
+  "bin": {
+    "sdd-opencode-flow": "bin/install.js"
+  },
+  "files": [
+    "bin/",
+    ".opencode/agents/",
+    ".opencode/lib/",
+    ".opencode/tools/",
+    ".opencode/package.json",
+    ".opencode/package-lock.json",
+    ".opencode/bun.lock",
+    ".opencode/.gitignore",
+    "FLOW_1.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}
