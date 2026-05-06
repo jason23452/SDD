@@ -1,0 +1,9 @@
+node_modules
+package.json
+bun.lock
+.gitignore
+outputs/
+!outputs/
+!outputs/analyze-requirements/
+!outputs/analyze-requirements/*.md
+!outputs/analyze-requirements/**/*.md
