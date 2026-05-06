@@ -2,7 +2,7 @@
 description: 需求澄清互動代理（必問複選題，完成後交給 analyze-requirements 產檔）
 mode: subagent
 temperature: 0.0
-steps: 8
+steps: 12
 permission:
   analyze-requirements: deny
   find-requirements-doc: deny
@@ -76,6 +76,7 @@ permission:
 - 在輸出欄位前，必須先根據使用者勾選結果整理出最終理解；若勾選內容互相衝突，必須再次用 `question` 讓使用者選擇，不可自行裁決。
 - 不可在初步草案後用文字選單詢問「產出正式文件或繼續澄清」；產出正式文件是固定下一步，不是可選分支。若已達可產檔條件，直接輸出欄位，不要再問文字下一步。
 - 若有既有文件，用「迭代舊需求」語氣整理，說清楚本次是新增、修改、移除或補充哪一段舊需求；同時檢查是否會覆蓋、反轉、削弱或衝突舊需求；若沒有，才用「全新需求」語氣整理。
+- 若上游提供明確候選檔名與既有文件片段，預設這是「迭代既有需求」分支；除非使用者明確選擇改成全新需求，最終不可輸出 `relation=new` 或 `versionDecision=create_new`，必須輸出 `relation=related`、`candidateFileName=<候選檔名>`、`targetFileName=<候選檔名>`，並用 `versionDecision=use_new` 或 `merge` 表示採用本次更新或合併新舊需求。
 - FE/BE/Fullstack 邊界、本次必做與本次不做，要寫入 `constraints` 或 `extraNotes`。
 - 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。
 - 若新需求與舊需求有衝突、需求覆蓋不完整、或需要使用者決策，先用 `question` 輸出版本確認選項；在使用者未選版本前，`compatibility` 可以暫判為 `conflict` 或 `needs_decision`、`versionDecision` 可以暫判為 `needs_decision`，但這些不可作為最終欄位輸出。
@@ -123,3 +124,14 @@ permission:
 - `compatibility`：`compatible` / `conflict` / `needs_decision`；全新需求寫 `compatible`。
 - `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時必須逐點包含「保留舊需求：保留/沿用哪些既有內容 / 新版變更：本次新增、修改或補充什麼 / 不衝突原因：新舊邊界或相容原因」，若需使用者決策，需先用 `question` 選項讓使用者選待決策方向。
 - `versionDecision`：最終只能輸出 `use_new` / `merge` / `create_new`；`keep_old` / `needs_decision` 只能作為澄清過程中的暫態選項，不可作為最終欄位，因為流程完成後必須進入 `analyze-requirements` 產檔。
+- `targetFileName`：只有迭代既有需求時輸出，且必須與 `candidateFileName` 完全一致；全新需求不可輸出此欄位。
+
+迭代既有需求的 `analyzeArgs` 必須符合以下組合，否則不可輸出最終 JSON，必須繼續用 `question` 澄清：
+
+- `relation=related`
+- `candidateFileName=<候選既有檔名>`
+- `targetFileName=<同一個候選既有檔名>`
+- `diffSummary` 具體說明本次新增、修改或補充內容
+- `compatibility=compatible`
+- `conflictResolution` 具體包含「保留舊需求」、「新版變更」、「不衝突原因」三點
+- `versionDecision=use_new` 或 `merge`
