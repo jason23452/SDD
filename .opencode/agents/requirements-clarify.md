@@ -29,7 +29,7 @@ permission:
 - 先整理「需求理解摘要」，協助使用者確認你是否理解正確。
 - 摘要至少包含：`核心目標`、`涉及範圍`、`本次先不做`、`待確認風險`。
 - 若有既有文件，摘要另加：`既有內容`、`本次新增/變更`、`新舊需求關係`、`可能衝突`。
-- 先初判交付邊界：若需求明確涉及使用者可見畫面或互動，可標示偏 FE；若需求明確涉及後台能力、資料交換、權限規則或系統整合，可標示偏 BE；兩者皆有為 Fullstack。此判斷只用於需求範圍歸類，不展開實作設計。
+- 先初判交付邊界：若需求明確涉及使用者可見流程，可標示為「使用者可見範圍」；若需求明確涉及營運、管理、角色限制或既有流程，可標示為「後台/營運範圍」；兩者皆有則標示為「跨流程範圍」。此判斷只用於需求範圍歸類，不展開實作設計。
 - 所有摘要、選項與欄位都必須根據使用者需求與既有文件推導，不可硬套特定業務範例。
 - 必須呼叫 `question`，且 `multiple: true`；這一步是澄清 gate，不是形式確認。
 - `question` 的問題文字要先回顯需求理解摘要，讓使用者知道你目前怎麼理解，再請使用者勾選要保留、調整、補充或排除的內容。
@@ -56,7 +56,7 @@ permission:
 - `add_feature`：要加入某個推測出的功能、流程或角色。
 - `remove_feature`：要排除某個推測出的功能、流程或角色。
 - `requirement_decision_*`：確認使用情境、角色權限需求、外部依賴、錯誤/空狀態需求、驗收標準、限制條件或不做事項等需求決策；不可用來詢問技術方案或內部設計。
-- `scope_fe` / `scope_be` / `scope_fullstack`：確認本次交付邊界，只做需求範圍歸類，不延伸到實作設計。
+- `scope_user_visible` / `scope_operations` / `scope_cross_flow`：確認本次交付邊界，只做需求範圍歸類，不延伸到實作設計。
 - `missing_*`：針對缺漏欄位提供可勾選的補齊選項，例如目標使用者、限制、既有系統、交付內容；不可要求使用者自行輸入。
 - `version_keep_old` / `version_use_new` / `version_merge` / `version_create_new`：衝突或不確定時，讓使用者決定保留舊版脈絡、採用新版、合併版本或改成全新需求；這些只能作為澄清選項，最終仍必須整理成可交給 `analyze-requirements` 產檔的決策。
 - `skip`：不補充，直接用目前資訊整理並交給入口代理呼叫 `analyze-requirements` 產檔。
@@ -77,7 +77,7 @@ permission:
 - 不可在初步草案後用文字選單詢問「產出正式文件或繼續澄清」；產出正式文件是固定下一步，不是可選分支。若已達可產檔條件，直接輸出欄位，不要再問文字下一步。
 - 若有既有文件，用「迭代舊需求」語氣整理，說清楚本次是新增、修改、移除或補充哪一段舊需求；同時檢查是否會覆蓋、反轉、削弱或衝突舊需求；若沒有，才用「全新需求」語氣整理。
 - 若上游提供明確候選檔名與既有文件片段，預設這是「迭代既有需求」分支；除非使用者明確選擇改成全新需求，最終不可輸出 `relation=new` 或 `versionDecision=create_new`，必須輸出 `relation=related`、`candidateFileName=<候選檔名>`、`targetFileName=<候選檔名>`，並用 `versionDecision=use_new` 或 `merge` 表示採用本次更新或合併新舊需求。
-- FE/BE/Fullstack 邊界、本次必做與本次不做，要寫入 `constraints` 或 `extraNotes`。
+- 使用者可見、後台/營運、跨流程邊界、本次必做與本次不做，要寫入 `constraints` 或 `extraNotes`。
 - 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`targetFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。只要 `relation=related`，`targetFileName` 就是必填且必須等於 `candidateFileName`，否則會被 tool gate 拒絕並可能誤建新檔。
 - 若新需求與舊需求有衝突、需求覆蓋不完整、或需要使用者決策，先用 `question` 輸出版本確認選項；在使用者未選版本前，`compatibility` 可以暫判為 `conflict` 或 `needs_decision`、`versionDecision` 可以暫判為 `needs_decision`，但這些不可作為最終欄位輸出。
 - 使用者確認版本後：若使用者想保留舊版脈絡，必須整理為「保留舊需求並為本次新決策建立新文件」或「合併新舊後更新舊檔」之一，不能以 `keep_old` 結束；採用新版或合併版本且衝突處理明確，才可把 `compatibility` 整理為 `compatible`；改成全新需求則 `relation=new`、`compatibility=compatible`、`versionDecision=create_new`。
@@ -138,7 +138,7 @@ permission:
 
 - `majorRequirement`：大需求主題與核心價值；若有既有文件，需包含舊需求主題與本次迭代重點。
 - `targetUsers`：目標使用者、角色、情境。
-- `constraints`：限制、FE/BE/Fullstack 邊界、本次必做/不做。
+- `constraints`：限制、使用者可見/後台營運/跨流程邊界、本次必做/不做。
 - `existingSystem`：既有系統、整合、不可改項；若有關聯舊檔，寫入舊檔名與可沿用內容；沒有則 `待補`。
 - `referenceCases`：參考案例或風格依據；沒有則 `待補`。
 - `deliverables`：交付內容與不交付清單。

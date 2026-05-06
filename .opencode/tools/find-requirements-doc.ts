@@ -44,8 +44,8 @@ const STOP_TERMS = new Set([
 const SEARCH_AREAS = [
   { name: "摘要", heading: /大需求|摘要|子需求/, weight: 5 },
   { name: "故事", heading: /使用者故事|情境|流程/, weight: 4 },
-  { name: "驗收", heading: /驗收|交付|限制|非功能/, weight: 3 },
-  { name: "分工", heading: /FE|BE|Test|分工|畫面|API|資料/, weight: 3 },
+  { name: "驗收", heading: /驗收|交付|限制|品質/, weight: 3 },
+  { name: "範圍", heading: /範圍|邊界|依賴|關聯|版本|風險/, weight: 3 },
 ]
 
 function unique(items: string[]): string[] {

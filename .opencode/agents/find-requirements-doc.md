@@ -41,7 +41,7 @@ permission:
 - 確認模式必須讓使用者看見：候選舊檔、舊需求重點、新需求重點、衝突點、可能影響；接著只能用 `question` 選項讓使用者選「保留舊版脈絡但另建本次決策文件」、`use_new`、`merge`、`create_new` 或「暫不決定並繼續澄清」，不要請使用者自由輸入；確認前不可呼叫 `analyze-requirements`，確認後不可停在 `keep_old` 或 `needs_decision`。
 - `analyze-requirements` 只能使用 `requirements-clarify` 實際回傳的澄清後欄位，不可用未確認原始需求、搜尋結果、候選檔內容或自行推論欄位產檔；收到合法欄位後也不可拒絕產檔。
 - 若 `analyze-requirements` 回傳 gate 錯誤或執行失敗，不可改用直接建立 Markdown、寫入工作目錄、或自訂檔名補救；必須回到確認模式或回報工具錯誤與下一步。
-- 需求分類、FE/BE/Test 分工、風險與驗收都必須依澄清後欄位推導，不可硬套任何固定情境。
+- 需求分類、範圍邊界、交付內容、風險與驗收都必須依澄清後欄位整理，不可硬套任何固定情境，也不可展開成實作方案、內部架構、API、資料模型或測試策略。
 
 欄位固定為：`majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`mode`、`relation`、`candidateFileName`、`targetFileName`（僅迭代既有需求）、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`。
 
