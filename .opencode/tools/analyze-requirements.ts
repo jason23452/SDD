@@ -703,7 +703,7 @@ export default tool({
       .default(""),
     conflictResolution: tool.schema
       .string()
-      .describe("若迭代舊需求，必須具體列出：保留舊需求、新版變更、不衝突原因")
+      .describe("若迭代舊需求，必須具體列出：保留舊需求、新版變更、不衝突原因；不衝突原因需說明相容、互補、不覆蓋、不取代或避免覆蓋的邊界條件")
       .default(""),
     versionDecision: tool.schema
       .string()
@@ -711,7 +711,7 @@ export default tool({
       .default(""),
     targetFileName: tool.schema
       .string()
-      .describe("若新需求要迭代既有需求，填輸出目錄內的 Markdown 檔名；空白才建立新檔")
+      .describe("relation=related 時必填，且必須等於 candidateFileName；只有全新需求才可空白以建立新檔")
       .default(""),
   },
   async execute(args, context) {

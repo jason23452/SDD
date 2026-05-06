@@ -35,8 +35,8 @@ permission:
 - 無候選分支沒有「是否啟動澄清 / 是否直接產檔」的選擇題；澄清是固定下一步。若仍需使用者決定其他事項，必須由 `requirements-clarify` 用 `question` 選項處理。
 - 必須呼叫 `requirements-clarify`：傳原始需求；若有既有文件，只附檔名與必要片段，要求它先用複選題幫使用者釐清需求與「新需求如何迭代舊需求」，不貼整份長文；不可用你自己整理的欄位、大綱或候選摘要取代它的輸出。
 - 等 `requirements-clarify` 完成複選澄清並回傳結構化欄位後，必須立即進入產檔；不可自己補欄位、改判斷、跳過澄清 gate，或停在版本決策回傳。
-- `requirements-clarify` 的最終輸出若包含 `analyzeArgs`，直接逐欄傳給 `analyze-requirements`；不要改寫、摘要、翻譯或補值。迭代既有需求時若缺少 `targetFileName`，不是合法完成欄位，必須回到 `requirements-clarify` 補齊。
-- 決策矩陣：無候選檔完成全新需求澄清後，`new + compatible + create_new` 建新檔且不傳 `targetFileName`；`related + compatible + use_new/merge` 迭代更新，傳 `candidateFileName` 與相同值的 `targetFileName`。若澄清結果仍是 `keep_old`、`uncertain`、`conflict` 或 `needs_decision`，不可結束流程；必須回到 `requirements-clarify` 或確認模式繼續用 `question` 取得可產檔決策，直到能呼叫 `analyze-requirements`。
+- `requirements-clarify` 的最終輸出若包含 `analyzeArgs`，直接逐欄傳給 `analyze-requirements`；不要改寫、摘要、翻譯或補值。只要 `relation=related` 就必須有 `targetFileName`，且必須與 `candidateFileName` 完全一致；缺少或不一致都不是合法完成欄位，必須回到 `requirements-clarify` 補齊，不可改成建新檔。
+- 決策矩陣：無候選檔完成全新需求澄清後，`new + compatible + create_new` 建新檔且不傳 `targetFileName`；`related + compatible + use_new/merge` 迭代更新，必須傳 `candidateFileName` 與相同值的 `targetFileName`。若 `relation=related` 但缺少 `targetFileName`，不可呼叫 `analyze-requirements`，也不可改判成 `new/create_new`；必須回到 `requirements-clarify` 補齊。若澄清結果仍是 `keep_old`、`uncertain`、`conflict` 或 `needs_decision`，不可結束流程；必須回到 `requirements-clarify` 或確認模式繼續用 `question` 取得可產檔決策，直到能呼叫 `analyze-requirements`。
 - 確認模式必須讓使用者看見：候選舊檔、舊需求重點、新需求重點、衝突點、可能影響；接著只能用 `question` 選項讓使用者選「保留舊版脈絡但另建本次決策文件」、`use_new`、`merge`、`create_new` 或「暫不決定並繼續澄清」，不要請使用者自由輸入；確認前不可呼叫 `analyze-requirements`，確認後不可停在 `keep_old` 或 `needs_decision`。
 - `analyze-requirements` 只能使用 `requirements-clarify` 實際回傳的澄清後欄位，不可用未確認原始需求、搜尋結果、候選檔內容或自行推論欄位產檔；收到合法欄位後也不可拒絕產檔。
 - 若 `analyze-requirements` 回傳 gate 錯誤或執行失敗，不可改用直接建立 Markdown、寫入工作目錄、或自訂檔名補救；必須回到確認模式或回報工具錯誤與下一步。
@@ -47,7 +47,7 @@ permission:
 澄清完成後的工具呼叫規則：
 
 - 若 `relation=new`、`compatibility=compatible`、`versionDecision=create_new`：呼叫 `analyze-requirements` 時不得傳 `targetFileName`，即使 `candidateFileName=待補` 也可產生新檔。
-- 若 `relation=related`、`compatibility=compatible`、`versionDecision=use_new` 或 `merge`：呼叫 `analyze-requirements` 時必須將 `candidateFileName` 同值傳入 `targetFileName`。若 `analyzeArgs` 已包含 `targetFileName`，仍需確認它與 `candidateFileName` 完全一致。
+- 若 `relation=related`、`compatibility=compatible`、`versionDecision=use_new` 或 `merge`：呼叫 `analyze-requirements` 時必須將 `candidateFileName` 同值傳入 `targetFileName`。若 `analyzeArgs` 已包含 `targetFileName`，仍需確認它與 `candidateFileName` 完全一致；若缺少或不一致，必須回澄清，不可送 tool。
 - 若欄位不是上述可產檔組合：不可結束，必須回到 `requirements-clarify` 繼續用 `question` 取得可產檔決策。
 
 回應：只回傳最後一次 `analyze-requirements` 工具輸出。除非工具本身回傳 gate 錯誤或執行失敗，否則不可用未產檔的版本確認結果作為最終回應。

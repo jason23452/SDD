@@ -3,13 +3,13 @@
 此檔只記錄需求文件最新摘要、來源、規則信心與品質檢查，供搜尋與判斷關聯使用；完整歷史仍保留在各 Markdown 需求檔。
 
 ## analyze-requirements_f4f3c125-58b3-4307-8441-b94725423a0d_1778059937775.md
-- updatedAt：2026-05-06T09:32:17.775Z
-- relation：new
-- summary：開發「個人行事曆」前端 UI，提供直覺且極簡的日/週/月檢視，支援事件的新增、編輯與刪除（CRUD），對外以呼叫後端 API 為資料來源。核心價值為快速建立/檢視個人行程、良好可及性（鍵盤與螢幕閱讀器支援）、跨裝置響應式體驗，並以可重用的 React 元件與 Storybook 文件交付.；差異：全新需求；交付：交付內容： - 一組可重用的 React 元件（Calendar shell、Day/Week/Month views、Ev…
-- scope：範圍與技術邊界： - FE / BE 邊界：本次僅實作前端 UI 與 client-side 行為（表單驗證、畫面互動、鍵盤導航、aria 標記）；資料持久化、授權驗證與 API 實作由後端提供 REST/GraphQL 介面。 - 優先支援裝置：響應式設計（桌機/平板/手機）。 - 本次不包含（排除項）：重複事件與…
-- latestChange：全新需求；版本決策：create_new；衝突處理：全新需求，沒有既有需求衝突
-- versionDecision：create_new
-- source：new_document
-- confidence：rule_high:100;new_without_target|compatible|decision_create_new
+- updatedAt：2026-05-06T09:58:02.103Z
+- relation：related
+- summary：將既有「個人行事曆前端 UI」需求合併升級為 Fullstack 個人行事曆需求；本次迭代重點是補上並實作後端事件 CRUD API，使 React 前端的日/週/月檢視與事件新增、編輯、刪除可串接真實資料來源。；差異：既有需求原本是個人行事曆前端 UI，且明確排除後端 API 實作；本次將其合併升級為 Fullstack 需求，新增並實作後端事件 CRUD API、日期範圍查詢、授權/個人資料隔離、資料模型擴充、欄位驗證與前端串接驗…
+- scope：本次範圍為 Fullstack：保留既有 React 前端 UI 需求，新增後端 API 實作與前端整合驗收。後端需實作事件 list/create/update/delete API、支援日期範圍查詢、個人資料隔離、基本欄位驗證，並沿用現有 token 或 cookie 授權。不新增完整登入/註冊流程。不指定資料庫…
+- latestChange：既有需求原本是個人行事曆前端 UI，且明確排除後端 API 實作；本次將其合併升級為 Fullstack 需求，新增並實作後端事件 CRUD API、日期範圍查詢、授權/個人資料隔離、資料模型擴充、欄位驗證與前端串接驗收。；版本決策：merge；衝突處理：保留舊需求：舊需求中的 React 前端 UI、日/週/月檢視、事件新增/編輯/刪除互動、可及性與響應…
+- versionDecision：merge
+- source：iterative_update
+- confidence：rule_high:100;related_with_target|compatible|decision_merge
 - quality：ok
-- keywords：開發、個人行事曆、前端、UI、提供直覺且極簡的日、月檢視、支援事件的新增、編輯與刪除、CRUD、對外以呼叫後端、API、為資料來源、核心價值為快速建立、檢視個人行程、良好可及性、鍵盤與螢幕閱讀器支援、跨裝置響應式體驗、並以可重用的
+- keywords：將既有、個人行事曆前端、UI、需求合併升級為、Fullstack、個人行事曆需求、本次迭代重點是補上並實作後端事件、CRUD、API、React、前端的日、月檢視與事件新增、編輯、刪除可串接真實資料來源、已登入的個人行事曆使用者、使用者可在前端行事曆中查看日期範圍內的個人事件、並新增、刪除自己的事件

@@ -78,10 +78,10 @@ permission:
 - 若有既有文件，用「迭代舊需求」語氣整理，說清楚本次是新增、修改、移除或補充哪一段舊需求；同時檢查是否會覆蓋、反轉、削弱或衝突舊需求；若沒有，才用「全新需求」語氣整理。
 - 若上游提供明確候選檔名與既有文件片段，預設這是「迭代既有需求」分支；除非使用者明確選擇改成全新需求，最終不可輸出 `relation=new` 或 `versionDecision=create_new`，必須輸出 `relation=related`、`candidateFileName=<候選檔名>`、`targetFileName=<候選檔名>`，並用 `versionDecision=use_new` 或 `merge` 表示採用本次更新或合併新舊需求。
 - FE/BE/Fullstack 邊界、本次必做與本次不做，要寫入 `constraints` 或 `extraNotes`。
-- 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。
+- 關聯與完整性資訊必須拆成獨立欄位：`relation`、`candidateFileName`、`targetFileName`、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`；不要再塞進 `extraNotes`。只要 `relation=related`，`targetFileName` 就是必填且必須等於 `candidateFileName`，否則會被 tool gate 拒絕並可能誤建新檔。
 - 若新需求與舊需求有衝突、需求覆蓋不完整、或需要使用者決策，先用 `question` 輸出版本確認選項；在使用者未選版本前，`compatibility` 可以暫判為 `conflict` 或 `needs_decision`、`versionDecision` 可以暫判為 `needs_decision`，但這些不可作為最終欄位輸出。
 - 使用者確認版本後：若使用者想保留舊版脈絡，必須整理為「保留舊需求並為本次新決策建立新文件」或「合併新舊後更新舊檔」之一，不能以 `keep_old` 結束；採用新版或合併版本且衝突處理明確，才可把 `compatibility` 整理為 `compatible`；改成全新需求則 `relation=new`、`compatibility=compatible`、`versionDecision=create_new`。
-- 當 `compatibility=compatible` 且有關聯舊檔時，`conflictResolution` 必須明確列出「保留舊需求」、「新版變更」、「不衝突原因」三點；每點都要具體說明內容，不可只寫已確認、無衝突、不影響或待補，否則 tool 層會拒絕更新。
+- 當 `compatibility=compatible` 且有關聯舊檔時，`conflictResolution` 必須明確列出「保留舊需求」、「新版變更」、「不衝突原因」三點；每點都要具體說明內容，不可只寫已確認、無衝突、不影響或待補，否則 tool 層會拒絕更新。「不衝突原因」必須直接說明新舊需求為何相容、互補、不覆蓋、不取代，或用清楚邊界/條件說明如何避免覆蓋舊需求；不可只寫「不衝突」。
 
 只有在完成至少一次複選澄清，且沒有未解決的互斥選項後，才只輸出一個 JSON 物件；實際最終輸出不要加 Markdown code fence、說明文字、摘要或下一步。你本身沒有 `analyze-requirements` 權限，所以不可自行產檔，但輸出必須讓入口代理下一步只能呼叫 `analyze-requirements`，不可停在澄清結果。JSON 固定格式如下：
 
@@ -108,6 +108,32 @@ permission:
 }
 ```
 
+若是迭代既有需求，最終 JSON 必須使用這種欄位組合，不可沿用上方全新需求範例：
+
+```json
+{
+  "clarificationComplete": true,
+  "runAnalyze": true,
+  "analyzeArgs": {
+    "majorRequirement": "...",
+    "targetUsers": "...",
+    "constraints": "...",
+    "existingSystem": "...",
+    "referenceCases": "...",
+    "deliverables": "...",
+    "extraNotes": "...",
+    "mode": "initial",
+    "relation": "related",
+    "candidateFileName": "analyze-requirements_xxx.md",
+    "targetFileName": "analyze-requirements_xxx.md",
+    "diffSummary": "本次新增、修改或補充...",
+    "compatibility": "compatible",
+    "conflictResolution": "保留舊需求：保留/沿用既有...。新版變更：本次新增/修改/補充...。不衝突原因：新舊需求相容/互補且不覆蓋、不取代既有...，邊界是...。",
+    "versionDecision": "merge"
+  }
+}
+```
+
 `analyzeArgs` 欄位定義：
 
 - `majorRequirement`：大需求主題與核心價值；若有既有文件，需包含舊需求主題與本次迭代重點。
@@ -122,9 +148,9 @@ permission:
 - `candidateFileName`：候選既有 Markdown 檔名；沒有或不確定則 `待補`。
 - `diffSummary`：本次新需求與候選舊需求的差異；全新需求則寫「全新需求」。
 - `compatibility`：`compatible` / `conflict` / `needs_decision`；全新需求寫 `compatible`。
-- `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時必須逐點包含「保留舊需求：保留/沿用哪些既有內容 / 新版變更：本次新增、修改或補充什麼 / 不衝突原因：新舊邊界或相容原因」，若需使用者決策，需先用 `question` 選項讓使用者選待決策方向。
+- `conflictResolution`：如何保留舊需求完整性並避免衝突；相容迭代時必須逐點包含「保留舊需求：保留/沿用哪些既有內容 / 新版變更：本次新增、修改或補充什麼 / 不衝突原因：新舊需求為何相容、互補、不覆蓋、不取代，或以邊界/條件避免覆蓋的具體原因」，若需使用者決策，需先用 `question` 選項讓使用者選待決策方向。
 - `versionDecision`：最終只能輸出 `use_new` / `merge` / `create_new`；`keep_old` / `needs_decision` 只能作為澄清過程中的暫態選項，不可作為最終欄位，因為流程完成後必須進入 `analyze-requirements` 產檔。
-- `targetFileName`：只有迭代既有需求時輸出，且必須與 `candidateFileName` 完全一致；全新需求不可輸出此欄位。
+- `targetFileName`：只有迭代既有需求時輸出，且必須與 `candidateFileName` 完全一致；`relation=related` 時必填，缺少就不可輸出最終 JSON；全新需求不可輸出此欄位。
 
 迭代既有需求的 `analyzeArgs` 必須符合以下組合，否則不可輸出最終 JSON，必須繼續用 `question` 澄清：
 
@@ -133,5 +159,5 @@ permission:
 - `targetFileName=<同一個候選既有檔名>`
 - `diffSummary` 具體說明本次新增、修改或補充內容
 - `compatibility=compatible`
-- `conflictResolution` 具體包含「保留舊需求」、「新版變更」、「不衝突原因」三點
+- `conflictResolution` 具體包含「保留舊需求」、「新版變更」、「不衝突原因」三點，且「不衝突原因」必須明確說明相容/互補/不覆蓋/不取代或避免覆蓋的邊界條件
 - `versionDecision=use_new` 或 `merge`
