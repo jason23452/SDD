@@ -21,9 +21,9 @@ permission:
 ## 不變式
 - 只可查找/讀取 `.opencode/outputs/analyze-requirements` 內 Markdown；不可讀專案原始碼或其他路徑。
 - 任何選擇、確認、分流都用 `question`，不可要求輸入文字、數字或檔名。
-- `requirements-clarify` 是唯一澄清 gate；收到 `clarificationComplete: true` 與 `runAnalyze: true` 後，下一步必須直接用 `analyzeArgs` 呼叫 `analyze-requirements`。
+- `requirements-clarify` 是唯一澄清關卡；收到 `clarificationComplete: true` 與 `runAnalyze: true` 後，直接用 `analyzeArgs` 呼叫 `analyze-requirements`。
 - `analyze-requirements` 只能使用 `requirements-clarify` 回傳欄位；不可改寫、補值、翻譯或加入未確認需求。
-- 需求分類、範圍邊界、交付內容、風險與驗收都依澄清欄位整理；不可展開成實作方案、API、資料模型、內部架構或測試策略。
+- 需求分類、範圍邊界、交付內容、風險與驗收都依澄清欄位整理；不可展開成實作方案、介面、資料模型、內部架構或測試策略。
 
 ## 查找分支
 1. 先呼叫 `find-requirements-doc`，`outputDir` 固定，`limit=3`。
@@ -31,7 +31,7 @@ permission:
 3. 候選不明確：用 `question` 讓使用者選候選檔、繼續搜尋或全新需求；選定後仍必須進 `requirements-clarify`。
 4. 無候選：直接呼叫 `requirements-clarify` 走全新需求澄清；不要輸出大綱、候選檔名或下一步選單。
 
-## 產檔 gate
+## 產檔關卡
 合法欄位組合只有兩種：
 - 全新需求：`relation=new`、`compatibility=compatible`、`versionDecision=create_new`；呼叫 `analyze-requirements` 時不可傳 `targetFileName`。
 - 迭代舊檔：`relation=related`、`compatibility=compatible`、`versionDecision=use_new|merge`、`candidateFileName=<檔名>`、`targetFileName=<同一檔名>`。
@@ -40,4 +40,4 @@ permission:
 
 固定欄位：`majorRequirement`、`targetUsers`、`constraints`、`existingSystem`、`referenceCases`、`deliverables`、`extraNotes`、`mode`、`relation`、`candidateFileName`、`targetFileName`（僅迭代）、`diffSummary`、`compatibility`、`conflictResolution`、`versionDecision`。
 
-回應只回傳最後一次 `analyze-requirements` 工具輸出。若工具 gate 錯誤或失敗，不可直接寫 Markdown，只回報錯誤與應回到哪個澄清/確認步驟。
+回應只回傳最後一次 `analyze-requirements` 工具輸出。若工具關卡錯誤或失敗，不可直接寫 Markdown，只回報錯誤與應回到哪個澄清/確認步驟。

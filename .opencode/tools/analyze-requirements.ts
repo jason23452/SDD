@@ -161,6 +161,29 @@ function deriveVersionDecision(args: AnalyzeRequirementsInput): string {
   return "needs_decision"
 }
 
+function displayRelation(value: string): string {
+  if (value === "related") return "迭代舊需求"
+  if (value === "new") return "全新需求"
+  if (value === "uncertain") return "不確定"
+  return value || "待補"
+}
+
+function displayCompatibility(value: string): string {
+  if (value === "compatible") return "相容"
+  if (value === "conflict") return "衝突"
+  if (value === "needs_decision") return "需決策"
+  return value || "待補"
+}
+
+function displayVersionDecision(value: string): string {
+  if (value === "create_new") return "建立新需求"
+  if (value === "use_new") return "採用新版"
+  if (value === "merge") return "合併新舊"
+  if (value === "keep_old") return "保留舊版"
+  if (value === "needs_decision") return "需決策"
+  return value || "待補"
+}
+
 function missingCoreFields(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string[] {
   const fields: [string, string | undefined][] = [
     ["majorRequirement", args.majorRequirement],
@@ -554,19 +577,19 @@ ${buildReferenceSection(referenceCases)}
 ### 5.2 子需求 SR-01（使用者情境）
 - **子需求名稱：** ${sr1}
 - **業務目標：** 明確定義目標使用者、主要情境與完成目標
-- **優先順序：** Must
+- **優先順序：** 必做
 - **驗收判斷：** 使用者在指定情境中可判斷需求是否完成
 
 ### 5.3 子需求 SR-02（範圍規則）
 - **子需求名稱：** ${sr2}
 - **業務目標：** 明確本次需求必做、不做、限制與相容邊界
-- **優先順序：** Must
+- **優先順序：** 必做
 - **驗收判斷：** 範圍、規則與限制可被使用者或利害關係人確認
 
 ### 5.4 子需求 SR-03（交付驗收）
 - **子需求名稱：** ${sr3}
 - **業務目標：** 明確交付項、驗收條件與待補決策
-- **優先順序：** Should
+- **優先順序：** 應做
 - **驗收判斷：** 每個交付項都能對應至少一項驗收條件
 
 ## 6. 子需求需求說明
@@ -574,7 +597,7 @@ ${buildReferenceSection(referenceCases)}
 - **需求說明：** 說明誰在什麼情境下需要完成什麼目標。
 - **預期效益：** 降低理解與溝通成本，避免需求落差。
 - **邊緣情境與影響分析：** 情境資訊不足時，可能導致驗收標準不一致；嚴重程度 P2。
-- **最小可行版本（MVP）：** 明確目標使用者、主情境與完成定義。
+- **最小可行版本：** 明確目標使用者、主情境與完成定義。
 - **延展版本：** 補充次要使用者、例外情境與營運支援需求。
 - **依賴與風險：** 使用者角色、情境描述或限制條件未完整定義。
 - **替代取捨：** 若情境仍不明確，應先縮小交付範圍並保留待補決策。
@@ -584,7 +607,7 @@ ${buildReferenceSection(referenceCases)}
 - **需求說明：** 說明本次需求包含哪些規則、限制、依賴與排除項。
 - **預期效益：** 降低範圍蔓延與版本衝突風險。
 - **邊緣情境與影響分析：** 既有規則與本次變更邊界不清時，可能造成新舊需求互相覆蓋；嚴重程度 P1。
-- **最小可行版本（MVP）：** 明確必做、不做、相容條件與版本決策。
+- **最小可行版本：** 明確必做、不做、相容條件與版本決策。
 - **延展版本：** 補充跨部門流程、法規限制或營運例外規則。
 - **依賴與風險：** 既有系統資訊、營運規則或版本決策不足。
 - **替代取捨：** 若與舊需求仍有衝突，應先回到澄清流程，不直接產生新結論。
@@ -594,7 +617,7 @@ ${buildReferenceSection(referenceCases)}
 - **需求說明：** 說明交付文件、完成條件、驗收標準與待補決策。
 - **預期效益：** 讓需求完成與否可被一致判斷。
 - **邊緣情境與影響分析：** 驗收條件不足時，可能造成交付後爭議或返工；嚴重程度 P2。
-- **最小可行版本（MVP）：** 每個主要情境都有對應驗收條件。
+- **最小可行版本：** 每個主要情境都有對應驗收條件。
 - **延展版本：** 補充品質門檻、營運檢核與後續迭代條件。
 - **依賴與風險：** 交付內容、驗收責任或成功指標未完整定義。
 - **替代取捨：** 若驗收標準無法確認，先標記待補，不推測完成條件。
@@ -626,8 +649,8 @@ ${buildReferenceSection(referenceCases)}
 - AC-05：每個主要交付項都可對應使用者情境與驗收判斷
 
 ## 11. 里程碑建議
-- **MVP：** 完成主情境、核心交付範圍、限制條件與基本驗收
-- **Beta 驗證：** 補齊例外情境、角色限制、相容條件與待補決策
+- **最小可行版本：** 完成主情境、核心交付範圍、限制條件與基本驗收
+- **試用驗證：** 補齊例外情境、角色限制、相容條件與待補決策
 - **正式交付：** 通過驗收、完成風險確認、版本附註與後續迭代條件
 
 ---
@@ -692,13 +715,12 @@ export default tool({
 
     return [
       "需求分析文件已產生。",
-      `- file: ${filePath}`,
-      `- repoMap: ${repoMapPath}`,
-      archivePath ? `- history: ${archivePath}` : "",
-      `- relation: ${relation}`,
-      `- versionDecision: ${versionDecision}`,
-      `- compatibility: ${compatibility}`,
-      "完整內容已寫入檔案；工具回傳保持精簡以節省 token。",
+      `- 檔案：${filePath}`,
+      `- 索引：${repoMapPath}`,
+      archivePath ? `- 歷史備份：${archivePath}` : "",
+      `- 關係：${displayRelation(relation)}`,
+      `- 版本決策：${displayVersionDecision(versionDecision)}`,
+      `- 相容性：${displayCompatibility(compatibility)}`,
     ].filter(Boolean).join("\n")
   },
 })

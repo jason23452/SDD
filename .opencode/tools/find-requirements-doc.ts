@@ -249,14 +249,14 @@ function formatLatestList(outputDir: string, docs: RequirementDoc[], limit: numb
   if (docs.length === 0) {
     return [
       "需求文件搜尋：0/0",
-      `dir: ${outputDir}`,
+      `目錄：${outputDir}`,
       "無既有需求文件。",
     ].join("\n")
   }
 
   return [
     `最新需求文件：${Math.min(limit, docs.length)}/${docs.length}`,
-    `dir: ${outputDir}`,
+    `目錄：${outputDir}`,
     "",
     ...docs.slice(0, limit).map((doc) => `- ${doc.name}`),
   ].join("\n")
@@ -265,10 +265,10 @@ function formatLatestList(outputDir: string, docs: RequirementDoc[], limit: numb
 function formatNoMatches(outputDir: string, query: string, scanned: number): string {
   return [
     `需求文件搜尋：0/${scanned}`,
-    `dir: ${outputDir}`,
-    `query: ${query}`,
-    "decision: new",
-    "next: call requirements-clarify as new; do not ask candidate question.",
+    `目錄：${outputDir}`,
+    `查詢：${query}`,
+    "判斷：全新需求",
+    "下一步：直接進入全新需求澄清，不問候選檔。",
   ].join("\n")
 }
 
@@ -278,9 +278,9 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
   const ambiguous = docs.length > 1 && secondScore >= topScore * 0.8
   const lines = [
     `需求文件搜尋：${docs.length}/${scanned}`,
-    `dir: ${outputDir}`,
-    `query: ${query}`,
-    `decision: ${ambiguous ? "ambiguous" : "clear"}`,
+    `目錄：${outputDir}`,
+    `查詢：${query}`,
+    `判斷：${ambiguous ? "候選不明確" : "明確候選"}`,
     "",
   ]
 
@@ -288,8 +288,8 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
     const reason = [
       doc.matchedAreas.length > 0 ? `區塊:${doc.matchedAreas.join("/")}` : "",
       doc.matchedTerms.length > 0 ? `詞:${doc.matchedTerms.join("/")}` : "",
-      doc.source ? `source:${doc.source}` : "",
-      doc.confidence ? `confidence:${doc.confidence}` : "",
+      doc.source ? `來源:${doc.source}` : "",
+      doc.confidence ? `信心:${doc.confidence}` : "",
       doc.confidence?.includes("rule_low") ? "需人工確認" : "",
     ]
       .filter(Boolean)
@@ -300,9 +300,9 @@ function formatMatches(outputDir: string, query: string, docs: ScoredDoc[], scan
 
   lines.push("")
   if (ambiguous) {
-    lines.push("next: ask question to select candidate or new; then call requirements-clarify.")
+    lines.push("下一步：用複選題選候選檔或全新需求，再進入需求澄清。")
   } else {
-    lines.push("next: read first candidate snippet; then call requirements-clarify.")
+    lines.push("下一步：讀第一候選檔必要片段，再進入需求澄清。")
   }
 
   return lines.join("\n").trimEnd()
@@ -365,7 +365,7 @@ export default tool({
           ...scoredDoc,
           score: scoredDoc.score + mapScore.score + 8,
           matchedTerms: [...new Set([...mapScore.matchedTerms, ...scoredDoc.matchedTerms])].slice(0, 5),
-          matchedAreas: [...new Set(["RepoMap", ...mapScore.matchedAreas, ...scoredDoc.matchedAreas])].slice(0, 4),
+          matchedAreas: [...new Set(["索引", ...mapScore.matchedAreas, ...scoredDoc.matchedAreas])].slice(0, 4),
           source: mapScore.source,
           confidence: mapScore.confidence,
         }
