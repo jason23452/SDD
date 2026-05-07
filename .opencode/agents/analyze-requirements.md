@@ -2,7 +2,7 @@
 description: 需求產檔代理（固定格式）
 mode: subagent
 temperature: 0.0
-steps: 3
+steps: 5
 permission:
   find-requirements-doc: deny
   analyze-requirements: allow
@@ -21,6 +21,8 @@ permission:
 - 不補問、不讀搜、不改寫、不補值、不加未確認需求。
 - 只整理：目標、使用者、情境、範圍、限制、交付、驗收、版本。
 - 禁展開：技術框架、選型、語言、套件、資料庫、API、介面、資料模型、架構、資料流程、測試、部署。
+- 若 `analyzeArgs` 仍只有功能大類、抽象形容詞或核心欄位待補，不可呼叫工具，必須退回澄清。
+- 產檔前檢查 `majorRequirement/targetUsers/constraints/deliverables/extraNotes`：需明確包含使用者情境、必做/不做邊界、例外或失敗情境、驗收判準；缺任一項視為澄清不足。
 - 全新：`versionDecision=create_new`，不得有 `targetFileName`。
 - 迭代：`relation=related`、`compatibility=compatible`、`versionDecision=use_new|merge`、`candidateFileName=targetFileName`、`diffSummary`。
 - 有 `keep_old|needs_decision|conflict|uncertain`、缺漏、不一致或工具錯誤：不寫檔，退回澄清。

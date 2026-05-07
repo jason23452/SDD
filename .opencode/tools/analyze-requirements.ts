@@ -184,6 +184,131 @@ function displayVersionDecision(value: string): string {
   return value || "待補"
 }
 
+const ABSTRACT_TERMS = [
+  "基本",
+  "完整",
+  "簡單",
+  "方便",
+  "清楚",
+  "提升效率",
+  "管理",
+  "整合",
+  "支援",
+  "提醒",
+  "回顧",
+  "記錄",
+  "分類",
+  "彈性",
+  "快速",
+]
+
+type DetailRule = {
+  field: keyof AnalyzeRequirementsInput
+  label: string
+  minLength: number
+  minClauses: number
+  requiredPatterns: RegExp[]
+  minPatternMatches: number
+}
+
+function splitRequirementClauses(value: string): string[] {
+  return normalize(value)
+    .split(/[，。；;、\n]/)
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 4 && item !== "待補")
+}
+
+function countPatternMatches(value: string, patterns: RegExp[]): number {
+  return patterns.filter((pattern) => pattern.test(value)).length
+}
+
+function isPlaceholder(value: string): boolean {
+  const normalized = normalize(value)
+  return normalized === "待補" || normalized.includes("待補")
+}
+
+function looksLikeAbstractOnly(value: string): boolean {
+  const normalized = normalize(value).replace(/[\s，。；;、:：/\\|()（）\[\]{}<>「」『』"'`]+/g, "")
+  if (normalized.length >= 28) return false
+  return ABSTRACT_TERMS.some((term) => normalized.includes(term))
+}
+
+function assertDetailedRequirements(args: AnalyzeRequirementsInput): void {
+  const rules: DetailRule[] = [
+    {
+      field: "majorRequirement",
+      label: "主要需求",
+      minLength: 30,
+      minClauses: 2,
+      requiredPatterns: [/問題|痛點|避免|不漏|困擾|需要/, /目標|目的|價值|成功|提升|安排|回顧/, /使用者|情境|場景|時機|第一版/],
+      minPatternMatches: 2,
+    },
+    {
+      field: "targetUsers",
+      label: "目標使用者",
+      minLength: 25,
+      minClauses: 2,
+      requiredPatterns: [/使用者|角色|個人|管理者|學生|上班族|家庭|團隊/, /頻率|情境|場景|時機|使用|日常|工作|生活/],
+      minPatternMatches: 2,
+    },
+    {
+      field: "constraints",
+      label: "限制與邊界",
+      minLength: 45,
+      minClauses: 3,
+      requiredPatterns: [/必做|包含|第一版|優先/, /不做|不包含|排除|不在|非第一版/, /限制|邊界|例外|失敗|風險|隱私|保留|可見/],
+      minPatternMatches: 3,
+    },
+    {
+      field: "existingSystem",
+      label: "既有需求",
+      minLength: 6,
+      minClauses: 1,
+      requiredPatterns: [/無既有|候選|既有|不可覆蓋|舊需求|全新/],
+      minPatternMatches: 1,
+    },
+    {
+      field: "referenceCases",
+      label: "參考依據",
+      minLength: 8,
+      minClauses: 1,
+      requiredPatterns: [/無外部參考|依本次|參考|案例|依據/],
+      minPatternMatches: 1,
+    },
+    {
+      field: "deliverables",
+      label: "交付與驗收",
+      minLength: 45,
+      minClauses: 3,
+      requiredPatterns: [/交付|產出|第一版/, /完成|驗收|判準|條件/, /成功|失敗|不交付|非第一版/],
+      minPatternMatches: 3,
+    },
+    {
+      field: "extraNotes",
+      label: "補充風險與例外",
+      minLength: 35,
+      minClauses: 2,
+      requiredPatterns: [/驗收|成功|完成/, /風險|例外|失敗|衝突/, /待決|後續|版本|優先|取捨|回顧/],
+      minPatternMatches: 2,
+    },
+  ]
+
+  const issues: string[] = []
+
+  for (const rule of rules) {
+    const value = normalize(args[rule.field])
+    if (isPlaceholder(value)) issues.push(`${rule.label}不可待補`)
+    if (value.length < rule.minLength) issues.push(`${rule.label}過短，需補具體情境與判準`)
+    if (splitRequirementClauses(value).length < rule.minClauses) issues.push(`${rule.label}需拆成至少 ${rule.minClauses} 個具體決策`)
+    if (countPatternMatches(value, rule.requiredPatterns) < rule.minPatternMatches) issues.push(`${rule.label}缺少必要的情境、邊界、例外或驗收語意`)
+    if (looksLikeAbstractOnly(value)) issues.push(`${rule.label}仍像功能大類或抽象詞，需再追問定義`)
+  }
+
+  if (issues.length > 0) {
+    throw new Error(`需求澄清不足，請回到 requirements-clarify 補問後再產檔：${[...new Set(issues)].join("；")}`)
+  }
+}
+
 function missingCoreFields(args: AnalyzeRequirementsInput, hasTargetFile: boolean): string[] {
   const fields: [string, string | undefined][] = [
     ["majorRequirement", args.majorRequirement],
@@ -366,6 +491,8 @@ function assertConflictResolutionFormat(conflictResolution: string): void {
 }
 
 function assertOutputIntent(args: AnalyzeRequirementsInput, targetPath?: string): void {
+  assertDetailedRequirements(args)
+
   const relation = deriveRelation(args, Boolean(targetPath))
 
   if (relation === "uncertain") {
@@ -513,6 +640,12 @@ function buildReferenceSection(referenceCases: string): string {
   ].join("\n")
 }
 
+function deriveOutOfScope(constraints: string): string {
+  const normalized = normalize(constraints)
+  if (/(不做|不包含|排除|不在|非第一版|不交付)/.test(normalized)) return normalized
+  return "缺少明確排除項；此需求應回到澄清流程補齊不做範圍後再產檔"
+}
+
 function buildOpenQuestions(constraints: string, existingSystem: string, referenceCases: string): string[] {
   const questions = [
     constraints.includes("待補") ? "確認本次必做、不做、時程、合規與營運限制" : `確認限制是否完整：${constraints}`,
@@ -567,7 +700,7 @@ ${sectionLine("需求編號", "DR-01")}
 
 ### 2.2 交付內容
 - **交付範圍：** ${deliverables}
-- **不在本次範圍：** 待補。若澄清資料未列出排除項，產檔後需補充確認。
+- **不在本次範圍：** ${deriveOutOfScope(constraints)}
 - **主要驗收：** 交付內容可對應需求目標、使用者情境與驗收條件。
 - **依賴：** ${existingSystem}
 
@@ -575,7 +708,7 @@ ${sectionLine("需求編號", "DR-01")}
 - **已知限制：** ${constraints}
 - **外部依賴：** ${existingSystem.includes("待補") ? "待補" : existingSystem}
 - **決策前提：** 僅依已澄清欄位產出，不新增未確認需求或實作方案。
-- **待補風險：** 缺少限制、排除項或驗收資料時，需先標記待補而非推測。
+- **品質風險：** 缺少限制、排除項或驗收資料時，工具應拒絕產檔並回到澄清流程。
 
 ## 3. 參考依據與需求判斷
 ${buildReferenceSection(referenceCases)}
@@ -695,7 +828,7 @@ ${buildReferenceSection(referenceCases)}
 
 ---
 ## 12. 版本附註
-- **待補資訊清單（3-5 項）：**
+- **後續確認清單（3-5 項）：**
 ${openQuestions.map((question) => `  - ${question}`).join("\n")}
 - **需要你確認的關鍵決策：**
   - ${constraints.includes("待補") ? "待補：本次需求的必做/不做與優先順序" : `${constraints} 是否已完整涵蓋本次需求邊界`}
@@ -706,15 +839,15 @@ ${openQuestions.map((question) => `  - ${question}`).join("\n")}
 }
 
 export default tool({
-  description: "依欄位產生中文需求報告；只整理需求，不產生實作方案。",
+  description: "依深度澄清欄位產生中文需求報告；核心欄位不足、抽象或待補時拒絕產檔。",
   args: {
-    majorRequirement: tool.schema.string().describe("需求主題/價值").default("待補"),
-    targetUsers: tool.schema.string().describe("使用者/情境").default("待補"),
-    constraints: tool.schema.string().describe("限制/邊界/排除").default("待補"),
-    existingSystem: tool.schema.string().describe("既有需求/不可改項").default("待補"),
-    referenceCases: tool.schema.string().describe("參考依據").default("待補"),
-    deliverables: tool.schema.string().describe("交付/不交付").default("待補"),
-    extraNotes: tool.schema.string().describe("補充/風險/驗收").default("待補"),
+    majorRequirement: tool.schema.string().describe("需包含問題、價值、主要情境、第一版成功結果；不可只寫需求名稱").default("待補"),
+    targetUsers: tool.schema.string().describe("需包含主要使用者、排除或次要使用者、至少兩個使用情境/時機").default("待補"),
+    constraints: tool.schema.string().describe("需包含必做、不做、優先順序、限制、例外/失敗情境；不可只列功能大類").default("待補"),
+    existingSystem: tool.schema.string().describe("全新需寫無既有需求；迭代需寫候選檔與不可覆蓋項；不可待補").default("待補"),
+    referenceCases: tool.schema.string().describe("無參考需明寫無外部參考且依本次澄清內容；不可待補").default("待補"),
+    deliverables: tool.schema.string().describe("需包含交付物、第一版/非第一版、完成判準、失敗判準、驗收方式").default("待補"),
+    extraNotes: tool.schema.string().describe("需包含驗收重點、風險、例外、待決/後續版本取捨").default("待補"),
     mode: tool.schema.string().describe("initial 或 final").default("initial"),
     relation: tool.schema
       .string()
