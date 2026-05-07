@@ -22,6 +22,6 @@ permission:
 - 只整理：目標、使用者、情境、範圍、限制、交付、驗收、版本。
 - 禁展開：技術框架、選型、語言、套件、資料庫、API、介面、資料模型、架構、資料流程、測試、部署。
 - 全新：`versionDecision=create_new`，不得有 `targetFileName`。
-- 迭代：`relation=related`、`compatibility=compatible`、`versionDecision=use_new|merge`、`candidateFileName=targetFileName`。
+- 迭代：`relation=related`、`compatibility=compatible`、`versionDecision=use_new|merge`、`candidateFileName=targetFileName`、`diffSummary`。
 - 有 `keep_old|needs_decision|conflict|uncertain`、缺漏、不一致或工具錯誤：不寫檔，退回澄清。
 - 只回最後一次工具輸出。

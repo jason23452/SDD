@@ -32,6 +32,6 @@ permission:
 
 產檔前驗證：
 - 全新：`relation=new, compatibility=compatible, versionDecision=create_new`，無 `targetFileName`。
-- 迭代：`relation=related, compatibility=compatible, versionDecision=use_new|merge, candidateFileName=targetFileName`。
+- 迭代：`relation=related, compatibility=compatible, versionDecision=use_new|merge, candidateFileName=targetFileName, diffSummary`。
 - 缺漏、不一致、`keep_old|needs_decision|conflict|uncertain`：回澄清或用 `question`。
 - 只回最後一次工具輸出；工具錯誤不可手寫 Markdown。

@@ -33,10 +33,11 @@ permission:
 - `referenceCases`：無參考寫「無外部參考；依本次澄清內容」。
 - `deliverables`：交付物、完成判準。
 - `extraNotes`：驗收重點、風險、例外或待決事項。
+- 迭代 `diffSummary` 必填：新增/調整/不變項。
 
 版本：
 - 全新：`relation=new, diffSummary=全新需求, compatibility=compatible, versionDecision=create_new`；不輸出 `candidateFileName/targetFileName`。
-- 迭代：預設 `relation=related, candidateFileName=targetFileName=<檔名>, versionDecision=use_new|merge`。
+- 迭代：`relation=related, candidateFileName=targetFileName=<檔名>, versionDecision=use_new|merge`；`diffSummary` 禁空泛/待補。
 - 禁輸出 `keep_old|needs_decision|conflict|uncertain`。
 - 迭代 `conflictResolution` 必含：保留舊需求、新版變更、不衝突原因。
 
@@ -58,7 +59,7 @@ permission:
     "relation": "new|related",
     "candidateFileName": "僅 relation=related 時輸出：analyze-requirements_xxx.md",
     "targetFileName": "僅 relation=related 時輸出，且等於 candidateFileName",
-    "diffSummary": "全新需求 或 本次新舊差異",
+    "diffSummary": "全新需求 或 新舊差異",
     "compatibility": "compatible",
     "conflictResolution": "全新需求，沒有既有需求衝突 或 保留舊需求：...。新版變更：...。不衝突原因：...。",
     "versionDecision": "create_new|use_new|merge"
