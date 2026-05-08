@@ -256,7 +256,11 @@ function assertDetailedRequirements(args: AnalyzeRequirementsInput): void {
       label: "限制與邊界",
       minLength: 45,
       minClauses: 3,
-      requiredPatterns: [/必做|包含|第一版|優先/, /不做|不包含|排除|不在|非第一版/, /限制|邊界|例外|失敗|風險|隱私|保留|可見/],
+      requiredPatterns: [
+        /必做|包含|第一版|首版|優先|只做|需支援|支援|提供|允許|需要|達成|完成/,
+        /不做|不包含|排除|不在|非第一版|非首版|不得|不要|不可|不支援|不同步|不公開|不多人|無公開|無多人|避免公開|略過/,
+        /限制|邊界|例外|失敗|風險|隱私|保留|可見|驗收|判準|提示|阻擋|衝突|離線|權限/,
+      ],
       minPatternMatches: 3,
     },
     {
@@ -843,7 +847,7 @@ export default tool({
   args: {
     majorRequirement: tool.schema.string().describe("需包含問題、價值、主要情境、第一版成功結果；不可只寫需求名稱").default("待補"),
     targetUsers: tool.schema.string().describe("需包含主要使用者、排除或次要使用者、至少兩個使用情境/時機").default("待補"),
-    constraints: tool.schema.string().describe("需包含必做、不做、優先順序、限制、例外/失敗情境；不可只列功能大類").default("待補"),
+    constraints: tool.schema.string().describe("需包含必做/首版只做、不做/排除、優先順序、限制/邊界、例外/失敗情境與驗收語意；不可只列功能大類").default("待補"),
     existingSystem: tool.schema.string().describe("全新需寫無既有需求；迭代需寫候選檔與不可覆蓋項；不可待補").default("待補"),
     referenceCases: tool.schema.string().describe("無參考需明寫無外部參考且依本次澄清內容；不可待補").default("待補"),
     deliverables: tool.schema.string().describe("需包含交付物、第一版/非第一版、完成判準、失敗判準、驗收方式").default("待補"),

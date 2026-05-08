@@ -56,7 +56,7 @@ permission:
 - `extraNotes`：驗收重點、風險、例外、待決事項、後續版本候選、使用者選擇依據。
 - 迭代 `diffSummary` 必填：新增/調整/不變項。
 
-完成門檻：輸出 JSON 前，逐項自查 `majorRequirement/targetUsers/constraints/deliverables/extraNotes` 是否仍只有大類或形容詞；若是，必須再問。只有在每個已選功能都完成「逐項深挖矩陣」後，才能 `clarificationComplete=true`。
+完成門檻：輸出 JSON 前，逐項自查 `majorRequirement/targetUsers/constraints/deliverables/extraNotes` 是否仍只有大類或形容詞；若是，必須再問。`constraints` 必須用「必做：...；不做：...；優先：...；限制/邊界：...；例外/失敗：...；驗收：...」格式整理已確認內容，不可只寫「首版只做/無公開/操作簡單」這類未分段摘要。只有在每個已選功能都完成「逐項深挖矩陣」後，才能 `clarificationComplete=true`。
 
 版本：
 - 全新：`relation=new, diffSummary=全新需求, compatibility=compatible, versionDecision=create_new`；不輸出 `candidateFileName/targetFileName`。
