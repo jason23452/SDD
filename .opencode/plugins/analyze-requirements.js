@@ -31,13 +31,30 @@ const BACKEND_HINTS = [
 ]
 
 const DETAIL_TOPICS = [
+  "需求來源/原文整理",
+  "MVP 範圍與不做範圍",
+  "使用者角色/權限矩陣",
   "實作語言",
   "前端框架",
+  "前端頁面/路由/狀態",
+  "前端表單/驗證/錯誤顯示",
+  "前端資料流/API 快取",
   "後端框架",
+  "API contract 與錯誤格式",
+  "API pagination/filter/sort",
   "資料庫",
+  "資料模型/查詢/索引",
+  "資料 migration/seed/備份",
   "登入驗證",
+  "權限/隱私/安全",
+  "核心計算/資料一致性",
+  "背景工作/排程/通知",
+  "檔案上傳/第三方整合",
+  "可觀測性/logging/audit",
+  "第三方套件選型",
   "測試",
   "部署/執行環境",
+  "環境變數/secret 管理",
 ]
 
 export const AnalyzeRequirementsTools = async () => {
@@ -318,6 +335,10 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "",
     "## 建議優先釐清問題",
     ...questionLines,
+    "",
+    "## 產檔整理提醒",
+    "- 後續需求開發實踐檔應把原始需求整理、引用來源、使用者已確認技術決策與開發實踐建議放在同一份文件中。",
+    "- 不要把未經 question 確認的推薦方案寫成已採用；未確認項目只能列為待確認或候選方案。",
   ].join("\n")
 }
 
@@ -358,7 +379,7 @@ function buildModelRecommendationPrompt(analysis) {
     `使用者指定套件：${analysis.userPackageText || "未提供"}`,
     `使用者希望模型推薦項目：${analysis.modelRecommendationNeeds || "未指定，請至少評估語言、前端、後端、資料庫、登入、安全、測試、部署與替代方案"}`,
     `決策模式：${analysis.decisionMode}`,
-    "輸出時請包含：推薦方案、選型理由、替代方案、取捨風險、官方文件 URL、需要再問使用者的關鍵問題。",
+    "輸出時請包含：推薦方案、選型理由、替代方案、取捨風險、官方文件 URL、需要再問使用者的關鍵問題；關鍵問題必須細到可直接轉成 question 工具選項，不能只問框架、資料庫或是否登入。",
     "若使用者已指定偏好，請優先尊重；若偏好與需求或專案線索衝突，請明確指出風險並提供替代方案。",
   ]
 }
@@ -394,30 +415,217 @@ function buildRecommendationLines(analysis) {
   return analysis.modelRecommendationPrompt.map((line) => `- ${line}`)
 }
 
+const QUESTION_OPTION_REQUIREMENT = "選項需提供推薦方案、替代方案、延後/待確認；description 需說明採用內容、適用情境、主要取捨、影響範圍與不選風險"
+
+function buildDetailedQuestion(topic, checks) {
+  return `- ${topic}：請確認${checks.join("、")}；${QUESTION_OPTION_REQUIREMENT}。`
+}
+
 function buildQuestions(analysis) {
-  const questions = []
+  const questions = [
+    buildDetailedQuestion("原始需求與產檔範圍", [
+      "引用檔案或使用者原文是否完整保留",
+      "需求摘要是否需要條目化",
+      "產出檔是否只建立一份並同時包含原始需求整理與開發實踐內容",
+      "哪些原文可摘錄、哪些內容需標示截斷",
+    ]),
+    buildDetailedQuestion("MVP 與不做範圍", [
+      "第一版必做功能",
+      "延後功能",
+      "明確不做事項",
+      "每項功能的驗收條件",
+      "需求若超出 MVP 時的處理方式",
+    ]),
+  ]
 
   if (analysis.needFrontend) {
-    questions.push("- 前端要採用哪個框架與語言？若沒有偏好，請交由大模型依需求推薦並說明取捨。")
-    questions.push("- UI 是否有既有設計系統、元件庫、路由方式與狀態管理規範？")
+    questions.push(buildDetailedQuestion("前端框架/語言/建置", [
+      "是否沿用既有 README 技術棧",
+      "SPA/SSR/SSG 或純前端模式",
+      "TypeScript/JavaScript",
+      "建置工具與 package manager",
+      "版本限制與瀏覽器支援範圍",
+    ]))
+    questions.push(buildDetailedQuestion("前端頁面/路由/版面", [
+      "第一版頁面清單",
+      "路由層級與保護頁面",
+      "layout/nav/sidebar/header/footer 是否需要",
+      "桌機與手機斷點",
+      "空狀態、loading、error、無權限狀態",
+    ]))
+    questions.push(buildDetailedQuestion("前端互動/表單/驗證", [
+      "表單欄位與必填規則",
+      "同步/非同步驗證",
+      "送出後成功與失敗回饋",
+      "重複提交防護",
+      "草稿、重設、取消與離開頁面提醒",
+    ]))
+    questions.push(buildDetailedQuestion("前端套件選型", [
+      "UI 元件庫",
+      "樣式方案",
+      "路由",
+      "狀態管理/API 快取",
+      "表單驗證",
+      "日期時間",
+      "圖表/日曆/地圖/編輯器等需求套件",
+      "測試與 lint/format 工具",
+    ]))
+    questions.push(buildDetailedQuestion("前端資料流與使用者狀態", [
+      "API 資料來源",
+      "快取失效策略",
+      "樂觀更新是否需要",
+      "重試與取消請求",
+      "登入狀態同步",
+      "權限不足時 UI 行為",
+    ]))
   }
 
   if (analysis.needBackend) {
-    questions.push("- 後端要採用哪個框架與語言？若沒有偏好，請交由大模型依需求推薦並說明取捨。")
-    questions.push("- 資料要存在哪裡，是否需要資料庫、快取或 ORM？若沒有偏好，請交由大模型推薦。")
-    questions.push("- 登入驗證、授權與權限邊界如何定義？若沒有偏好，請交由大模型推薦安全方案。")
+    questions.push(buildDetailedQuestion("後端框架/語言/API 型式", [
+      "是否沿用既有 README 技術棧",
+      "REST/RPC/GraphQL 或其他 API 型式",
+      "專案目錄慣例",
+      "設定載入方式",
+      "本機啟動與測試指令",
+      "版本與 runtime 限制",
+    ]))
+    questions.push(buildDetailedQuestion("API contract 與錯誤格式", [
+      "endpoint 清單",
+      "request/response schema",
+      "狀態碼",
+      "驗證失敗格式",
+      "業務錯誤代碼",
+      "pagination/filter/sort",
+      "API 版本策略",
+    ]))
+    questions.push(buildDetailedQuestion("資料庫/ORM/資料生命週期", [
+      "資料庫種類",
+      "ORM/query builder",
+      "migration",
+      "seed",
+      "索引與查詢模式",
+      "交易一致性",
+      "備份、清除與資料保留策略",
+    ]))
+    questions.push(buildDetailedQuestion("資料模型與關聯", [
+      "核心 entity",
+      "欄位型別與 nullable 規則",
+      "唯一性與外鍵",
+      "狀態機",
+      "軟刪除/硬刪除",
+      "audit 欄位",
+      "多租戶或使用者隔離需求",
+    ]))
+    questions.push(buildDetailedQuestion("登入驗證/授權/安全", [
+      "session/token/cookie 策略",
+      "密碼雜湊或第三方登入",
+      "角色權限矩陣",
+      "CSRF/CORS",
+      "rate limit",
+      "敏感資料遮罩",
+      "隱私資料保存與刪除",
+    ]))
+    questions.push(buildDetailedQuestion("後端套件選型", [
+      "API framework",
+      "schema validation",
+      "ORM/migration",
+      "auth/session",
+      "password hashing",
+      "queue/scheduler",
+      "logging",
+      "testing",
+      "lint/format",
+    ]))
   }
 
+  if (analysis.needFrontend && analysis.needBackend) {
+    questions.push(buildDetailedQuestion("前後端整合責任", [
+      "API contract 由哪一端維護",
+      "型別/schema 是否共享或生成",
+      "跨端錯誤訊息對應",
+      "登入狀態同步",
+      "CORS/cookie/domain 設定",
+      "本機同時啟動流程",
+      "前後端版本不一致時的處理方式",
+    ]))
+  }
+
+  questions.push(buildDetailedQuestion("核心計算與資料一致性", [
+    "計算責任在前端、後端、worker、資料庫或第三方服務哪一層",
+    "即時計算或預先計算",
+    "快取與失效",
+    "並發與資料衝突",
+    "時區/日期邊界",
+    "計算錯誤時的回復方式",
+  ]))
+  questions.push(buildDetailedQuestion("失敗與例外情境", [
+    "網路失敗",
+    "權限不足",
+    "資料不存在",
+    "資料衝突",
+    "重複提交",
+    "第三方服務失敗",
+    "使用者取消操作",
+    "錯誤紀錄與使用者可見訊息",
+  ]))
+  questions.push(buildDetailedQuestion("背景工作/排程/通知", [
+    "是否需要 queue/worker/scheduler",
+    "觸發時機",
+    "重試策略",
+    "冪等性",
+    "通知管道",
+    "使用者可關閉或偏好設定",
+  ]))
+  questions.push(buildDetailedQuestion("第三方整合與檔案處理", [
+    "是否需要外部 API",
+    "憑證/secret 管理",
+    "webhook",
+    "檔案大小與類型限制",
+    "儲存位置",
+    "掃毒/安全檢查",
+    "失敗補償流程",
+  ]))
+  questions.push(buildDetailedQuestion("可觀測性與營運", [
+    "log 欄位",
+    "audit trail",
+    "錯誤追蹤",
+    "指標/健康檢查",
+    "管理者排查資訊",
+    "個資是否需要遮罩",
+  ]))
+
   if (analysis.missingDetails.includes("測試")) {
-    questions.push("- 驗收與測試範圍為何？請由大模型依需求推薦適合的測試分層與工具。")
+    questions.push(buildDetailedQuestion("驗收與測試範圍", [
+      "需求情境與通過條件",
+      "單元測試",
+      "整合測試",
+      "E2E",
+      "API contract",
+      "權限測試",
+      "核心計算測試",
+      "測試資料與 mock 策略",
+    ]))
   }
 
   if (analysis.missingDetails.includes("部署/執行環境")) {
-    questions.push("- 目標執行與部署環境是本機、容器化、平台服務、雲端 VM，或其他平台？")
+    questions.push(buildDetailedQuestion("部署/環境/CI", [
+      "本機或容器化",
+      "平台服務或雲端 VM",
+      "環境變數與 secret",
+      "資料庫連線",
+      "migration 執行時機",
+      "CI/CD",
+      "rollback 與版本發布方式",
+    ]))
   }
 
-  if (questions.length === 0) {
-    questions.push("- 需求已包含主要技術線索，下一步可確認版本、資料模型與驗收測試細節。")
+  if (!analysis.needFrontend && !analysis.needBackend) {
+    questions.push(buildDetailedQuestion("是否需要建立或使用 frontend/backend 專案", [
+      "此需求是否只是整理/討論/文件",
+      "是否要落地為可執行功能",
+      "若要落地需 frontend、backend 或兩者",
+      "不建立專案時本次輸出內容為何",
+    ]))
   }
 
   return questions
