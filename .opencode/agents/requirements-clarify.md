@@ -6,7 +6,11 @@ steps: 40
 permission:
   analyze-requirements: deny
   find-requirements-doc: deny
+  list-requirement-docs: deny
+  rebuild-requirement-repo-map: deny
   question: allow
+  glob: deny
+  grep: deny
   read: deny
   edit: deny
   write: deny

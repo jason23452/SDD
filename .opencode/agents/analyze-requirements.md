@@ -5,9 +5,13 @@ temperature: 0.0
 steps: 5
 permission:
   find-requirements-doc: deny
+  list-requirement-docs: deny
+  rebuild-requirement-repo-map: deny
   analyze-requirements: allow
   requirements-clarify: deny
   question: deny
+  glob: deny
+  grep: deny
   read: deny
   edit: deny
   write: deny

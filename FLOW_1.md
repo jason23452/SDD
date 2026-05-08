@@ -13,9 +13,9 @@
 
 | 類型 | 檔案 | 角色 |
 | --- | --- | --- |
-| 入口代理 | `.opencode/agents/find-requirements-doc.md` | 固定流程入口：先搜尋、再澄清、最後產檔 |
-| 澄清代理 | `.opencode/agents/requirements-clarify.md` | 用複選題確認需求範圍、新舊需求關係與版本決策 |
-| 產檔代理 | `.opencode/agents/analyze-requirements.md` | 只接受澄清後欄位，呼叫產檔工具 |
+| 入口代理 | `.opencode/agents/find-requirements-doc.md` | 固定流程入口：呼叫搜尋工具，再用 `task` 委派澄清與產檔 subagent |
+| 澄清代理 | `.opencode/agents/requirements-clarify.md` | subagent；用複選題確認需求範圍、新舊需求關係與版本決策，不可產檔 |
+| 產檔代理 | `.opencode/agents/analyze-requirements.md` | subagent；只接受澄清後欄位，呼叫產檔工具 |
 | 搜尋工具 | `.opencode/tools/find-requirements-doc.ts` | 搜尋既有需求 Markdown，判斷候選是否明確 |
 | 產檔工具 | `.opencode/tools/analyze-requirements.ts` | 建立新需求文件或迭代更新舊需求文件 |
 | 索引工具 | `.opencode/tools/rebuild-requirement-repo-map.ts` | 從既有 Markdown 重建 repo map |
@@ -36,16 +36,16 @@ flowchart TD
     G --> H["question：選舊檔、繼續搜尋或改全新需求"]
     H --> I["確定澄清上下文"]
 
-    E --> J["澄清代理：requirements-clarify"]
+    E --> J["task：requirements-clarify 澄清代理"]
     F --> J
     I --> J
 
-    J --> K["question：複選澄清需求、範圍、FE/BE/Test、版本決策"]
+    J --> K["question：複選澄清目標、範圍、邊界、驗收、版本決策"]
     K --> L{澄清是否完成？}
     L -->|"否"| K
     L -->|"是"| M["輸出 clarificationComplete + runAnalyze + analyzeArgs"]
 
-    M --> N["產檔代理：analyze-requirements"]
+    M --> N["task：analyze-requirements 產檔代理"]
     N --> O["工具：analyze-requirements.ts"]
     O --> P{產檔意圖是否合法？}
 
@@ -102,12 +102,12 @@ flowchart LR
     L1 --> S1
     L1 --> S2
 
-    A1 --> A2
+    A1 -->|task| A2
     A2 --> U2
     U2 --> A2
     A2 --> A1
 
-    A1 --> A3
+    A1 -->|task| A3
     A3 --> T2
     T2 --> L1
     T2 --> S1
@@ -123,7 +123,7 @@ flowchart LR
 
 ### 1. `requirements-clarify` 是必經 gate
 
-搜尋結果不能直接拿來產檔。即使找到明確候選文件，也必須先呼叫 `requirements-clarify`，讓使用者透過 `question` 複選題確認需求理解、開發範圍與版本決策。
+搜尋結果不能直接拿來產檔。即使找到明確候選文件，也必須先透過 `task(requirements-clarify)` 呼叫澄清 subagent，讓使用者透過 `question` 複選題確認需求理解、開發範圍與版本決策。
 
 ### 2. 產檔是澄清後的固定下一步
 
@@ -137,9 +137,16 @@ flowchart LR
 }
 ```
 
-入口代理收到合法 `analyzeArgs` 後，下一步只能呼叫 `analyze-requirements`，不可停在摘要、建議或版本確認文字。
+入口代理收到合法 `analyzeArgs` 後，下一步只能透過 `task(analyze-requirements)` 呼叫產檔 subagent，不可直接呼叫同名產檔工具，也不可停在摘要、建議或版本確認文字。
 
-### 3. 全新需求與迭代需求的決策不同
+### 3. 工具與 agent 邊界必須分離
+
+- 入口代理可呼叫 `find-requirements-doc` 工具，但直接 `analyze-requirements` 工具權限必須是 `deny`。
+- `requirements-clarify` 和 `analyze-requirements` 作為 agent 時，只能由入口代理透過 `permission.task` 委派。
+- `requirements-clarify` subagent 只能使用 `question`，不可搜尋、讀檔或產檔。
+- `analyze-requirements` subagent 是唯一可呼叫 `analyze-requirements` 產檔工具的角色。
+
+### 4. 全新需求與迭代需求的決策不同
 
 全新需求必須符合：
 
@@ -157,7 +164,7 @@ flowchart LR
 - `versionDecision=use_new` 或 `merge`
 - `conflictResolution` 具體包含「保留舊需求」、「新版變更」、「不衝突原因」
 
-### 4. 不可用未決策狀態結束流程
+### 5. 不可用未決策狀態結束流程
 
 以下狀態只能作為澄清過程中的暫態，不可作為最終產檔輸入：
 
@@ -185,6 +192,7 @@ flowchart LR
   -> 判斷全新 / 明確候選 / 候選不明確
   -> 必經複選澄清
   -> 輸出結構化 analyzeArgs
+  -> 透過 task 呼叫產檔代理
   -> gate 檢查新舊需求與版本決策
   -> 建新檔或更新舊檔
   -> 更新 requirement-repo-map.md
