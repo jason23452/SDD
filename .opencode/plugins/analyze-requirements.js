@@ -3,6 +3,9 @@ import path from "node:path"
 import { tool } from "@opencode-ai/plugin"
 
 const MAX_REQUIREMENT_CHARS = 20000
+const MAX_REQUIREMENT_SIGNALS = 10
+const MAX_GRANULAR_QUESTIONS = 18
+const MAX_TECHNICAL_FOLLOW_UPS = 8
 
 const FRONTEND_HINTS = [
   "畫面",
@@ -223,10 +226,12 @@ function analyzeRequirement(requirementText, projectSignals, args = {}) {
   const frontendScore = scoreHints(text, FRONTEND_HINTS)
   const backendScore = scoreHints(text, BACKEND_HINTS)
   const detailContext = buildDetailContext({ preferenceText, userPackageText, modelRecommendationNeeds })
-  const foundDetails = DETAIL_TOPICS.map((topic) => [topic, detailContext])
-  const missingDetails = detailContext.length === 0 ? [...DETAIL_TOPICS] : []
+  const requirementSignals = extractRequirementSignals(text)
   const needFrontend = frontendScore > 0
   const needBackend = backendScore > 0
+  const detailTopics = selectDetailTopics(text, { needFrontend, needBackend, requirementSignals })
+  const foundDetails = detailTopics.map((topic) => [topic, detailContext])
+  const missingDetails = detailContext.length === 0 ? [...detailTopics] : []
   const modelRecommendationPrompt = buildModelRecommendationPrompt({
     needFrontend,
     needBackend,
@@ -251,6 +256,7 @@ function analyzeRequirement(requirementText, projectSignals, args = {}) {
     modelRecommendationNeeds,
     decisionMode: args.decision_mode || "mixed",
     modelRecommendationPrompt,
+    requirementSignals,
     projectSignals,
   }
 }
@@ -280,6 +286,50 @@ function matchesHint(text, hint) {
   }
 
   return new RegExp(`(^|[^A-Za-z0-9])${escaped}($|[^A-Za-z0-9])`, "i").test(text)
+}
+
+function selectDetailTopics(text, { needFrontend, needBackend, requirementSignals }) {
+  const topics = new Set([
+    "需求來源/原文整理",
+    "MVP 範圍與不做範圍",
+  ])
+  const signalText = requirementSignals.map((signal) => signal.clause).join("\n")
+  const combined = `${text}\n${signalText}`
+
+  if (needFrontend) {
+    topics.add("前端頁面/路由/狀態")
+    if (includesAny(combined, ["表單", "新增", "修改", "登入", "輸入", "驗證"])) {
+      topics.add("前端表單/驗證/錯誤顯示")
+    }
+    if (includesAny(combined, ["檢視", "頁面", "畫面", "日", "週", "月", "清單", "互動"])) {
+      topics.add("前端框架")
+    }
+  }
+
+  if (needBackend) {
+    topics.add("API contract 與錯誤格式")
+    topics.add("資料模型/查詢/索引")
+    if (includesAny(combined, ["資料庫", "保存", "建立", "刪除", "修改", "查詢", "紀錄"])) {
+      topics.add("資料庫")
+    }
+    if (includesAny(combined, ["登入", "登出", "未登入", "session", "驗證", "權限", "身分"])) {
+      topics.add("登入驗證")
+      topics.add("權限/隱私/安全")
+    }
+  }
+
+  if (needFrontend && needBackend) topics.add("核心計算/資料一致性")
+  if (includesAny(combined, ["提醒", "通知", "排程", "逾期", "多次", "當日"])) topics.add("背景工作/排程/通知")
+  if (includesAny(combined, ["重複", "衝突", "重疊", "跨日", "時區", "單次", "後續", "整組"])) topics.add("核心計算/資料一致性")
+  if (includesAny(combined, ["敏感", "隱私", "外露", "隔離", "個人", "安全"])) topics.add("權限/隱私/安全")
+  if (includesAny(combined, ["驗收", "通過", "不通過", "測試", "E2E", "API test", "失敗"])) topics.add("測試")
+  if (includesAny(combined, ["部署", "Docker", "環境", "CI", "本機", "容器"])) topics.add("部署/執行環境")
+
+  return [...topics].filter((topic) => DETAIL_TOPICS.includes(topic))
+}
+
+function includesAny(text, keywords) {
+  return keywords.some((keyword) => text.includes(keyword))
 }
 
 function formatAnalysis(analysis, projectSignals, requirementText) {
@@ -333,6 +383,9 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "## 大模型技術架構產生指令",
     ...recommendationLines,
     "",
+    "## 提問生成自由度",
+    ...buildQuestionFreedomLines(analysis),
+    "",
     "## 建議優先釐清問題",
     ...questionLines,
     "",
@@ -340,6 +393,19 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 後續需求開發實踐檔應把原始需求整理、引用來源、使用者已確認技術決策與開發實踐建議放在同一份文件中。",
     "- 不要把未經 question 確認的推薦方案寫成已採用；未確認項目只能列為待確認或候選方案。",
   ].join("\n")
+}
+
+function buildQuestionFreedomLines(analysis) {
+  const scopeHint = analysis.needFrontend || analysis.needBackend
+    ? "已能判斷落地範圍時，少問框架大方向，多問會改變 UI、API、資料、狀態、權限、測試或部署責任的細節。"
+    : "尚不能判斷落地範圍時，先問產出型態與是否要實作，不要直接套前端/後端技術題。"
+
+  return [
+    "- 下方內容是可轉成 question 工具的提問素材，不是固定問句或必問題庫；可依上下文拆分、合併、改寫、跳過或追加追問。",
+    `- ${scopeHint}`,
+    "- 若需求原文已給出答案，直接記為已確認；若只是低風險工程偏好，放入實踐建議即可，不必為了填表打斷使用者。",
+    "- 每個 question 只確認一個會改變實作路徑或驗收標準的決策；選項數量與類型依情境自由設計，通常 2-5 個，不固定套推薦/替代/待確認三分法。",
+  ]
 }
 
 function buildPreferenceLines(analysis) {
@@ -371,15 +437,15 @@ function buildModelRecommendationPrompt(analysis) {
     .join("；")
 
   return [
-    "請由大模型根據需求內容、目前專案線索與使用者偏好，自動產生技術架構建議；工具不得提供固定預設技術棧。",
+    "請由大模型根據需求內容、目前專案線索與使用者偏好，自動產生技術架構建議；工具不得提供固定預設技術棧，也不得把下列提示當成必填表單。",
     `建議專案範圍：${scope}`,
     `已知/待釐清技術線索：${foundDetails}`,
     `目前專案線索：${projectSignals}`,
     `使用者偏好：${analysis.preferenceText || "未提供"}`,
     `使用者指定套件：${analysis.userPackageText || "未提供"}`,
-    `使用者希望模型推薦項目：${analysis.modelRecommendationNeeds || "未指定，請至少評估語言、前端、後端、資料庫、登入、安全、測試、部署與替代方案"}`,
+    `使用者希望模型推薦項目：${analysis.modelRecommendationNeeds || "未指定，請只評估需求中會改變落地方案的技術決策；不要為未出現或低風險的分類硬補問題"}`,
     `決策模式：${analysis.decisionMode}`,
-    "輸出時請包含：推薦方案、選型理由、替代方案、取捨風險、官方文件 URL、需要再問使用者的關鍵問題；關鍵問題必須細到可直接轉成 question 工具選項，不能只問框架、資料庫或是否登入。",
+    "輸出時請先說明推薦路徑與理由，再列出足以改變實作的替代路線、取捨風險、必要官方文件 URL 與待問問題；待問問題要從需求情境拆出，不需固定包含所有技術分類，也不要固定套推薦/替代/待確認三選項。",
     "若使用者已指定偏好，請優先尊重；若偏好與需求或專案線索衝突，請明確指出風險並提供替代方案。",
   ]
 }
@@ -415,212 +481,367 @@ function buildRecommendationLines(analysis) {
   return analysis.modelRecommendationPrompt.map((line) => `- ${line}`)
 }
 
-const QUESTION_OPTION_REQUIREMENT = "選項需提供推薦方案、替代方案、延後/待確認；description 需說明採用內容、適用情境、主要取捨、影響範圍與不選風險"
+const QUESTION_DESIGN_GUIDE = "把這列當成 question 設計素材而非固定問句；只挑會改變實作路徑或驗收標準的焦點，可拆分、合併、改寫或跳過；選項需依需求情境自訂，避免固定技術棧或固定推薦/替代/延後格式，description 說明採用後對 UI/API/資料/狀態/測試/風險的具體影響"
 
-function buildDetailedQuestion(topic, checks) {
-  return `- ${topic}：請確認${checks.join("、")}；${QUESTION_OPTION_REQUIREMENT}。`
+function buildDetailedQuestion(topic, checks, sourceClause = "") {
+  const source = sourceClause ? `（來源：「${truncateText(sourceClause, 52)}」）` : ""
+  const focus = checks.slice(0, 5).join("、")
+  const overflow = checks.length > 5 ? ` 等 ${checks.length} 個焦點` : ""
+  return `- ${topic}${source}：可拆問焦點：${focus}${overflow}；${QUESTION_DESIGN_GUIDE}。`
+}
+
+function truncateText(text, maxLength) {
+  if (!text || text.length <= maxLength) return text || ""
+  return `${text.slice(0, maxLength - 1)}…`
+}
+
+function extractRequirementSignals(requirementText) {
+  if (!requirementText) return []
+
+  const clauses = requirementText
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[#>*`|\-[\]]/g, " ")
+    .split(/[\n。；;，,]/)
+    .map((clause) => clause.replace(/\s+/g, " ").trim())
+    .filter((clause) => clause.length >= 8 && clause.length <= 120)
+
+  const scored = clauses
+    .map((clause) => ({ clause, score: scoreRequirementClause(clause) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+
+  const seen = new Set()
+  const signals = []
+
+  for (const item of scored) {
+    const key = item.clause.replace(/[\s：:「」『』]/g, "").slice(0, 40)
+    if (seen.has(key)) continue
+
+    seen.add(key)
+    signals.push({
+      index: signals.length + 1,
+      topic: buildRequirementTopic(item.clause, signals.length + 1),
+      clause: item.clause,
+      checks: buildRequirementChecks(item.clause),
+    })
+
+    if (signals.length >= MAX_REQUIREMENT_SIGNALS) break
+  }
+
+  return signals
+}
+
+function scoreRequirementClause(clause) {
+  const keywordGroups = [
+    ["登入", "登出", "未登入", "session", "權限", "驗證", "身分"],
+    ["新增", "查看", "修改", "刪除", "取消", "恢復", "完成", "回復"],
+    ["提醒", "通知", "逾期", "關閉", "多次", "當日"],
+    ["重複", "每日", "每週", "每月", "指定星期", "單次", "後續", "整組"],
+    ["衝突", "重疊", "跨日", "保留"],
+    ["分類", "顏色", "篩選"],
+    ["不做", "不包含", "排除", "第一版", "邊界", "範圍"],
+    ["敏感", "隱私", "外露", "個人", "隔離", "安全"],
+    ["驗收", "通過", "不通過", "成功", "失敗", "例外"],
+  ]
+
+  let score = 0
+  for (const group of keywordGroups) {
+    const hits = group.filter((keyword) => clause.includes(keyword)).length
+    if (hits > 0) score += 1 + hits
+  }
+
+  if (/需|要|可|不得|不應|必須|包含|支援/.test(clause)) score += 1
+  if (/情境|邊界|例外|驗收/.test(clause)) score += 1
+
+  return score
+}
+
+function buildRequirementTopic(clause, index) {
+  const compact = clause
+    .replace(/^(情境|邊界|例外|驗收|目標|需求|第一版)[:：]?/, "")
+    .replace(/^(使用者|系統|本迭代|本次)/, "")
+    .trim()
+    .slice(0, 26)
+
+  return compact ? `需求情境 ${index}：${compact}` : `需求情境 ${index}`
+}
+
+function buildRequirementChecks(clause) {
+  const checks = [
+    "此情境第一版必做、延後與不做邊界",
+    "使用者操作、系統回饋與資料狀態變化",
+    "成功條件、失敗條件與例外補救",
+  ]
+
+  if (/登入|登出|未登入|session|驗證|身分/.test(clause)) {
+    checks.push("登入狀態來源、失效處理、登出後資料清除")
+  }
+
+  if (/權限|隱私|敏感|外露|隔離/.test(clause)) {
+    checks.push("後端權限檢查、資料隔離與錯誤訊息揭露邊界")
+  }
+
+  if (/新增|查看|修改|刪除|取消|恢復|完成|回復/.test(clause)) {
+    checks.push("CRUD 或狀態轉換的欄位、確認流程與可回復性")
+  }
+
+  if (/提醒|通知|逾期|關閉|多次|當日/.test(clause)) {
+    checks.push("提醒觸發時間、關閉規則、失效風險與替代補救")
+  }
+
+  if (/重複|每日|每週|每月|指定星期|單次|後續|整組/.test(clause)) {
+    checks.push("重複規則、例外切分、單次/後續/整組影響範圍")
+  }
+
+  if (/衝突|重疊|跨日|保留/.test(clause)) {
+    checks.push("衝突判斷責任、跨日規則、保留衝突與 409/API 行為")
+  }
+
+  if (/分類|顏色|篩選/.test(clause)) {
+    checks.push("分類資料模型、預設/自訂差異、顏色與篩選互動")
+  }
+
+  if (/日|週|月|清單|檢視|頁面|畫面/.test(clause)) {
+    checks.push("頁面/檢視切換、空狀態、loading、error 與響應式行為")
+  }
+
+  return [...new Set(checks)]
+}
+
+function buildGranularQuestions(signal, analysis) {
+  return buildQuestionAspects(signal, analysis).map((aspect) => {
+    return buildDetailedQuestion(`${signal.topic} / ${aspect.topic}`, aspect.checks, signal.clause)
+  })
+}
+
+function buildQuestionAspects(signal, analysis) {
+  const clause = signal.clause
+  const aspects = []
+  const addAspect = (topic, checks) => {
+    if (aspects.some((aspect) => aspect.topic === topic)) return
+    aspects.push({ topic, checks })
+  }
+
+  if (/第一版|不做|不包含|排除|邊界|範圍|延後|限制/.test(clause)) {
+    addAspect("版本邊界", [
+      "哪些內容本版必做",
+      "哪些內容只列為不做或後續",
+      "需求衝突時以哪個描述為準",
+    ])
+  }
+
+  if (/登入|登出|未登入|session|驗證|身分|狀態失效/.test(clause)) {
+    addAspect("登入狀態", [
+      "登入狀態來源與刷新時機",
+      "未登入/失效/登出後各自的畫面與 API 行為",
+      "登入成功後是否回原入口",
+    ])
+  }
+
+  if (/權限|隱私|敏感|外露|隔離|個人/.test(clause)) {
+    addAspect("資料隔離與揭露", [
+      "後端如何強制 user scope",
+      "錯誤訊息哪些資訊不可揭露",
+      "log/通知/cache 是否需要遮罩或清除",
+    ])
+  }
+
+  if (/新增|查看|修改|刪除|取消|恢復|完成|回復|建立|操作/.test(clause)) {
+    addAspect("資料操作與狀態機", [
+      "每個操作需要哪些欄位與權限",
+      "狀態轉換是否可回復",
+      "刪除或批次影響是否需要確認",
+    ])
+  }
+
+  if (/提醒|通知|逾期|關閉|多次|當日|行程前/.test(clause)) {
+    addAspect("提醒與逾期", [
+      "提醒規則由哪一層保存與驗證",
+      "權限拒絕/瀏覽器關閉/逾期時如何補救",
+      "關閉提醒後哪些狀態仍需保留",
+    ])
+  }
+
+  if (/重複|每日|每週|每月|指定星期|單次|後續|整組/.test(clause)) {
+    addAspect("重複規則切分", [
+      "規則欄位與結束條件",
+      "單次/後續/整組修改的資料保存方式",
+      "例外不應影響哪些既有 occurrence",
+    ])
+  }
+
+  if (/衝突|重疊|跨日|保留/.test(clause)) {
+    addAspect("衝突判斷", [
+      "哪些事件類型會參與衝突",
+      "跨日與全天規則如何判斷",
+      "使用者確認保留後 API 與資料如何記錄",
+    ])
+  }
+
+  if (/分類|顏色|篩選/.test(clause)) {
+    addAspect("分類與篩選", [
+      "預設分類與自訂分類的差異",
+      "顏色欄位與排序/篩選規則",
+      "刪除分類時既有事件如何處理",
+    ])
+  }
+
+  if (/檢視|頁面|畫面|UI|UX|日週月|日\/週\/月|清單|手機|桌機/.test(clause)) {
+    addAspect("畫面與回饋", [
+      "需要哪些頁面或檢視切換",
+      "loading/empty/error/無權限狀態如何呈現",
+      "桌機與手機是否同一流程",
+    ])
+  }
+
+  if (analysis.needBackend && /API|新增|查看|修改|刪除|登入|提醒|重複|衝突|分類|保存|資料/.test(clause)) {
+    addAspect("API 與錯誤", [
+      "endpoint 或 command 邊界",
+      "request/response schema",
+      "401/403/409/validation error 如何對應使用者訊息",
+    ])
+  }
+
+  if (/驗收|通過|不通過|成功|失敗|例外|補救/.test(clause) || aspects.length < 2) {
+    addAspect("驗收拆分", [
+      "成功條件是否可被測試",
+      "失敗條件與例外補救是否要獨立驗收",
+      "哪些情境需要 API 測試或 E2E 測試",
+    ])
+  }
+
+  if (aspects.length === 0) {
+    addAspect("情境拆分", [
+      "使用者觸發點",
+      "系統回饋",
+      "資料狀態變更",
+      "成功/失敗驗收",
+    ])
+  }
+
+  return aspects.slice(0, 4)
+}
+
+function buildAdaptiveTechnicalQuestions(analysis) {
+  const signalText = getRequirementSignalText(analysis)
+  const questions = []
+  const pushIf = (condition, keywords, topic, checks) => {
+    if (!condition || questions.length >= MAX_TECHNICAL_FOLLOW_UPS) return
+    const evidence = pickEvidence(analysis.requirementSignals, keywords)
+    const evidenceSuffix = evidence ? `（因需求提到「${evidence}」）` : ""
+    questions.push(buildDetailedQuestion(`技術補問：${topic}${evidenceSuffix}`, checks))
+  }
+
+  pushIf(analysis.needFrontend && includesAny(signalText, ["頁面", "畫面", "檢視", "清單", "登入", "互動"]), ["頁面", "畫面", "檢視", "清單", "登入", "互動"], "前端路由與狀態", [
+    "是否需要受保護路由",
+    "哪些狀態需要全域保存或 API cache",
+    "不同檢視是否共用同一資料來源",
+  ])
+
+  pushIf(analysis.needFrontend && includesAny(signalText, ["新增", "修改", "表單", "驗證", "刪除", "取消", "恢復"]), ["新增", "修改", "表單", "驗證", "刪除", "取消", "恢復"], "前端表單與互動防呆", [
+    "表單欄位與必填規則",
+    "送出中/重複提交/取消離開如何處理",
+    "刪除與批次變更是否要二次確認",
+  ])
+
+  pushIf(analysis.needBackend && includesAny(signalText, ["新增", "查看", "修改", "刪除", "分類", "提醒", "重複", "衝突", "保存"]), ["新增", "查看", "修改", "刪除", "分類", "提醒", "重複", "衝突", "保存"], "API contract 與資料模型", [
+    "資源與 endpoint 邊界",
+    "核心 entity/欄位/關聯",
+    "pagination/filter/sort 是否第一版需要",
+  ])
+
+  pushIf(analysis.needBackend && includesAny(signalText, ["登入", "登出", "未登入", "session", "權限", "驗證", "身分"]), ["登入", "登出", "未登入", "session", "權限", "驗證", "身分"], "session 與安全", [
+    "cookie/token/session 策略",
+    "CSRF/CORS/rate limit 邊界",
+    "失敗訊息與帳號列舉防護",
+  ])
+
+  pushIf(analysis.needBackend && includesAny(signalText, ["重複", "衝突", "重疊", "跨日", "逾期", "時區"]), ["重複", "衝突", "重疊", "跨日", "逾期", "時區"], "核心計算責任", [
+    "計算權威在前端、後端、worker 或資料庫哪一層",
+    "時區與日期邊界",
+    "並發修改與資料衝突處理",
+  ])
+
+  pushIf(includesAny(signalText, ["提醒", "通知", "逾期", "多次", "當日", "關閉"]), ["提醒", "通知", "逾期", "多次", "當日", "關閉"], "通知可靠性", [
+    "是否需要 scheduler/worker/queue",
+    "通知失敗或權限拒絕的使用者補救",
+    "提醒關閉與偏好設定保存方式",
+  ])
+
+  pushIf(includesAny(signalText, ["驗收", "通過", "不通過", "成功", "失敗", "例外"]), ["驗收", "通過", "不通過", "成功", "失敗", "例外"], "測試切片", [
+    "哪些情境用 API 測試",
+    "哪些情境用 E2E",
+    "高風險計算是否需要單元測試",
+  ])
+
+  pushIf(analysis.missingDetails.includes("部署/執行環境") || includesAny(signalText, ["Docker", "部署", "環境", "本機", "CI"]), ["Docker", "部署", "環境", "本機", "CI"], "執行環境", [
+    "本機或容器化啟動方式",
+    "環境變數與 secret 管理",
+    "migration 與測試資料如何執行",
+  ])
+
+  if (questions.length === 0 && (analysis.needFrontend || analysis.needBackend)) {
+    questions.push(buildDetailedQuestion("技術補問：最小落地方式", [
+      "是否要建立 frontend/backend 專案",
+      "是否沿用既有 README 或 package 線索",
+      "本輪只產規劃檔或也要開始實作",
+    ]))
+  }
+
+  return questions
+}
+
+function getRequirementSignalText(analysis) {
+  const signalText = analysis.requirementSignals.map((signal) => signal.clause).join("\n")
+  return signalText || `${analysis.preferenceText}\n${analysis.modelRecommendationNeeds}`
+}
+
+function pickEvidence(signals, keywords) {
+  const match = signals.find((signal) => keywords.some((keyword) => signal.clause.includes(keyword)))
+  return match ? truncateText(match.clause, 30) : ""
 }
 
 function buildQuestions(analysis) {
-  const questions = [
-    buildDetailedQuestion("原始需求與產檔範圍", [
+  const questions = []
+
+  if (analysis.requirementSignals.length > 0) {
+    questions.push(
+      "- 提問策略：先依需求原文中的具體情境產生提問素材；同一情境若同時牽涉畫面、API、資料、權限、狀態或驗收，可自由拆成小題、合併成決策題或延後追問，不再逐題套固定技術清單。"
+    )
+
+    for (const signal of analysis.requirementSignals) {
+      for (const question of buildGranularQuestions(signal, analysis)) {
+        if (questions.length >= MAX_GRANULAR_QUESTIONS + 1) break
+        questions.push(question)
+      }
+
+      if (questions.length >= MAX_GRANULAR_QUESTIONS + 1) break
+    }
+  } else {
+    questions.push(buildDetailedQuestion("原始需求與產檔範圍", [
       "引用檔案或使用者原文是否完整保留",
       "需求摘要是否需要條目化",
-      "產出檔是否只建立一份並同時包含原始需求整理與開發實踐內容",
-      "哪些原文可摘錄、哪些內容需標示截斷",
-    ]),
-    buildDetailedQuestion("MVP 與不做範圍", [
+      "產出檔案數量與位置",
+      "哪些內容需標示待確認而不是推測",
+    ]))
+    questions.push(buildDetailedQuestion("MVP 與不做範圍", [
       "第一版必做功能",
       "延後功能",
       "明確不做事項",
       "每項功能的驗收條件",
-      "需求若超出 MVP 時的處理方式",
-    ]),
-  ]
-
-  if (analysis.needFrontend) {
-    questions.push(buildDetailedQuestion("前端框架/語言/建置", [
-      "是否沿用既有 README 技術棧",
-      "SPA/SSR/SSG 或純前端模式",
-      "TypeScript/JavaScript",
-      "建置工具與 package manager",
-      "版本限制與瀏覽器支援範圍",
-    ]))
-    questions.push(buildDetailedQuestion("前端頁面/路由/版面", [
-      "第一版頁面清單",
-      "路由層級與保護頁面",
-      "layout/nav/sidebar/header/footer 是否需要",
-      "桌機與手機斷點",
-      "空狀態、loading、error、無權限狀態",
-    ]))
-    questions.push(buildDetailedQuestion("前端互動/表單/驗證", [
-      "表單欄位與必填規則",
-      "同步/非同步驗證",
-      "送出後成功與失敗回饋",
-      "重複提交防護",
-      "草稿、重設、取消與離開頁面提醒",
-    ]))
-    questions.push(buildDetailedQuestion("前端套件選型", [
-      "UI 元件庫",
-      "樣式方案",
-      "路由",
-      "狀態管理/API 快取",
-      "表單驗證",
-      "日期時間",
-      "圖表/日曆/地圖/編輯器等需求套件",
-      "測試與 lint/format 工具",
-    ]))
-    questions.push(buildDetailedQuestion("前端資料流與使用者狀態", [
-      "API 資料來源",
-      "快取失效策略",
-      "樂觀更新是否需要",
-      "重試與取消請求",
-      "登入狀態同步",
-      "權限不足時 UI 行為",
     ]))
   }
 
-  if (analysis.needBackend) {
-    questions.push(buildDetailedQuestion("後端框架/語言/API 型式", [
-      "是否沿用既有 README 技術棧",
-      "REST/RPC/GraphQL 或其他 API 型式",
-      "專案目錄慣例",
-      "設定載入方式",
-      "本機啟動與測試指令",
-      "版本與 runtime 限制",
-    ]))
-    questions.push(buildDetailedQuestion("API contract 與錯誤格式", [
-      "endpoint 清單",
-      "request/response schema",
-      "狀態碼",
-      "驗證失敗格式",
-      "業務錯誤代碼",
-      "pagination/filter/sort",
-      "API 版本策略",
-    ]))
-    questions.push(buildDetailedQuestion("資料庫/ORM/資料生命週期", [
-      "資料庫種類",
-      "ORM/query builder",
-      "migration",
-      "seed",
-      "索引與查詢模式",
-      "交易一致性",
-      "備份、清除與資料保留策略",
-    ]))
-    questions.push(buildDetailedQuestion("資料模型與關聯", [
-      "核心 entity",
-      "欄位型別與 nullable 規則",
-      "唯一性與外鍵",
-      "狀態機",
-      "軟刪除/硬刪除",
-      "audit 欄位",
-      "多租戶或使用者隔離需求",
-    ]))
-    questions.push(buildDetailedQuestion("登入驗證/授權/安全", [
-      "session/token/cookie 策略",
-      "密碼雜湊或第三方登入",
-      "角色權限矩陣",
-      "CSRF/CORS",
-      "rate limit",
-      "敏感資料遮罩",
-      "隱私資料保存與刪除",
-    ]))
-    questions.push(buildDetailedQuestion("後端套件選型", [
-      "API framework",
-      "schema validation",
-      "ORM/migration",
-      "auth/session",
-      "password hashing",
-      "queue/scheduler",
-      "logging",
-      "testing",
-      "lint/format",
-    ]))
-  }
-
-  if (analysis.needFrontend && analysis.needBackend) {
-    questions.push(buildDetailedQuestion("前後端整合責任", [
-      "API contract 由哪一端維護",
-      "型別/schema 是否共享或生成",
-      "跨端錯誤訊息對應",
-      "登入狀態同步",
-      "CORS/cookie/domain 設定",
-      "本機同時啟動流程",
-      "前後端版本不一致時的處理方式",
-    ]))
-  }
-
-  questions.push(buildDetailedQuestion("核心計算與資料一致性", [
-    "計算責任在前端、後端、worker、資料庫或第三方服務哪一層",
-    "即時計算或預先計算",
-    "快取與失效",
-    "並發與資料衝突",
-    "時區/日期邊界",
-    "計算錯誤時的回復方式",
-  ]))
-  questions.push(buildDetailedQuestion("失敗與例外情境", [
-    "網路失敗",
-    "權限不足",
-    "資料不存在",
-    "資料衝突",
-    "重複提交",
-    "第三方服務失敗",
-    "使用者取消操作",
-    "錯誤紀錄與使用者可見訊息",
-  ]))
-  questions.push(buildDetailedQuestion("背景工作/排程/通知", [
-    "是否需要 queue/worker/scheduler",
-    "觸發時機",
-    "重試策略",
-    "冪等性",
-    "通知管道",
-    "使用者可關閉或偏好設定",
-  ]))
-  questions.push(buildDetailedQuestion("第三方整合與檔案處理", [
-    "是否需要外部 API",
-    "憑證/secret 管理",
-    "webhook",
-    "檔案大小與類型限制",
-    "儲存位置",
-    "掃毒/安全檢查",
-    "失敗補償流程",
-  ]))
-  questions.push(buildDetailedQuestion("可觀測性與營運", [
-    "log 欄位",
-    "audit trail",
-    "錯誤追蹤",
-    "指標/健康檢查",
-    "管理者排查資訊",
-    "個資是否需要遮罩",
-  ]))
-
-  if (analysis.missingDetails.includes("測試")) {
-    questions.push(buildDetailedQuestion("驗收與測試範圍", [
-      "需求情境與通過條件",
-      "單元測試",
-      "整合測試",
-      "E2E",
-      "API contract",
-      "權限測試",
-      "核心計算測試",
-      "測試資料與 mock 策略",
-    ]))
-  }
-
-  if (analysis.missingDetails.includes("部署/執行環境")) {
-    questions.push(buildDetailedQuestion("部署/環境/CI", [
-      "本機或容器化",
-      "平台服務或雲端 VM",
-      "環境變數與 secret",
-      "資料庫連線",
-      "migration 執行時機",
-      "CI/CD",
-      "rollback 與版本發布方式",
-    ]))
+  const technicalQuestions = buildAdaptiveTechnicalQuestions(analysis)
+  if (technicalQuestions.length > 0) {
+    questions.push(
+      "- 技術補問策略：以下只補需求未交代但會影響落地的缺口；已有明確偏好或可由模型低風險決定時，可跳過、合併或改寫成更貼近需求的選項。"
+    )
+    questions.push(...technicalQuestions)
   }
 
   if (!analysis.needFrontend && !analysis.needBackend) {
-    questions.push(buildDetailedQuestion("是否需要建立或使用 frontend/backend 專案", [
+    questions.push(buildDetailedQuestion("落地範圍確認", [
       "此需求是否只是整理/討論/文件",
       "是否要落地為可執行功能",
       "若要落地需 frontend、backend 或兩者",
