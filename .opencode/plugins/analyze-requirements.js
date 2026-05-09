@@ -371,12 +371,13 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。",
     "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
-    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> worktree -> OpenSpec/apply -> merge，不再另問 downstream 授權題。",
+    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> worktree -> 平行 spec-flow OpenSpec propose/alignment -> 平行 apply-change/fallback -> merge，不再另問 downstream 授權題。",
     "- project-bootstrapper 驗證必須非互動、不得開新 terminal/window；如需 server smoke，背景啟動後必須自動停止。",
     "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner，立即交 worktree-splitter，不能在啟動結果後中斷；只有使用者主動明確要求停止，才可限制 downstream。",
-    "- worktree-splitter 依 technical-practice-classifier 分類建立 .worktree/<run_id>/<name>，並同步目前主工作區完整快照（含 bootstrap 檔、依賴、lockfile、project rules、planner；排除 .git 與 .worktree）；不實作、不測試、不要求 baseline commit。",
-    "- worktree 後自動交 openspec-worktree-change-runner：不讀外部 openspec skill、不使用 commands/slash；agent 內並行產 spec/對齊檢查，全通過後 apply-change，每個小功能中文 commit。",
-    "- apply-change 完成後自動交 worktree-merge-integrator：一般 merge 到 .worktree/<run_id>/merge，保留 commits；衝突先讀 run_id 技術文件並用 question 確認，最後跑整合測試。",
+    "- worktree-splitter 依 technical-practice-classifier 分類建立 .worktree/<run_id>/<name>，並同步目前主工作區完整快照（含 bootstrap 檔、依賴、lockfile、project rules、planner；排除 .git、.worktree 與主工作區 spec-flow）；不實作、不測試、不要求 baseline commit。",
+    "- worktree 後主流程必須為每個 worktree 同批平行啟動 openspec-worktree-change-runner，phase=propose-alignment；每個 subagent 在自己的 <worktree>/spec-flow 內初始化/產 spec/做 alignment-check，全通過才可進入 apply。",
+    "- alignment 全通過後主流程必須再為每個 worktree 同批平行啟動 openspec-worktree-change-runner，phase=apply-change；OpenSpec apply blocked/失敗但 alignment 已通過時，該 worktree 必須 fallback 依 spec-flow artifacts 完成開發任務、驗證與中文細分 commit。",
+    "- apply-change 或 fallback 完成後自動交 worktree-merge-integrator：一般 merge 到 .worktree/<run_id>/merge，保留 commits；衝突先讀 run_id 技術文件與 spec-flow artifacts 並用 question 確認，最後跑整合測試。",
   ].join("\n")
 }
 
@@ -400,7 +401,7 @@ function buildQuestionFreedomLines(analysis) {
     `- ${scopeHint}`,
     `- ${QUESTION_DESIGN_GUIDE}`,
     "- 原文已答者直接記已確認；每題只問會改變實作/驗收的決策。",
-    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> worktree -> OpenSpec/apply -> merge，不另問 downstream 授權題。",
+    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> worktree -> 平行 spec-flow OpenSpec propose/alignment -> 平行 apply-change/fallback -> merge，不另問 downstream 授權題。",
   ]
 }
 
@@ -721,7 +722,7 @@ function buildQuestions(analysis) {
         ? "frontend（推薦）"
         : "backend（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> worktree -> OpenSpec/apply -> merge，不另問 downstream 授權題。`
+      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> worktree -> 平行 spec-flow OpenSpec propose/alignment -> 平行 apply-change/fallback -> merge，不另問 downstream 授權題。`
     )
   }
 
