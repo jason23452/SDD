@@ -392,11 +392,11 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "## 產檔整理提醒",
     "- 後續需求開發實踐檔應把原始需求整理、引用來源、使用者已確認技術決策與開發實踐建議放在同一份文件中。",
     "- 不要把未經 question 確認的推薦方案寫成已採用；未確認項目只能列為待確認或候選方案。",
-    "- 若需要新增/更新後續專案規則或存在 .opencode/skills/frontend/*/SKILL.md、.opencode/skills/backend/*/SKILL.md，產檔前需交給 project-start-rules-definer agent 整理並寫入 .opencode/project-rules.md；推薦或待確認規則不可寫成已確認。",
-    "- skill.md 來源規則不可刪除；若使用者要求刪除 skill 規則需報錯。新規則與舊專案規則衝突時，以最新規則覆蓋舊規則並留下覆蓋紀錄。",
-    "- 建立檔案前需先交給 requirement-consistency-checker agent 比對原始需求、前次需求線索、已確認決策與實踐草稿；若存在未解的不一致、未經確認、超出需求或遺漏，不得產檔。",
-    "- 產檔前需將技術實踐項目與本次 run_id 交給 technical-practice-classifier agent 整理成互斥分類；分類表 ID 必須使用 <run_id>-featurs-<name>，主 agent 只負責合併分類章節。",
+    "- 產檔前需先將技術實踐項目與本次 run_id 交給 technical-practice-classifier agent 整理成互斥分類；分類表 ID 必須使用 <run_id>-featurs-<name>，主 agent 只負責合併分類章節。",
     "- 分類章節需包含項目總數、已分類項目數、未分類項目數、重複分類項目數與已拆分項目數；除非使用者允許延後分類，未分類與重複分類都應為 0。",
+    "- 技術實踐分類通過後，需交給 requirement-consistency-checker agent 比對原始需求、前次需求線索、已確認決策、實踐草稿與分類結果；若存在未解的不一致、未經確認、超出需求或遺漏，不得產檔。",
+    "- 一致性檢查通過後，若需要新增/更新後續專案規則或存在 .opencode/skills/frontend/*/SKILL.md、.opencode/skills/backend/*/SKILL.md，需交給 project-start-rules-definer agent 整理規則並確保 .opencode/project-rules.md 存在；該 agent 必須先判斷主檔是否存在，存在就跳過建立，不存在才先建立。推薦或待確認規則不可寫成已確認。",
+    "- skill.md 來源規則不可刪除；若使用者要求刪除 skill 規則需報錯。新規則與舊專案規則衝突時，以最新規則覆蓋舊規則並留下覆蓋紀錄。",
     "- 只有使用者明確要求建立、初始化、啟動或落地專案，且 .opencode/project-rules.md 已存在時，才可交給 project-bootstrapper agent 建立 frontend/backend；完成後必須更新對應 README 並回報驗證結果。",
   ].join("\n")
 }

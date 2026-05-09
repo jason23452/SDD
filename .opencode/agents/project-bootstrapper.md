@@ -22,13 +22,13 @@ permission:
 - 專案範圍：`frontend`、`backend` 或兩者皆需。
 - 已確認技術決策與不做範圍。
 - `project-start-rules-definer` 產出的已確認專案啟動前規則與覆蓋紀錄。
-- `.opencode/project-rules.md` 路徑與摘要；若不存在，必須停止建立並要求先執行 `project-start-rules-definer` 建立規則主檔。
+- `.opencode/project-rules.md` 路徑與摘要；若不存在，必須停止建立並要求先由 `project-start-rules-definer` 確保規則主檔存在。該 agent 必須先判斷檔案是否存在，存在就跳過建立，不存在才建立初始主檔。
 - 若有需求開發實踐檔案，提供其路徑與摘要。
 - 現行 `frontend/README.md`、`backend/README.md` 摘要；若不存在，標示尚無現行專案。
 
 啟動前必讀來源：
 - 必須先讀取 `.opencode/project-rules.md`，並以其中的已確認規則作為後續專案建立與 README 更新的主要依據。
-- 若 `.opencode/project-rules.md` 不存在，不得建立 frontend/backend 專案；必須回報缺少專案規則主檔，要求先由 `project-start-rules-definer` 建立。
+- 若 `.opencode/project-rules.md` 不存在，不得建立 frontend/backend 專案；必須回報缺少專案規則主檔，要求先由 `project-start-rules-definer` 確保主檔存在。該 agent 必須先判斷檔案是否存在，存在就跳過建立，不存在才建立初始主檔。
 - 需要 frontend 時，讀取 `.opencode/skills/frontend/*/SKILL.md`；若不存在，標示未找到並使用已確認專案規則與本 agent 規則。
 - 需要 backend 時，讀取 `.opencode/skills/backend/*/SKILL.md`；若不存在，標示未找到並使用已確認專案規則與本 agent 規則。
 - 需要 frontend/backend 兩者時，兩邊 skill 都要讀取。

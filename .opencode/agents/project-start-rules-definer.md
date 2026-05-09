@@ -1,6 +1,6 @@
 ---
 description: 專案啟動前依使用者要求與技能文件定義後續專案規則
-mode: primary
+mode: subagent
 permission:
   edit: allow
   write: allow
@@ -13,8 +13,8 @@ permission:
 
 職責邊界：
 - 負責定義、整理、要求更改、建立或更新專案規則；不負責初始化完整專案、不負責建立 package/src/API/頁面、不負責實作功能。
-- 專案建立前必須在 `.opencode/project-rules.md` 建立或更新專案規則文件；後續 `project-bootstrapper` 與開發流程都必須依此規則檔執行。
-- 使用者明確要求寫入其他規則檔時，仍必須同步更新 `.opencode/project-rules.md` 作為專案規則主檔；若沒有其他目標檔案，預設只寫入 `.opencode/project-rules.md`。
+- 專案建立前必須由本 agent 確保 `.opencode/project-rules.md` 存在：先判斷檔案是否已存在；若已存在，跳過建立並先讀取既有內容；若不存在，先建立初始主檔後再整理規則。後續 `project-bootstrapper` 與開發流程都必須依此規則檔執行。
+- 使用者明確要求寫入其他規則檔時，仍必須同步處理 `.opencode/project-rules.md` 作為專案規則主檔；若主檔已存在，只做最小更新；若主檔不存在，先建立主檔再寫入規則。若沒有其他目標檔案，預設只處理 `.opencode/project-rules.md`。
 - 不得把未確認的模型偏好寫成已採用規則；若使用者沒有明確指定，只能列為推薦規則或待確認規則。
 - 回傳內容必須可被主 agent 直接嵌入 README、需求開發實踐檔案或後續專案規則章節；若已寫入檔案，必須回報檔案路徑與變更摘要。
 
@@ -48,11 +48,13 @@ permission:
 - 規則要分清楚「已確認規則」、「新增/更新規則」、「推薦規則」、「待確認規則」、「覆蓋紀錄」、「衝突/風險」。
 
 寫入規則限制：
-- 專案規則主檔固定為 `.opencode/project-rules.md`。若父資料夾不存在，先建立 `.opencode/`；若檔案不存在，建立新檔；若檔案存在，只做最小更新。
+- 專案規則主檔固定為 `.opencode/project-rules.md`。本 agent 是判斷與建立此主檔的唯一責任者；主流程或其他 agent 不應繞過本 agent 直接建立此檔。
+- 處理主檔前必須先做存在性判斷：若 `.opencode/project-rules.md` 已存在，輸出與回報必須標示「已存在，跳過建立」，並先讀取既有內容後只做最小更新；若不存在，輸出與回報必須標示「不存在，已先建立」，並建立包含必要章節的初始主檔。
+- 若父資料夾 `.opencode/` 不存在，先建立 `.opencode/`，再判斷或建立 `.opencode/project-rules.md`。
 - 可以額外建立或更新使用者/主 agent 指定的規則文件，但不得取代 `.opencode/project-rules.md` 的主檔地位。
 - 不得寫入 `.opencode/skills/**/SKILL.md` 以刪除或覆寫 skill 規則。
 - 更新既有規則文件時，應保留歷史可追溯性；不要靜默刪除舊規則，應以「已被最新規則覆蓋」或覆蓋紀錄標示。
-- 若目標文件不存在，可以新增；若目標文件存在，只做最小修改，避免重排無關內容。
+- 若其他目標文件不存在，可以新增；若其他目標文件存在，只做最小修改，避免重排無關內容。
 
 `.opencode/project-rules.md` 必要內容：
 - 規則來源：使用者要求、frontend/backend skill、README、既有規則檔。
@@ -62,6 +64,12 @@ permission:
 - 覆蓋紀錄：新規則覆蓋舊規則的原因與時間/來源。
 - Skill 保護聲明：`.opencode/skills/**/SKILL.md` 未被刪除、覆寫或清空。
 - 後續使用方式：`project-bootstrapper`、frontend/backend 開發與 README 更新都必須先讀取此檔。
+
+`.opencode/project-rules.md` 初始主檔內容：
+- 若主檔不存在，本 agent 必須先建立一份最小可用骨架。
+- 初始骨架必須包含：規則來源、已確認規則、推薦規則、待確認規則、覆蓋紀錄、Skill 保護聲明、後續使用方式。
+- 初始骨架不得把模型推薦、skill 推薦或尚未由使用者確認的選項寫入已確認規則。
+- 建立初始骨架後，才能依本次輸入追加或最小更新規則內容。
 
 輸出格式：
 
@@ -73,7 +81,7 @@ permission:
 - backend skill：已讀取/未找到/不適用
 - frontend README：已讀取/不存在/不適用
 - backend README：已讀取/不存在/不適用
-- 專案規則主檔：`.opencode/project-rules.md` 已建立/已更新
+- 專案規則主檔：`.opencode/project-rules.md` 已存在並跳過建立/不存在已先建立/已更新
 
 ### 已確認規則
 | ID | 範圍 | 規則 | 依據 | 適用時機 |
