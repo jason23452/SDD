@@ -371,6 +371,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。",
     "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
+    "- 若使用者要求 worktree 拆分，最後交 worktree-splitter 依分類建立 .worktree/<run_id>/<name>；不實作、不測試。",
   ].join("\n")
 }
 
