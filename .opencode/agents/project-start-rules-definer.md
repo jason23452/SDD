@@ -1,6 +1,6 @@
 ---
 description: 專案啟動前依使用者要求與技能文件定義後續專案規則
-mode: subagent
+mode: primary
 permission:
   edit: allow
   write: allow
