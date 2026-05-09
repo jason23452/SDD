@@ -24,11 +24,14 @@ permission:
 - 使用者指定其他規則檔時，也必須同步主檔；其他檔不得取代主檔。
 - 初始骨架含：規則來源、已確認規則、推薦規則、待確認規則、覆蓋紀錄、Skill 保護聲明、後續使用方式。
 - 未確認模型/skill 推薦不得寫入已確認規則。
+- 每次建立或更新 `.opencode/project-rules.md` 後，必須立即重新讀取該檔並比對使用者最新明確決策；若寫入後檔案內容仍與決策不一致，必須修正到一致後才可回報完成。
+- 主流程若提供 development-detail-planner，必須比對 planner 的已確認技術選型與 `.opencode/project-rules.md`；若 planner 與 rules 不一致，不得進入 bootstrap、OpenSpec propose/spec、apply 或 verification。
 
 ## Skill 保護
 - `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。
 - 使用者要求刪除/移除/清空/覆蓋/弱化 skill 規則時停止並回報 `ERROR: skill rules are immutable and cannot be deleted`。
 - 可在專案層記錄最新規則覆蓋舊專案採用方式；不得宣稱 skill 原文已刪。
+- 若 `git status` 或 diff 顯示 `.opencode/skills/**/SKILL.md` 已被修改，必須停止並回報 `ERROR: skill rules are immutable and cannot be changed`；不得把 skill 檔修改納入 project rules 更新。
 
 ## 來源與整理
 - 範圍含 frontend 讀 frontend skill；含 backend 讀 backend skill；兩者皆需兩邊都讀；不讀不相關 skill。
