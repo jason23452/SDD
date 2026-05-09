@@ -98,6 +98,7 @@ permission:
 - 若本次需求需要 frontend，預設讓 `project-start-rules-definer` 讀取 `.opencode/skills/frontend/*/SKILL.md`；若需要 backend，預設讀取 `.opencode/skills/backend/*/SKILL.md`；若兩者皆需，兩邊都要提供給該 agent。
 - 若 skill 不存在，仍可依使用者要求、需求內容與 README 線索整理規則，並在輸出中標示未找到對應 skill。
 - `project-start-rules-definer` 可以回傳可嵌入文件的「專案啟動前規則」章節，也可以在使用者明確要求或主流程提供目標檔案時新增/更新專案規則文件；`init-project` 負責把已確認規則合併到需求開發實踐檔案或 README 建議中。
+- 專案建立前，`project-start-rules-definer` 必須建立或更新 `.opencode/project-rules.md` 作為專案規則主檔；後續 `project-bootstrapper` 與開發流程都必須依此檔執行。
 - `SKILL.md` 來源規則不可刪除、不可覆寫、不可清空；若使用者要求刪除 skill 規則，必須回報 `ERROR: skill rules are immutable and cannot be deleted` 並停止該刪除動作。
 - 若新規則與舊有專案規則衝突，使用最新規則覆蓋舊有專案規則，並保留覆蓋紀錄；若新規則與 skill 規則衝突，只能在專案層記錄最新規則覆蓋舊有採用方式，不得修改或刪除 skill 原文。
 - 若規則整理結果包含待確認規則，必須透過 `question` 向使用者確認後，才可把它寫成已確認規則。
@@ -114,6 +115,15 @@ permission:
 - 準備產檔前，將本次 `<run_id>`、原始需求整理、已確認技術決策、開發範圍拆解、實作順序草稿與使用者指定分類法交給 `technical-practice-classifier` agent。
 - `technical-practice-classifier` 只回傳可嵌入文件的「技術實踐分類」章節；`init-project` 負責把該章節合併到需求開發實踐檔案。
 - 若目前環境無法呼叫 subagent，必須依 `technical-practice-classifier` agent 檔案中的輸出契約手動完成分類，不得省略互斥分類檢查。
+
+專案建立交接規則：
+- 只有使用者明確要求建立、初始化、啟動或落地 frontend/backend 專案時，才可交給 `project-bootstrapper` agent；單純引用需求文件、規劃或產生開發實踐檔案時不得自動建立完整專案。
+- `init-project` 不負責直接 scaffold 專案；建立與調整規則細節由 `.opencode/agents/project-bootstrapper.md` 定義。
+- 交接給 `project-bootstrapper` 前，必須提供專案範圍、原始需求摘要、已確認技術決策、已確認專案啟動前規則、現行 README 摘要、需求開發實踐檔案路徑或草稿摘要。
+- 交接給 `project-bootstrapper` 前，必須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交給 `project-start-rules-definer` 建立，不得直接 bootstrap 專案。
+- `project-bootstrapper` 建立或調整 frontend 後必須更新 `frontend/README.md`；建立或調整 backend 後必須更新 `backend/README.md`。
+- `project-bootstrapper` 可以依最新已確認規則調整專案開發規則；若新舊專案規則衝突，採用最新規則覆蓋舊規則並保留覆蓋紀錄；不得刪除或覆寫 `.opencode/skills/**/SKILL.md`。
+- 若 `project-bootstrapper` 回報驗證失敗或未執行，`init-project` 不得宣稱專案已完全可啟動，只能回報已建立與剩餘風險。
 
 建立 README 時使用最小內容即可：
 
@@ -141,15 +151,16 @@ permission:
 7. 明確記錄本次需求相關的現行專案狀態：需要且存在、需要但不存在、不需要檢查；若存在，記錄 README 重點；若不存在，記錄本次新建 README。
 8. 若需求需要的專案不存在，先建立對應資料夾與 `README.md`；除非使用者明確要求，否則不要建立其他檔案。
 9. 若需求需要的專案已存在，先閱讀該專案 `README.md`，並依 README 所描述的現行架構決定後續開發方向。
-10. 完成上述準備後，若使用者要求新增專案規則、啟動前規範，或有對應 frontend/backend skill 可讀取，先交給 `project-start-rules-definer` agent 整理專案啟動前規則；有衝突或待確認規則時，先用 `question` 確認。
+10. 完成上述準備後，若使用者要求新增專案規則、啟動前規範，或有對應 frontend/backend skill 可讀取，先交給 `project-start-rules-definer` agent 整理專案啟動前規則，並建立或更新 `.opencode/project-rules.md`；有衝突或待確認規則時，先用 `question` 確認。
 11. 若使用者只引用需求文件且文件內容已明確描述需要落地的 frontend/backend 功能，執行「開發細節確認」。開發細節必須根據需求內容、已讀 README 的現行專案架構與已確認專案啟動前規則共同產生；不得忽略既有 README 而重新提出全新專案初始化方案。
 12. 開發細節確認時，先整理推薦方案與待確認決策，然後呼叫 OpenCode 的 `question` 工具提出選項式問題；每一輪確認都必須停在 `question` 工具互動並等待回傳結果，不能只在回覆或檔案中列出問題。問題應讓使用者可直接點選推薦方案、替代方案、暫列待確認或延後決策，不得只用文字請使用者輸入答案，也不得把問題先寫進任何 `.md` 檔作為替代。套件選型與核心計算架構不得合併在粗略技術棧題目中帶過，必須明確詢問或明確標示為待確認。
 13. 使用者回答問題前，不得產生 `.opencode/local-docs/development-detail-planner/` 下的需求開發實踐檔案。
 14. 使用者回答、選擇推薦方案或明確授權使用推薦值後，先整理需求開發實踐草稿，交給 `requirement-consistency-checker` agent 產生需求一致性檢查章節；若檢查未通過，停止產檔並先修正草稿或用 `question` 向使用者確認。
 15. 一致性檢查通過後，整理開發實踐項目，交給 `technical-practice-classifier` agent 產生互斥分類章節，並確認每列 `ID` 都符合 `<run_id>-featurs-<name>`、未分類項目數與重複分類項目數為 0。
 16. 在 `.opencode/local-docs/development-detail-planner/` 產生同時包含原始需求整理、專案啟動前規則、開發實踐內容、需求一致性檢查與互斥分類結果的檔案，並回報確認結果、檔案路徑、一致性檢查結果、分類檢查結果與剩餘待確認事項；若任何必要問題被關閉或未回答，停在 `question` 流程，不得產檔。
-17. 若使用者只引用需求文件，但文件內容不涉及需要落地的 frontend/backend 功能，回報判斷與 README 準備結果即可。
-18. 只有使用者明確要求實作、產出規格、初始化專案或修改既有程式時，才依要求繼續處理那些動作。
+17. 若使用者明確要求建立、初始化、啟動或落地 frontend/backend 專案，先確認 `.opencode/project-rules.md` 已存在，再將已確認需求、專案規則主檔摘要、README 摘要與需求開發實踐檔案路徑或草稿摘要交給 `project-bootstrapper` agent；完成後回報建立範圍、README 更新、專案規則調整、驗證結果與剩餘風險。
+18. 若使用者只引用需求文件，但文件內容不涉及需要落地的 frontend/backend 功能，回報判斷與 README 準備結果即可。
+19. 只有使用者明確要求實作、產出規格、初始化專案或修改既有程式時，才依要求繼續處理那些動作。
 
 限制：
 - 不要因為 workspace 根目錄缺少 README 就建立 root README。
@@ -163,6 +174,7 @@ permission:
 - 不要寫死套件；例如不得未經確認就指定 FullCalendar、TanStack Query、React Hook Form、Zod、Prisma、APScheduler、pytest 或任何同類套件為已採用。可以列為推薦選項或候選方案，但必須經 `question` 回答或明確授權後才能寫入已確認方案。
 - 不要把「需要你確認的關鍵決策」、「後續確認清單」、「請選擇以下方案」等內容寫入需求開發實踐檔案來取代 `question`；這些內容必須先透過 `question` 工具完成互動確認。
 - 不要把 `project-start-rules-definer` 的推薦規則或待確認規則寫成已確認規則；必須經使用者確認或明確授權。
+- 不要在 `.opencode/project-rules.md` 缺失時建立或初始化 frontend/backend 專案；必須先建立專案規則主檔。
 - 不要刪除、覆寫或清空 `.opencode/skills/**/SKILL.md` 中的規則；若使用者要求刪除 skill 規則，必須報錯並停止。
 - 不要在新舊專案規則衝突時保留兩套互相矛盾的已採用規則；必須以最新規則覆蓋舊規則並留下覆蓋紀錄。
 - 不要在完成需求一致性檢查前建立需求開發實踐檔案；若檢查未通過，必須先修正或詢問使用者。
@@ -171,5 +183,5 @@ permission:
 - 不要省略 `technical-practice-classifier` 的互斥分類檢查結果；需求開發實踐檔案必須包含該章節。
 - 不要讓分類表使用 `TP-001` 或其他流水 ID；必須使用與檔名相同的 `<run_id>` 組成 `<run_id>-featurs-<name>`。
 - 不要覆蓋既有 README；需要補充時只能追加或最小修改，且必須保留原內容。
-- 不要自動建立啟動檔案、範例頁、範例 API、package 檔案、src 目錄或其他初始檔案；唯一例外是完成開發細節確認後，必須產生 `.opencode/local-docs/development-detail-planner/` 下的需求開發實踐檔案。
+- 不要自動建立啟動檔案、範例頁、範例 API、package 檔案、src 目錄或其他初始檔案；例外只有兩種：完成開發細節確認後產生 `.opencode/local-docs/development-detail-planner/` 下的需求開發實踐檔案，或使用者明確要求建立/初始化專案時交由 `project-bootstrapper` 執行。
 - 不要因為建立 frontend README 就順手建立 backend README，或因為建立 backend README 就順手建立 frontend README；必須依需求判斷精準建立。

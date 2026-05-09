@@ -1,6 +1,6 @@
 ---
 description: 產檔前比對原始需求、已確認決策與實踐草稿，檢查不一致、遺漏與未依據內容
-mode: pr
+mode: subagent
 permission:
   edit: deny
   write: deny
