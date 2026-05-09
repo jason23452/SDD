@@ -374,7 +374,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 若使用者要求整套流程，執行方式 question 一次確認 downstream 授權：bootstrap only / bootstrap->worktree / bootstrap->worktree->OpenSpec/apply / bootstrap->worktree->OpenSpec/apply->merge。",
     "- project-bootstrapper 驗證必須非互動、不得開新 terminal/window；如需 server smoke，背景啟動後必須自動停止。",
     "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner；若授權含 worktree，立即交 worktree-splitter，不能在啟動結果後中斷。",
-    "- 若使用者要求 worktree 拆分，最後交 worktree-splitter 依分類建立 .worktree/<run_id>/<name>；不實作、不測試。",
+    "- 若使用者要求 worktree 拆分，最後交 worktree-splitter 依 technical-practice-classifier 分類建立 .worktree/<run_id>/<name>，並同步目前主工作區完整快照（含 bootstrap 檔、依賴、lockfile、project rules、planner；排除 .git 與 .worktree）；不實作、不測試、不要求 baseline commit。",
     "- worktree 後可交 openspec-worktree-change-runner：不讀外部 openspec skill、不使用 commands/slash；agent 內並行產 spec/對齊檢查，全通過後 apply-change，每個小功能中文 commit。",
     "- apply-change 完成後可交 worktree-merge-integrator：一般 merge 到 .worktree/<run_id>/merge，保留 commits；衝突先讀 run_id 技術文件並用 question 確認，最後跑整合測試。",
   ].join("\n")

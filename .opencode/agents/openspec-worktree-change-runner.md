@@ -16,6 +16,7 @@ permission:
 - 全流程授權視為使用者已明確要求；不得在 worktree 拆分完成後再次要求使用者重複授權。
 - 必須已有 `.worktree/<run_id>/<name>` 與對應 branch。
 - 輸入必須含 run_id、分類 ID、branch、path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記。
+- 輸入必須含 `worktree-splitter` 的快照同步結果；若缺少或顯示未同步，停止並要求回到 splitter 補同步，不得在空 worktree 或缺 bootstrap 基底的 worktree 上產 spec/apply。
 - 分類 ID 必須符合 `<run_id>-featurs-<name>`。
 
 ## 來源與限制
@@ -23,6 +24,8 @@ permission:
 - 需要使用者補充時用 `question`，不得要求使用者改跑 slash command。
 - 不修改 `.opencode/skills/**/SKILL.md`、不修改 OpenSpec 規則來源。
 - 不 merge、不 push、不 force push。
+- 每個 worktree 進入 propose 前必須檢查關鍵基底檔存在，例如 `.opencode/project-rules.md`、development-detail-planner，以及本次範圍內的 `frontend/README.md`、`backend/README.md`、package/lockfile 或 `pyproject.toml`。缺失時停止該 worktree，回報 splitter 快照同步失敗。
+- OpenSpec change 必須一對一對應 `technical-practice-classifier` 分類 ID；不得自行重分組、合併分類或新增未確認分類。
 
 ## Propose 內建流程
 1. 依 `worktree-splitter` 的 OpenSpec change 建議名決定 kebab-case change name；若名稱或需求不清楚，用 `question` 確認。
