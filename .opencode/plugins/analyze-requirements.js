@@ -65,32 +65,32 @@ export const AnalyzeRequirementsTools = async () => {
     tool: {
       analyze_requirements: tool({
         description:
-          "分析需求內容與目前專案線索，協助釐清開發細節。工具只整理需求、偏好與專案線索；技術架構與套件建議需由大模型依上下文自動產生，避免在工具內寫死。",
+          "整理需求、偏好與專案線索；不定案技術選型。",
         args: {
           requirement: tool.schema
             .string()
             .optional()
-            .describe("需求文字。若同時提供 requirement_file，會與檔案內容合併分析。"),
+            .describe("需求文字。"),
           requirement_file: tool.schema
             .string()
             .optional()
-            .describe("需求檔案路徑，可用相對於 workspace 的路徑，例如 123.md。"),
+            .describe("workspace 內需求檔路徑。"),
           preferences: tool.schema
             .string()
             .optional()
-            .describe("使用者已指定或偏好的技術選擇、限制條件或排除項目。"),
+            .describe("已指定偏好/限制。"),
           decision_mode: tool.schema
             .string()
             .optional()
-            .describe("決策模式：user_provided 代表優先整理使用者提供選項；recommend_best 代表要求大模型根據需求推薦最佳方案；mixed 代表兩者並行。"),
+            .describe("user_provided/recommend_best/mixed。"),
           user_packages: tool.schema
             .string()
             .optional()
-            .describe("使用者自己指定想採用或排除的套件、函式庫或工具。"),
+            .describe("指定採用/排除套件。"),
           model_recommendation_needs: tool.schema
             .string()
             .optional()
-            .describe("希望交給大模型推薦的技術架構、套件類型或決策項目。"),
+            .describe("需模型推薦的決策項。"),
         },
         async execute(args, context) {
           const requirementText = await loadRequirementText(args, context)
@@ -193,7 +193,7 @@ function inferSignals(files, packageJson, readme) {
     if (isLikelyProjectSignalFile(file)) signals.add(`檔案:${file}`)
   }
 
-  for (const depName of depNames.slice(0, 20)) {
+  for (const depName of depNames.slice(0, 12)) {
     signals.add(`套件:${depName}`)
   }
 
@@ -329,9 +329,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
         ? "backend"
         : "尚無法由需求判斷需要 frontend/backend"
 
-  const detailLines = analysis.foundDetails.map(([topic, matches]) => {
-    return `- ${topic}：${matches.length > 0 ? matches.join("；") : "交由大模型依需求判斷"}`
-  })
+  const detailLines = buildDetailLines(analysis)
 
   const statusLines = [projectSignals.frontend, projectSignals.backend].map((area) => {
     if (!area.exists) return `- ${area.area}：不存在`
@@ -344,50 +342,59 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
   const preferenceLines = buildPreferenceLines(analysis)
   const packageDecisionLines = buildPackageDecisionLines(analysis)
   const sourceNote = requirementText
-    ? `已分析需求內容約 ${requirementText.length} 字。`
-    : "未提供需求文字或檔案；以下只反映目前專案線索。"
+    ? `需求約 ${requirementText.length} 字`
+    : "未提供需求；僅列專案線索"
 
   return [
-    "# 需求開發細節分析",
+    "# 需求分析",
     "",
-    `- 分析來源：${sourceNote}`,
-    `- 建議專案範圍：${projectType}`,
-    `- frontend 命中線索：${analysis.frontendScore}`,
-    `- backend 命中線索：${analysis.backendScore}`,
+    `- 來源：${sourceNote}`,
+    `- 範圍：${projectType}；線索 frontend=${analysis.frontendScore} backend=${analysis.backendScore}`,
     "",
-    "## 目前專案線索",
+    "## 專案線索",
     ...statusLines,
     "",
-    "## 已知/待釐清開發細節",
+    "## 細節缺口",
     ...detailLines,
     "",
-    "## 使用者偏好與套件",
+    "## 偏好/套件",
     ...preferenceLines,
     ...packageDecisionLines,
     "",
-    "## 提問素材",
+    "## question 素材",
     ...buildQuestionFreedomLines(analysis),
     ...questionLines,
     "",
-    "## 流程提醒",
-    "- 推薦需先經 question 確認；未確認只能列候選/待確認，不能寫成已採用。",
-    "- 若對應 README 已存在，先沿用現有專案並交叉檢查 package/lockfile、pyproject、src/app、routes、tests、config 等實際檔案；不要按空白專案重新規劃。",
-    "- 產檔前依序執行 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。一致性未通過不得產檔或 bootstrap。",
-    "- project-start-rules-definer 只處理長期規則並判斷/建立 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
-    "- 只有缺少可識別現行專案且使用者選擇/要求建立時才交 project-bootstrapper；現有專案需求實作走既有程式修改，不重建 scaffold。",
+    "## 流程",
+    "- 推薦先經 question；未確認只能列候選/待確認。",
+    "- README 存在則沿用現有專案並交叉檢查實際檔案；不要空白重規劃。",
+    "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。",
+    "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
+    "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
   ].join("\n")
+}
+
+function buildDetailLines(analysis) {
+  const topics = analysis.foundDetails.map(([topic]) => topic)
+  const matches = [...new Set(analysis.foundDetails.flatMap(([, found]) => found))]
+
+  return [
+    `- 項目：${topics.join("、")}`,
+    `- 線索：${matches.length > 0 ? matches.join("；") : "交由模型依需求判斷"}`,
+  ]
 }
 
 function buildQuestionFreedomLines(analysis) {
   const scopeHint = analysis.needFrontend || analysis.needBackend
-    ? "已能判斷落地範圍時，少問框架大方向，多問會改變 UI、API、資料、狀態、權限、測試或部署責任的細節。"
-    : "尚不能判斷落地範圍時，先問產出型態與是否要實作，不要直接套前端/後端技術題。"
+    ? "已判斷範圍：少問框架，多問 UI/API/資料/狀態/權限/測試/部署責任。"
+    : "範圍未明：先問產出型態/是否實作。"
 
   return [
-    "- 下方是 question 設計素材，不是固定問題庫；可拆分、合併、改寫或跳過。",
+    "- 素材非固定問題庫；可拆、併、改、跳。",
     `- ${scopeHint}`,
-    "- 每題只確認會改變實作路徑或驗收標準的決策；需求原文已給答案時直接記為已確認。",
-    "- 最後一題必須確認執行方式：frontend、backend、frontend + backend、或暫不初始化；第一個推薦依需求範圍排序。若 README 已存在，描述為沿用現有專案；若不存在，描述為最小啟動建立且不實作需求功能。",
+    `- ${QUESTION_DESIGN_GUIDE}`,
+    "- 原文已答者直接記已確認；每題只問會改變實作/驗收的決策。",
+    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立。",
   ]
 }
 
@@ -395,7 +402,6 @@ function buildPreferenceLines(analysis) {
   const lines = [`- 決策模式：${analysis.decisionMode}`]
 
   if (!analysis.preferenceText) {
-    lines.push("- 尚未提供偏好。")
     return lines
   }
 
@@ -409,8 +415,6 @@ function buildPackageDecisionLines(analysis) {
 
   if (analysis.userPackageText) {
     lines.push(`- 使用者指定套件：${analysis.userPackageText}`)
-  } else {
-    lines.push("- 使用者尚未指定套件。")
   }
 
   if (analysis.modelRecommendationNeeds) {
@@ -420,13 +424,13 @@ function buildPackageDecisionLines(analysis) {
   return lines
 }
 
-const QUESTION_DESIGN_GUIDE = "question 素材非固定問句；只問會改變實作或驗收的焦點，選項需說明對 UI/API/資料/測試/風險的影響"
+const QUESTION_DESIGN_GUIDE = "只問會改變實作/驗收的焦點；選項需說明 UI/API/資料/測試/風險影響。"
 
 function buildDetailedQuestion(topic, checks, sourceClause = "") {
-  const source = sourceClause ? `（來源：「${truncateText(sourceClause, 36)}」）` : ""
+  const source = sourceClause ? `（源：「${truncateText(sourceClause, 24)}」）` : ""
   const focus = checks.slice(0, 3).join("、")
-  const overflow = checks.length > 3 ? ` 等 ${checks.length} 個焦點` : ""
-  return `- ${topic}${source}：可拆問焦點：${focus}${overflow}；${QUESTION_DESIGN_GUIDE}。`
+  const overflow = checks.length > 3 ? ` 等 ${checks.length} 項` : ""
+  return `- ${topic}${source}：${focus}${overflow}`
 }
 
 function truncateText(text, maxLength) {
@@ -549,9 +553,9 @@ function buildRequirementChecks(clause) {
   const focusLabel = formatFocusLabel(clause)
 
   return [
-    `${focusLabel} 的第一版必做、延後與不做邊界`,
-    `${focusLabel} 的觸發者、觸發時機、輸入輸出與狀態變化`,
-    `${focusLabel} 的成功條件、失敗條件、例外補救與驗收方式`,
+    `${focusLabel} 必做/延後/不做`,
+    `${focusLabel} 觸發者/時機/輸入輸出/狀態`,
+    `${focusLabel} 成功/失敗/例外/驗收`,
   ]
 }
 
@@ -570,38 +574,38 @@ function buildQuestionAspects(signal, analysis) {
   }
 
   addAspect("範圍與驗收", [
-    `${focusLabel} 哪些內容第一版必做、延後或不做`,
-    `${focusLabel} 的成功條件、失敗條件與可測試驗收方式`,
-    "若需求子句之間有衝突，應以哪個來源或規則為準",
+    `${focusLabel} 必做/延後/不做`,
+    `${focusLabel} 成功/失敗/可測驗收`,
+    "需求子句衝突時的優先來源",
   ])
 
   addAspect("流程與資料變化", [
-    `${focusLabel} 的觸發者、前置條件與結束狀態`,
-    `${focusLabel} 會新增、讀取、修改或移除哪些資料`,
-    `${focusLabel} 發生失敗或被取消時資料如何保持一致`,
+    `${focusLabel} 觸發者/前置/結束狀態`,
+    `${focusLabel} 新增/讀取/修改/移除資料`,
+    `${focusLabel} 失敗/取消時資料一致性`,
   ])
 
   if (analysis.needFrontend) {
     addAspect("前端呈現與互動", [
-      `${focusLabel} 需要哪些頁面、狀態、提示或互動回饋`,
-      `${focusLabel} 的 loading、empty、error 與無權限狀態如何呈現`,
-      "桌機與手機是否共用同一流程與同一組驗收標準",
+      `${focusLabel} 頁面/狀態/提示/互動`,
+      `${focusLabel} loading/empty/error/無權限呈現`,
+      "桌機/手機流程與驗收是否一致",
     ])
   }
 
   if (analysis.needBackend) {
     addAspect("後端契約與資料", [
-      `${focusLabel} 對應的 API、command 或資料邊界`,
-      `${focusLabel} 的 request/response、驗證錯誤與權限錯誤如何表達`,
-      `${focusLabel} 的持久化、查詢、並發與資料一致性責任`,
+      `${focusLabel} API/command/資料邊界`,
+      `${focusLabel} request/response/驗證錯誤/權限錯誤`,
+      `${focusLabel} 持久化/查詢/並發/一致性責任`,
     ])
   }
 
   if (analysis.needFrontend && analysis.needBackend) {
     addAspect("前後端責任分界", [
-      `${focusLabel} 哪些判斷由前端即時處理，哪些必須由後端作為權威`,
-      "API 錯誤如何轉成使用者可理解的畫面訊息",
-      "前端暫存狀態與後端實際狀態不一致時如何恢復",
+      `${focusLabel} 前端即時判斷 vs 後端權威`,
+      "API 錯誤到畫面訊息",
+      "前端暫存與後端狀態不一致恢復",
     ])
   }
 
@@ -627,39 +631,39 @@ function buildAdaptiveTechnicalQuestions(analysis) {
   if (!analysis.needFrontend && !analysis.needBackend) return questions
 
   pushQuestion("落地責任分界", [
-    `目前建議範圍為 ${scope}，需確認哪些責任屬於 UI、API、資料層、背景工作或第三方服務`,
-    "哪些決策是安全、資料一致性或驗收標準的權威來源",
-    "哪些低風險工程選型可交由模型建議，哪些必須先問使用者",
+    `${scope} 的 UI/API/資料/背景工作/第三方責任`,
+    "安全/一致性/驗收的權威來源",
+    "模型可建議項 vs 必問項",
   ])
 
   if (analysis.needFrontend) {
     pushQuestion("前端互動與狀態", [
-      "哪些畫面、輸入、提示、loading/empty/error 狀態會改變驗收標準",
-      "哪些狀態只在前端暫存，哪些必須與後端或持久化資料同步",
-      "不同裝置或入口是否需要不同流程",
+      "畫面/輸入/提示/loading/empty/error 對驗收影響",
+      "前端暫存 vs 後端/持久化同步",
+      "裝置/入口流程差異",
     ])
   }
 
   if (analysis.needBackend) {
     pushQuestion("後端契約與資料", [
-      "哪些資料、API、驗證、權限或一致性規則會影響第一版範圍",
-      "request/response、錯誤格式與狀態碼是否需要先定義",
-      "資料遷移、seed、備份或清理是否屬於本次落地範圍",
+      "資料/API/驗證/權限/一致性對 MVP 影響",
+      "request/response/錯誤格式/狀態碼",
+      "migration/seed/備份/清理是否納入",
     ])
   }
 
   if (analysis.needFrontend && analysis.needBackend) {
     pushQuestion("整合與失敗恢復", [
-      "前後端資料不同步、請求失敗或權限失效時如何恢復",
-      "本機開發如何啟動前端、後端與必要依賴",
-      "API 測試、整合測試與 E2E 測試如何切分",
+      "資料不同步/請求失敗/權限失效恢復",
+      "本機啟動前後端與依賴",
+      "API/整合/E2E 測試切分",
     ])
   }
 
   pushQuestion("執行、測試與風險", [
-    "哪些情境必須用自動化測試覆蓋，哪些可用人工驗收",
-    "環境變數、secret、外部服務與部署限制是否需要先確認",
-    "若使用模型推薦套件或架構，需記錄哪些取捨與替代方案",
+    "自動化測試 vs 人工驗收",
+    "env/secret/外部服務/部署限制",
+    "模型推薦套件/架構的取捨與替代",
   ])
 
   return questions
@@ -670,7 +674,7 @@ function buildQuestions(analysis) {
 
   if (analysis.requirementSignals.length > 0) {
     questions.push(
-      "- 提問策略：依需求子句與焦點詞產生素材；可拆成小題、合併成決策題或延後追問。"
+      "- 策略：依需求子句出題材；可拆/併/延後。"
     )
 
     for (const signal of analysis.requirementSignals) {
@@ -683,44 +687,44 @@ function buildQuestions(analysis) {
     }
   } else {
     questions.push(buildDetailedQuestion("原始需求與產檔範圍", [
-      "引用檔案或使用者原文是否完整保留",
-      "需求摘要是否需要條目化",
-      "產出檔案數量與位置",
-      "哪些內容需標示待確認而不是推測",
+      "保留引用/原文",
+      "需求摘要條目化",
+      "產出檔案數量/位置",
+      "待確認 vs 推測",
     ]))
     questions.push(buildDetailedQuestion("MVP 與不做範圍", [
-      "第一版必做功能",
-      "延後功能",
-      "明確不做事項",
-      "每項功能的驗收條件",
+      "必做",
+      "延後",
+      "不做",
+      "驗收條件",
     ]))
   }
 
   const technicalQuestions = buildAdaptiveTechnicalQuestions(analysis)
   if (technicalQuestions.length > 0) {
     questions.push(
-      "- 技術補問策略：只補會影響落地的缺口；已有明確偏好或低風險項可跳過。"
+      "- 技術補問：只補落地缺口；明確/低風險項可跳。"
     )
     questions.push(...technicalQuestions)
   }
 
   if (analysis.needFrontend || analysis.needBackend) {
     const recommendedExecution = analysis.needFrontend && analysis.needBackend
-      ? "直接建立 frontend + backend 兩個最小可啟動專案與初始檔案（推薦）"
+      ? "frontend + backend（推薦）"
       : analysis.needFrontend
-        ? "直接建立 frontend 最小可啟動專案與初始檔案（推薦）"
-        : "直接建立 backend 最小可啟動專案與初始檔案（推薦）"
+        ? "frontend（推薦）"
+        : "backend（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認。第一個推薦必須是「${recommendedExecution}」；選項須涵蓋 frontend、backend、frontend + backend，或暫不初始化。若對應 README 已存在，描述為沿用現有專案開發/驗證；若不存在，才描述為最小啟動建立。不得用 bootstrapper 實作需求功能。`
+      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能。`
     )
   }
 
   if (!analysis.needFrontend && !analysis.needBackend) {
     questions.push(buildDetailedQuestion("落地範圍確認", [
-      "此需求是否只是整理/討論/文件",
-      "是否要落地為可執行功能",
-      "若要落地需 frontend、backend 或兩者",
-      "不建立專案時本次輸出內容為何",
+      "整理/討論/文件或落地",
+      "是否可執行功能",
+      "frontend/backend/兩者",
+      "不建專案時輸出",
     ]))
   }
 
