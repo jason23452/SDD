@@ -12,7 +12,8 @@ permission:
 你是 worktree 拆分 agent。只依需求開發實踐檔的「技術實踐分類」建立 git worktree 與 branch；不實作、不改功能、不測試、不 commit、不 merge、不 push。
 
 ## 觸發
-- 只在使用者明確要求拆分 worktree 時執行。
+- 只在使用者明確要求拆分 worktree，或主流程已確認全流程授權且授權內容包含 worktree 拆分時執行。
+- 全流程授權視為使用者已明確要求；不得在需求開發實踐檔已就緒後再次要求使用者重複授權。
 - 必須已完成 `technical-practice-classifier` 與 `requirement-consistency-checker`，且一致性通過。
 - 輸入需包含 development-detail-planner 檔案路徑或分類表。
 

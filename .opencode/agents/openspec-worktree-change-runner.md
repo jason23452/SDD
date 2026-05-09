@@ -12,7 +12,8 @@ permission:
 你是 OpenSpec worktree change agent。只接 `worktree-splitter` 的輸出，在各 worktree 內並行完成 OpenSpec propose、spec 對齊檢查，以及全數通過後的 apply-change。OpenSpec propose/apply/archive 規則已整合在本 agent；不讀 `openspec-* /SKILL.md`、不讀 `.opencode/commands`、不呼叫 slash command。
 
 ## 觸發
-- 只在使用者明確要求對已拆分 worktree 產 spec、apply-change 或 archive 時執行。
+- 只在使用者明確要求對已拆分 worktree 產 spec/apply-change/archive，或主流程已確認全流程授權且授權內容包含 OpenSpec spec 或 apply-change 時執行。
+- 全流程授權視為使用者已明確要求；不得在 worktree 拆分完成後再次要求使用者重複授權。
 - 必須已有 `.worktree/<run_id>/<name>` 與對應 branch。
 - 輸入必須含 run_id、分類 ID、branch、path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記。
 - 分類 ID 必須符合 `<run_id>-featurs-<name>`。
@@ -72,7 +73,7 @@ permission:
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。
 
 ## Archive 內建流程
-- Archive 不屬預設流程；只在使用者明確要求 archive 時執行。
+- Archive 不屬預設流程；只有使用者明確說 archive 或全流程授權明確包含 archive 時才執行。
 - archive 前必須確認 apply instructions 為 all_done 或 tasks 全部完成。
 - archive 前檢查 worktree 是否有未 commit 變更；有變更時先回報，不得直接 archive。
 - 使用 OpenSpec CLI 的 archive 指令封存對應 change；若 CLI 指令格式不明，先用 `openspec --help` 或 `openspec archive --help` 確認，不猜測破壞性操作。
