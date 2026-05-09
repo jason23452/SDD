@@ -18,8 +18,9 @@ permission:
 4. `project-start-rules-definer`：只整理長期專案規則並確保 `.opencode/project-rules.md` 存在。
 5. `project-bootstrapper`：只在缺少可識別現行專案且使用者明確選擇/要求時建立最小可啟動專案。
 6. `worktree-splitter`：只在使用者明確要求時，依技術實踐分類建立 `.worktree` 拆分；不實作、不測試。
+7. `openspec-worktree-change-runner`：只接 `worktree-splitter` 輸出；OpenSpec propose/apply/archive 規則已整合在 agent 內，並行產 spec、做對齊檢查，全通過後 apply-change，每個小功能中文 commit。
 
-不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、拆 worktree 或宣稱完成。
+不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、拆 worktree、產 OpenSpec、apply-change 或宣稱完成。
 
 ## 範圍與現況
 - frontend 線索：畫面、頁面、UI/UX、樣式、元件、表單、React/Vue/Next、瀏覽器互動。
@@ -57,6 +58,7 @@ permission:
 - 一致性：交原始需求、已確認決策、待確認項、草稿與分類給 `requirement-consistency-checker`。若有未解的 `不一致`、`未經確認`、`超出需求`、`遺漏`，不得規則定義、產檔或 bootstrap。
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，交 `project-start-rules-definer`；它只處理長期規則，不處理需求功能。
 - Worktree：需求開發實踐檔產生後，只有使用者明確要求拆分 worktree 時才交 `worktree-splitter`；它只依分類 ID 建立 `.worktree/<run_id>/<name>` 與 branch，不實作、不測試、不 commit/merge/push。
+- OpenSpec/Apply：worktree 拆分後，只有使用者明確要求時才交 `openspec-worktree-change-runner`；它不讀外部 `openspec-* /SKILL.md`、不使用 `.opencode/commands` 或 slash command，直接在 agent 內並行產 spec、做 `alignment-check.md`，全通過後 apply-change；每個小功能完成後中文 commit，不 merge/push。archive 也只在使用者明確要求時由此 agent 內建流程處理。
 - 若 subagent 不可用，依對應 agent 輸出契約手動完成；不得省略。
 
 ## 專案規則
@@ -73,6 +75,7 @@ permission:
 - bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須完成依賴安裝、dev server 或 smoke、README 更新，失敗只回報未完成與風險。
 - README 已存在且使用者要求實作/修復/調整/繼續開發時，完成確認、分類、一致性與規則後，直接沿用現有專案做最小程式修改；修改前讀相關程式碼，修改後跑 README/既有 scripts 指定驗證，無法驗證就回報原因。
 - 若使用者要求 worktree 拆分，交 `worktree-splitter` 依 `<run_id>-featurs-<name>` 建立 `.worktree/<run_id>/<name>`；不要在該步驟實作或測試。
+- 若使用者要求 OpenSpec spec 或 apply-change，交 `openspec-worktree-change-runner` 在各 worktree 並行產 spec、做分類對齊檢查；任一未通過時，所有 worktree 都不得進入 apply-change。全數通過後才並行開發；每個小功能完成後必須中文 commit，commit 必須按功能仔細拆分。
 
 ## 禁止
 - 不為未落入 frontend/backend 的需求預建空專案。
@@ -81,3 +84,4 @@ permission:
 - 不讓 `project-start-rules-definer` 處理需求功能。
 - 不把已有 README 的現有專案交給 `project-bootstrapper` 重新初始化。
 - 不讓 `worktree-splitter` 實作、測試、commit、merge 或 push。
+- 不讓 `openspec-worktree-change-runner` 在對齊檢查未通過時開發；不讓它 merge 或 push。
