@@ -3,9 +3,9 @@ import path from "node:path"
 import { tool } from "@opencode-ai/plugin"
 
 const MAX_REQUIREMENT_CHARS = 20000
-const MAX_REQUIREMENT_SIGNALS = 10
-const MAX_GRANULAR_QUESTIONS = 18
-const MAX_TECHNICAL_FOLLOW_UPS = 8
+const MAX_REQUIREMENT_SIGNALS = 6
+const MAX_GRANULAR_QUESTIONS = 10
+const MAX_TECHNICAL_FOLLOW_UPS = 4
 
 const FRONTEND_HINTS = [
   "畫面",
@@ -232,17 +232,6 @@ function analyzeRequirement(requirementText, projectSignals, args = {}) {
   const detailTopics = selectDetailTopics(text, { needFrontend, needBackend, requirementSignals })
   const foundDetails = detailTopics.map((topic) => [topic, detailContext])
   const missingDetails = detailContext.length === 0 ? [...detailTopics] : []
-  const modelRecommendationPrompt = buildModelRecommendationPrompt({
-    needFrontend,
-    needBackend,
-    foundDetails,
-    missingDetails,
-    preferenceText,
-    userPackageText,
-    modelRecommendationNeeds,
-    projectSignals,
-    decisionMode: args.decision_mode || "mixed",
-  })
 
   return {
     needFrontend,
@@ -255,7 +244,6 @@ function analyzeRequirement(requirementText, projectSignals, args = {}) {
     userPackageText,
     modelRecommendationNeeds,
     decisionMode: args.decision_mode || "mixed",
-    modelRecommendationPrompt,
     requirementSignals,
     projectSignals,
   }
@@ -355,7 +343,6 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
   const questionLines = buildQuestions(analysis)
   const preferenceLines = buildPreferenceLines(analysis)
   const packageDecisionLines = buildPackageDecisionLines(analysis)
-  const recommendationLines = buildRecommendationLines(analysis)
   const sourceNote = requirementText
     ? `已分析需求內容約 ${requirementText.length} 字。`
     : "未提供需求文字或檔案；以下只反映目前專案線索。"
@@ -374,30 +361,19 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "## 已知/待釐清開發細節",
     ...detailLines,
     "",
-    "## 使用者指定或偏好",
+    "## 使用者偏好與套件",
     ...preferenceLines,
-    "",
-    "## 套件決策方式",
     ...packageDecisionLines,
     "",
-    "## 大模型技術架構產生指令",
-    ...recommendationLines,
-    "",
-    "## 提問生成自由度",
+    "## 提問素材",
     ...buildQuestionFreedomLines(analysis),
-    "",
-    "## 建議優先釐清問題",
     ...questionLines,
     "",
-    "## 產檔整理提醒",
-    "- 後續需求開發實踐檔應把原始需求整理、引用來源、使用者已確認技術決策與開發實踐建議放在同一份文件中。",
-    "- 不要把未經 question 確認的推薦方案寫成已採用；未確認項目只能列為待確認或候選方案。",
-    "- 產檔前需先將技術實踐項目與本次 run_id 交給 technical-practice-classifier agent 整理成互斥分類；分類表 ID 必須使用 <run_id>-featurs-<name>，主 agent 只負責合併分類章節。",
-    "- 分類章節需包含項目總數、已分類項目數、未分類項目數、重複分類項目數與已拆分項目數；除非使用者允許延後分類，未分類與重複分類都應為 0。",
-    "- 技術實踐分類通過後，需交給 requirement-consistency-checker agent 比對原始需求、前次需求線索、已確認決策、實踐草稿與分類結果；若存在未解的不一致、未經確認、超出需求或遺漏，不得產檔。",
-    "- 一致性檢查通過後，若需要新增/更新後續專案規則或存在 .opencode/skills/frontend/*/SKILL.md、.opencode/skills/backend/*/SKILL.md，需交給 project-start-rules-definer agent 整理長期專案規則並確保 .opencode/project-rules.md 存在；該 agent 只處理專案規則，不處理需求功能，且必須先判斷主檔是否存在，存在就跳過建立，不存在才先建立。推薦或待確認規則不可寫成已確認。",
-    "- skill.md 來源規則不可刪除；若使用者要求刪除 skill 規則需報錯。新規則與舊專案規則衝突時，以最新規則覆蓋舊規則並留下覆蓋紀錄。",
-    "- 只有使用者明確要求建立、初始化、啟動或落地專案，且 .opencode/project-rules.md 已存在時，才可交給 project-bootstrapper agent 建立 frontend/backend 最小可啟動專案；project-bootstrapper 不得完成任何需求功能。完成後必須完成依賴安裝、啟動最小 development server、更新對應 README，並回報實際 URL 與驗證結果。若執行環境無法維持長駐 server，必須至少完成實際啟動 smoke check 並明確標示未長駐原因。",
+    "## 流程提醒",
+    "- 推薦需先經 question 確認；未確認只能列候選/待確認，不能寫成已採用。",
+    "- 產檔前依序執行 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。一致性未通過不得產檔或 bootstrap。",
+    "- project-start-rules-definer 只處理長期規則並判斷/建立 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
+    "- 只有使用者選擇或明確要求建立時才交 project-bootstrapper；它只做最小可啟動專案、依賴安裝、啟動/smoke、README 更新，不實作需求功能。",
   ].join("\n")
 }
 
@@ -407,11 +383,10 @@ function buildQuestionFreedomLines(analysis) {
     : "尚不能判斷落地範圍時，先問產出型態與是否要實作，不要直接套前端/後端技術題。"
 
   return [
-    "- 下方內容以需求原文子句與焦點詞產生，不是固定情境、固定檢查點或必問題庫；可依上下文拆分、合併、改寫、跳過或追加追問。",
+    "- 下方是 question 設計素材，不是固定問題庫；可拆分、合併、改寫或跳過。",
     `- ${scopeHint}`,
-    "- 若需求原文已給出答案，直接記為已確認；若只是低風險工程偏好，放入實踐建議即可，不必為了填表打斷使用者。",
-    "- 每個 question 只確認一個會改變實作路徑或驗收標準的決策；選項數量與類型依情境自由設計，通常 2-5 個，不固定套推薦/替代/待確認三分法。",
-    "- 最後一題必須確認執行方式，讓使用者選擇要建立 frontend、backend、frontend + backend，或暫不初始化。第一個預設推薦選項必須依需求判斷結果排列：只需 frontend 就推薦 frontend，只需 backend 就推薦 backend，兩者皆需就推薦 frontend + backend。每個建立選項都必須說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新對應 README，不實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。",
+    "- 每題只確認會改變實作路徑或驗收標準的決策；需求原文已給答案時直接記為已確認。",
+    "- 最後一題必須確認執行方式：frontend、backend、frontend + backend、或暫不初始化；第一個推薦依需求範圍排序，建立選項需明示只做最小啟動、不實作需求功能。",
   ]
 }
 
@@ -419,7 +394,7 @@ function buildPreferenceLines(analysis) {
   const lines = [`- 決策模式：${analysis.decisionMode}`]
 
   if (!analysis.preferenceText) {
-    lines.push("- 尚未提供偏好；可提供已指定的語言、框架、資料庫、套件或排除條件。")
+    lines.push("- 尚未提供偏好。")
     return lines
   }
 
@@ -428,72 +403,28 @@ function buildPreferenceLines(analysis) {
   return lines
 }
 
-function buildModelRecommendationPrompt(analysis) {
-  const scope = analysis.needFrontend && analysis.needBackend
-    ? "frontend + backend"
-    : analysis.needFrontend
-      ? "frontend"
-      : analysis.needBackend
-        ? "backend"
-        : "尚無法判斷，請先依需求判斷是否需要 frontend/backend"
-  const foundDetails = analysis.foundDetails
-    .map(([topic, matches]) => `${topic}=${matches.length > 0 ? matches.join("；") : "交由大模型依需求判斷"}`)
-    .join("；")
-  const projectSignals = [analysis.projectSignals.frontend, analysis.projectSignals.backend, analysis.projectSignals.root]
-    .map((area) => `${area.area}:${area.exists ? area.signals.join("、") || "未偵測到技術棧" : "不存在"}`)
-    .join("；")
-
-  return [
-    "請由大模型根據需求內容、目前專案線索與使用者偏好，自動產生技術架構建議；工具不得提供固定預設技術棧，也不得把下列提示當成必填表單。",
-    `建議專案範圍：${scope}`,
-    `已知/待釐清技術線索：${foundDetails}`,
-    `目前專案線索：${projectSignals}`,
-    `使用者偏好：${analysis.preferenceText || "未提供"}`,
-    `使用者指定套件：${analysis.userPackageText || "未提供"}`,
-    `使用者希望模型推薦項目：${analysis.modelRecommendationNeeds || "未指定，請只評估需求中會改變落地方案的技術決策；不要為未出現或低風險的分類硬補問題"}`,
-    `決策模式：${analysis.decisionMode}`,
-    "輸出時請先說明推薦路徑與理由，再列出足以改變實作的替代路線、取捨風險、必要官方文件 URL 與待問問題；待問問題要從需求情境拆出，不需固定包含所有技術分類，也不要固定套推薦/替代/待確認三選項。",
-    "若使用者已指定偏好，請優先尊重；若偏好與需求或專案線索衝突，請明確指出風險並提供替代方案。",
-  ]
-}
-
 function buildPackageDecisionLines(analysis) {
   const lines = []
 
   if (analysis.userPackageText) {
     lines.push(`- 使用者指定套件：${analysis.userPackageText}`)
-    lines.push("- 工具不內建套件白名單或 URL 對照；官方連結與替代套件由大模型依上下文補齊。")
   } else {
-    lines.push("- 使用者尚未指定套件；可用 user_packages 提供想採用或排除的套件。")
+    lines.push("- 使用者尚未指定套件。")
   }
 
   if (analysis.modelRecommendationNeeds) {
     lines.push(`- 交給大模型推薦：${analysis.modelRecommendationNeeds}`)
-    lines.push("- 後續模型應依需求、既有技術棧、維護性、社群成熟度與官方文件 URL 補齊推薦套件。")
-  } else {
-    lines.push("- 尚未指定要交給大模型推薦的套件類型；可用 model_recommendation_needs 指定 UI、日期、驗證、ORM、測試等。")
   }
 
   return lines
 }
 
-function buildRecommendationLines(analysis) {
-  if (analysis.decisionMode === "user_provided") {
-    return [
-      "- 已選擇 user_provided：優先整理使用者提供方案；若要大模型主動推薦，請改用 decision_mode=mixed 或 recommend_best。",
-      ...analysis.modelRecommendationPrompt.map((line) => `- ${line}`),
-    ]
-  }
-
-  return analysis.modelRecommendationPrompt.map((line) => `- ${line}`)
-}
-
-const QUESTION_DESIGN_GUIDE = "把這列當成 question 設計素材而非固定問句；只挑會改變實作路徑或驗收標準的焦點，可拆分、合併、改寫或跳過；選項需依需求情境自訂，避免固定技術棧或固定推薦/替代/延後格式，description 說明採用後對 UI/API/資料/狀態/測試/風險的具體影響"
+const QUESTION_DESIGN_GUIDE = "question 素材非固定問句；只問會改變實作或驗收的焦點，選項需說明對 UI/API/資料/測試/風險的影響"
 
 function buildDetailedQuestion(topic, checks, sourceClause = "") {
-  const source = sourceClause ? `（來源：「${truncateText(sourceClause, 52)}」）` : ""
-  const focus = checks.slice(0, 5).join("、")
-  const overflow = checks.length > 5 ? ` 等 ${checks.length} 個焦點` : ""
+  const source = sourceClause ? `（來源：「${truncateText(sourceClause, 36)}」）` : ""
+  const focus = checks.slice(0, 3).join("、")
+  const overflow = checks.length > 3 ? ` 等 ${checks.length} 個焦點` : ""
   return `- ${topic}${source}：可拆問焦點：${focus}${overflow}；${QUESTION_DESIGN_GUIDE}。`
 }
 
@@ -673,7 +604,7 @@ function buildQuestionAspects(signal, analysis) {
     ])
   }
 
-  return aspects.slice(0, 4)
+  return aspects.slice(0, 3)
 }
 
 function buildAdaptiveTechnicalQuestions(analysis) {
@@ -738,7 +669,7 @@ function buildQuestions(analysis) {
 
   if (analysis.requirementSignals.length > 0) {
     questions.push(
-      "- 提問策略：先依需求原文子句與焦點詞產生提問素材；同一子句若牽涉多個實作責任，可自由拆成小題、合併成決策題或延後追問，不再逐題套固定情境或固定技術清單。"
+      "- 提問策略：依需求子句與焦點詞產生素材；可拆成小題、合併成決策題或延後追問。"
     )
 
     for (const signal of analysis.requirementSignals) {
@@ -767,7 +698,7 @@ function buildQuestions(analysis) {
   const technicalQuestions = buildAdaptiveTechnicalQuestions(analysis)
   if (technicalQuestions.length > 0) {
     questions.push(
-      "- 技術補問策略：以下只補需求未交代但會影響落地的缺口；已有明確偏好或可由模型低風險決定時，可跳過、合併或改寫成更貼近需求的選項。"
+      "- 技術補問策略：只補會影響落地的缺口；已有明確偏好或低風險項可跳過。"
     )
     questions.push(...technicalQuestions)
   }
@@ -779,7 +710,7 @@ function buildQuestions(analysis) {
         ? "直接建立 frontend 最小可啟動專案與初始檔案（推薦）"
         : "直接建立 backend 最小可啟動專案與初始檔案（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認：用 question 讓使用者選擇建立範圍。第一個預設推薦選項必須是「${recommendedExecution}」。其他選項必須包含「直接建立 frontend 最小可啟動專案與初始檔案」、「直接建立 backend 最小可啟動專案與初始檔案」、「直接建立 frontend + backend 兩個最小可啟動專案與初始檔案」、「暫不初始化，只產生需求開發實踐檔」。每個建立選項都只允許建立啟動必要初始檔案、安裝依賴、啟動 development server、更新對應 README，不得實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。`
+      `- 最後 question：執行方式確認。第一個推薦必須是「${recommendedExecution}」；選項須涵蓋建立 frontend、backend、frontend + backend，或暫不初始化。建立選項只允許最小啟動、依賴安裝、dev server/smoke、README 更新，不得實作需求功能。`
     )
   }
 
