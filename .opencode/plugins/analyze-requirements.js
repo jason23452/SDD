@@ -411,7 +411,7 @@ function buildQuestionFreedomLines(analysis) {
     `- ${scopeHint}`,
     "- 若需求原文已給出答案，直接記為已確認；若只是低風險工程偏好，放入實踐建議即可，不必為了填表打斷使用者。",
     "- 每個 question 只確認一個會改變實作路徑或驗收標準的決策；選項數量與類型依情境自由設計，通常 2-5 個，不固定套推薦/替代/待確認三分法。",
-    "- 最後一題必須確認執行方式。若本次範圍包含 backend，最後一題第一個預設推薦選項必須是「直接建立 backend 最小可啟動專案與初始檔案（推薦）」，並說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新 backend/README.md，不實作需求 API、資料模型、auth、CRUD 或業務邏輯。",
+    "- 最後一題必須確認執行方式，讓使用者選擇要建立 frontend、backend、frontend + backend，或暫不初始化。第一個預設推薦選項必須依需求判斷結果排列：只需 frontend 就推薦 frontend，只需 backend 就推薦 backend，兩者皆需就推薦 frontend + backend。每個建立選項都必須說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新對應 README，不實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。",
   ]
 }
 
@@ -772,9 +772,14 @@ function buildQuestions(analysis) {
     questions.push(...technicalQuestions)
   }
 
-  if (analysis.needBackend) {
+  if (analysis.needFrontend || analysis.needBackend) {
+    const recommendedExecution = analysis.needFrontend && analysis.needBackend
+      ? "直接建立 frontend + backend 兩個最小可啟動專案與初始檔案（推薦）"
+      : analysis.needFrontend
+        ? "直接建立 frontend 最小可啟動專案與初始檔案（推薦）"
+        : "直接建立 backend 最小可啟動專案與初始檔案（推薦）"
     questions.push(
-      "- 最後 question：執行方式確認：第一個預設推薦選項必須是「直接建立 backend 最小可啟動專案與初始檔案（推薦）」；此選項只允許建立 backend 啟動必要初始檔案、安裝依賴、啟動 development server、更新 backend/README.md，不得實作需求 API、資料模型、auth、CRUD 或業務邏輯。替代選項可包含「只產生需求開發實踐檔」、「暫不初始化」、「只建立/更新 README」。"
+      `- 最後 question：執行方式確認：用 question 讓使用者選擇建立範圍。第一個預設推薦選項必須是「${recommendedExecution}」。其他選項必須包含「直接建立 frontend 最小可啟動專案與初始檔案」、「直接建立 backend 最小可啟動專案與初始檔案」、「直接建立 frontend + backend 兩個最小可啟動專案與初始檔案」、「暫不初始化，只產生需求開發實踐檔」。每個建立選項都只允許建立啟動必要初始檔案、安裝依賴、啟動 development server、更新對應 README，不得實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。`
     )
   }
 
