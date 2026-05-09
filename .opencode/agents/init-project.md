@@ -27,6 +27,7 @@ permission:
 - 若使用者一開始要求「整套流程、一路執行、從需求到 worktree/OpenSpec/apply/merge、自動跑完、不要中斷」或等價說法，視為 downstream 步驟已明確要求；在「執行方式確認」一次列出並確認授權範圍後，不得在每個步驟後重新要求使用者說一次。
 - 交接欄位需保留：`run_id`、需求開發實踐檔路徑、已授權 downstream 步驟、已確認決策、待確認事項、分類表、驗證/啟動結果、阻塞與風險。
 - subagent 完成後，主流程必須回收輸出並繼續下一個已授權步驟；不得把 `project-bootstrapper`、`worktree-splitter` 或 `openspec-worktree-change-runner` 的輸出當成整套流程最終回覆，除非已授權步驟都完成或遇到硬性停止條件。
+- 若已授權 downstream 包含 worktree，`project-bootstrapper` 完成後的下一步固定是：回收啟動結果 -> 產生/更新 development-detail-planner -> 立即交 `worktree-splitter`；不得停在「專案啟動結果」或再問是否要拆 worktree。
 - 硬性停止只限：`question` 未回答、使用者未授權、分類/一致性未通過、project rules 缺失且無法建立、bootstrap/驗證無法修復、OpenSpec 對齊未通過、apply/task blocker、merge conflict 需使用者選解法、測試失敗且無法修復。
 
 ## 範圍與現況
@@ -50,8 +51,8 @@ permission:
 - 日期、排程、衝突、價格、庫存、搜尋、報表、權限等核心規則須獨立問計算責任；不得預設前端/後端/worker/DB/快取/第三方。
 - 具名套件不得未確認即採用；技術組合有整合風險時追加 `question`。
 - 最後一題必須是「執行方式確認」，選 frontend、backend、frontend + backend 或暫不初始化；第一個推薦依需求範圍排序。
-- 執行選項依現況描述：README 存在 => 「沿用現有專案開發/驗證」；README 不存在 => 「建立最小可啟動專案」。只有後者可交 `project-bootstrapper`；建立選項須說明只做最小啟動、依賴安裝、dev server/smoke、README，不實作需求功能。
-- 若使用者要求整套流程，執行方式確認須同時確認後續授權：bootstrap only、bootstrap + 需求開發實踐檔、再拆 worktree、再產 OpenSpec/apply-change、再 merge integration。使用者確認後，這些 downstream 步驟即視為「明確要求」。
+- 執行選項依現況描述：README 存在 => 「沿用現有專案開發/驗證」；README 不存在 => 「建立最小可啟動專案」。只有後者可交 `project-bootstrapper`；建立選項須說明只做最小啟動、依賴安裝、非互動驗證/可結束 smoke、README，不實作需求功能。
+- 若使用者要求整套流程，執行方式確認須同時確認後續授權：bootstrap only、bootstrap -> worktree-splitter、bootstrap -> worktree-splitter -> OpenSpec/apply-change、bootstrap -> worktree-splitter -> OpenSpec/apply-change -> merge integration。使用者確認後，這些 downstream 步驟即視為「明確要求」。
 
 ## 需求開發實踐檔
 - 只有開發細節確認完成後才產生。
@@ -66,7 +67,7 @@ permission:
 - 分類：交 `<run_id>`、原始需求、已確認決策、開發範圍、實作順序草稿給 `technical-practice-classifier`。若未分類/重複分類不為 0 或 ID 不符，不進一致性檢查。
 - 一致性：交原始需求、已確認決策、待確認項、草稿與分類給 `requirement-consistency-checker`。若有未解的 `不一致`、`未經確認`、`超出需求`、`遺漏`，不得規則定義、產檔或 bootstrap。
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，依 `project-start-rules-definer` 規則執行；它是 primary 規則流程，不處理需求功能，完成後必須返回本流程續行。
-- Bootstrap：若需建立最小專案，交 `project-bootstrapper`；它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，再續行已授權 downstream 步驟。
+- Bootstrap：若需建立最小專案，交 `project-bootstrapper`；它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，再續行已授權 downstream 步驟。若 downstream 包含 worktree，下一步必須直接交 `worktree-splitter`。
 - Worktree：需求開發實踐檔產生後，若使用者明確要求或全流程授權包含拆分 worktree，交 `worktree-splitter`；它只依分類 ID 建立 `.worktree/<run_id>/<name>` 與 branch，不實作、不測試、不 commit/merge/push。
 - OpenSpec/Apply：worktree 拆分後，若使用者明確要求或全流程授權包含 OpenSpec/apply-change，交 `openspec-worktree-change-runner`；它不讀外部 `openspec-* /SKILL.md`、不使用 `.opencode/commands` 或 slash command，直接在 agent 內並行產 spec、做 `alignment-check.md`，全通過後 apply-change；每個小功能完成後中文 commit，不 merge/push。archive 仍只在使用者明確要求 archive 時執行。
 - Merge：所有 worktree apply-change 完成後，若使用者明確要求或全流程授權包含 merge integration，交 `worktree-merge-integrator`；它建立 `.worktree/<run_id>/merge` 與 `integration/<run_id>`，用一般 merge 保留來源 commits，不 squash、不 rebase。遇到衝突必須讀 run_id 的 development-detail-planner 文件與相關 OpenSpec artifacts，經 `question` 確認後才解衝突，最後跑整合測試。
@@ -83,12 +84,12 @@ permission:
 - 只有缺少可識別現行專案且使用者選擇/要求建立時，才可交 `project-bootstrapper`。
 - 交 bootstrapper 前須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交 `project-start-rules-definer`。
 - bootstrapper 只收最小啟動資訊：範圍、已確認 stack/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認規則、不做需求功能範圍。
-- bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須完成依賴安裝、dev server 或 smoke、README 更新，失敗只回報未完成與風險。
-- bootstrapper 回來後，主流程需整理啟動結果並繼續：產生/更新需求開發實踐檔；若全流程授權包含 worktree/OpenSpec/apply/merge，依序交下一步，不得在「專案啟動結果」後停止。
+- bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須完成依賴安裝、非互動驗證或可結束 smoke、README 更新，失敗只回報未完成與風險。
+- bootstrapper 回來後，主流程需整理啟動結果並繼續：產生/更新需求開發實踐檔；若全流程授權包含 worktree，立即交 `worktree-splitter`，再依授權續行 OpenSpec/apply/merge，不得在「專案啟動結果」後停止。
 - README 已存在且使用者要求實作/修復/調整/繼續開發時，完成確認、分類、一致性與規則後，直接沿用現有專案做最小程式修改；修改前讀相關程式碼，修改後跑 README/既有 scripts 指定驗證，無法驗證就回報原因。
-- 若使用者要求 worktree 拆分，交 `worktree-splitter` 依 `<run_id>-featurs-<name>` 建立 `.worktree/<run_id>/<name>`；不要在該步驟實作或測試。
-- 若使用者要求 OpenSpec spec 或 apply-change，交 `openspec-worktree-change-runner` 在各 worktree 並行產 spec、做分類對齊檢查；任一未通過時，所有 worktree 都不得進入 apply-change。全數通過後才並行開發；每個小功能完成後必須中文 commit，commit 必須按功能仔細拆分。
-- 若使用者要求整合 merge，交 `worktree-merge-integrator` 將各 source branch 一般 merge 到 `integration/<run_id>`；必須保留所有來源 commit，禁止 squash/rebase，整合後跑整合測試。
+- 若使用者要求或全流程授權包含 worktree 拆分，交 `worktree-splitter` 依 `<run_id>-featurs-<name>` 建立 `.worktree/<run_id>/<name>`；不要在該步驟實作或測試。
+- 若使用者要求或全流程授權包含 OpenSpec spec/apply-change，交 `openspec-worktree-change-runner` 在各 worktree 並行產 spec、做分類對齊檢查；任一未通過時，所有 worktree 都不得進入 apply-change。全數通過後才並行開發；每個小功能完成後必須中文 commit，commit 必須按功能仔細拆分。
+- 若使用者要求或全流程授權包含整合 merge，交 `worktree-merge-integrator` 將各 source branch 一般 merge 到 `integration/<run_id>`；必須保留所有來源 commit，禁止 squash/rebase，整合後跑整合測試。
 
 ## 禁止
 - 不為未落入 frontend/backend 的需求預建空專案。
