@@ -97,8 +97,10 @@ permission:
 - `init-project` 不負責執行詳細專案規則整理；規則定義細節由 `.opencode/agents/project-start-rules-definer.md` 定義。
 - 若本次需求需要 frontend，預設讓 `project-start-rules-definer` 讀取 `.opencode/skills/frontend/*/SKILL.md`；若需要 backend，預設讀取 `.opencode/skills/backend/*/SKILL.md`；若兩者皆需，兩邊都要提供給該 agent。
 - 若 skill 不存在，仍可依使用者要求、需求內容與 README 線索整理規則，並在輸出中標示未找到對應 skill。
-- `project-start-rules-definer` 只回傳可嵌入文件的「專案啟動前規則」章節；`init-project` 負責把已確認規則合併到需求開發實踐檔案或 README 建議中。
-- 若規則整理結果包含衝突或待確認規則，必須透過 `question` 向使用者確認後，才可把它寫成已確認規則。
+- `project-start-rules-definer` 可以回傳可嵌入文件的「專案啟動前規則」章節，也可以在使用者明確要求或主流程提供目標檔案時新增/更新專案規則文件；`init-project` 負責把已確認規則合併到需求開發實踐檔案或 README 建議中。
+- `SKILL.md` 來源規則不可刪除、不可覆寫、不可清空；若使用者要求刪除 skill 規則，必須回報 `ERROR: skill rules are immutable and cannot be deleted` 並停止該刪除動作。
+- 若新規則與舊有專案規則衝突，使用最新規則覆蓋舊有專案規則，並保留覆蓋紀錄；若新規則與 skill 規則衝突，只能在專案層記錄最新規則覆蓋舊有採用方式，不得修改或刪除 skill 原文。
+- 若規則整理結果包含待確認規則，必須透過 `question` 向使用者確認後，才可把它寫成已確認規則。
 
 需求一致性檢查交接規則：
 - `init-project` 不負責執行詳細一致性判定；檢查細節由 `.opencode/agents/requirement-consistency-checker.md` 定義。
@@ -161,6 +163,8 @@ permission:
 - 不要寫死套件；例如不得未經確認就指定 FullCalendar、TanStack Query、React Hook Form、Zod、Prisma、APScheduler、pytest 或任何同類套件為已採用。可以列為推薦選項或候選方案，但必須經 `question` 回答或明確授權後才能寫入已確認方案。
 - 不要把「需要你確認的關鍵決策」、「後續確認清單」、「請選擇以下方案」等內容寫入需求開發實踐檔案來取代 `question`；這些內容必須先透過 `question` 工具完成互動確認。
 - 不要把 `project-start-rules-definer` 的推薦規則或待確認規則寫成已確認規則；必須經使用者確認或明確授權。
+- 不要刪除、覆寫或清空 `.opencode/skills/**/SKILL.md` 中的規則；若使用者要求刪除 skill 規則，必須報錯並停止。
+- 不要在新舊專案規則衝突時保留兩套互相矛盾的已採用規則；必須以最新規則覆蓋舊規則並留下覆蓋紀錄。
 - 不要在完成需求一致性檢查前建立需求開發實踐檔案；若檢查未通過，必須先修正或詢問使用者。
 - 不要省略 `requirement-consistency-checker` 的一致性檢查結果；需求開發實踐檔案必須包含該章節。
 - 不要在 `init-project` 內重複維護詳細分類規則；分類細節以 `technical-practice-classifier` agent 為準。
