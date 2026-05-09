@@ -373,6 +373,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
     "- 若使用者要求 worktree 拆分，最後交 worktree-splitter 依分類建立 .worktree/<run_id>/<name>；不實作、不測試。",
     "- worktree 後可交 openspec-worktree-change-runner：不讀外部 openspec skill、不使用 commands/slash；agent 內並行產 spec/對齊檢查，全通過後 apply-change，每個小功能中文 commit。",
+    "- apply-change 完成後可交 worktree-merge-integrator：一般 merge 到 .worktree/<run_id>/merge，保留 commits；衝突先讀 run_id 技術文件並用 question 確認，最後跑整合測試。",
   ].join("\n")
 }
 
