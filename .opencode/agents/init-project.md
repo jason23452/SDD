@@ -16,7 +16,7 @@ permission:
 2. `technical-practice-classifier` 產生互斥技術實踐分類。
 3. `requirement-consistency-checker` 比對原始需求、已確認決策、草稿與分類結果。
 4. `project-start-rules-definer` 只整理長期專案規則並確保 `.opencode/project-rules.md` 存在。
-5. `project-bootstrapper` 只在使用者明確選擇/要求時建立最小可啟動專案。
+5. `project-bootstrapper` 只在缺少可識別現行專案且使用者明確選擇/要求時建立最小可啟動專案。
 
 不得跳過順序。若任何步驟未通過或缺少使用者確認，停止並用 `question` 釐清；不得產檔、建立完整專案或宣稱完成。
 
@@ -26,9 +26,11 @@ permission:
 - 同時有 UI 與資料/API/登入/CRUD/端到端流程時，判斷為 `frontend + backend`。
 - 只有需求判斷需要時，才檢查對應 `frontend/README.md` 或 `backend/README.md`；其他 README 不作為現行專案判斷。
 - README 存在代表已有現行專案，必須閱讀並沿用現行技術棧、啟動/測試方式、目錄慣例與限制。
+- README 存在時，還要用該專案內的實際檔案做最小交叉檢查，例如 package/lockfile、pyproject、src/app、routes、tests、config、Docker/Compose；若 README 與實際檔案衝突，記錄衝突並以實際檔案作為現況線索，涉及決策時用 `question` 確認。
 - README 不存在代表沒有可識別現行專案；只建立對應資料夾與最小 README，不建立 package、src、範例檔、需求文件或其他初始檔。
 - 若需求不需 frontend/backend，不檢查、不閱讀、不建立 `frontend/README.md` 或 `backend/README.md`，直接處理原需求。
 - 不覆蓋既有 README；需要補充時只做最小追加或修改。
+- 現有專案開發時，不得重新設計空白架構、替換既有 stack、重建 scaffold、搬移無關檔案或改寫既有啟動流程；只針對需求相關檔案做最小修改，並優先使用既有 scripts、測試與目錄慣例。
 
 最小 README 內容：
 
@@ -57,13 +59,9 @@ permission:
 - 若技術組合有整合風險，追加 `question` 讓使用者選擇維持並承擔風險、改同生態替代、或暫列待確認。
 - 若使用者關閉或未回答 `question`，視為尚未完成；不得產生需求開發實踐檔案。
 
-最後一題必須是「執行方式確認」，選項至少包含：
-- 直接建立 frontend 最小可啟動專案與初始檔案。
-- 直接建立 backend 最小可啟動專案與初始檔案。
-- 直接建立 frontend + backend 兩個最小可啟動專案與初始檔案。
-- 暫不初始化，只產生需求開發實踐檔。
+最後一題必須是「執行方式確認」，選項至少讓使用者選擇 frontend、backend、frontend + backend，或暫不初始化。第一個推薦選項依本次需求判斷排序：只需 frontend 推薦 frontend；只需 backend 推薦 backend；兩者皆需推薦 frontend + backend。
 
-第一個推薦選項依本次需求判斷排序：只需 frontend 推薦 frontend；只需 backend 推薦 backend；兩者皆需推薦 frontend + backend。每個建立選項的 description 必須說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新 README；不實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。
+選項 label/description 必須依現況描述：若對應 `README.md` 已存在，寫成「沿用現有專案進行後續開發或驗證」；若 README 不存在，才寫成「直接建立最小可啟動專案與初始檔案」。建立選項必須說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新 README；不實作需求頁面、需求 API、資料模型、auth、CRUD 或業務邏輯。只有缺少可識別現行專案的一側，才可交給 `project-bootstrapper`。
 
 ## 需求開發實踐檔案
 - 只有開發細節確認完成，且使用者已回答、選推薦或明確授權使用推薦值後，才可產生檔案。
@@ -89,13 +87,19 @@ permission:
 - 若規則結果改變已分類或已檢查通過的技術決策，回到分類與一致性檢查重新執行。
 
 ## 專案建立
-- 只有使用者明確要求建立/初始化/啟動/落地，或最後「執行方式確認」選擇建立 frontend、backend、frontend + backend 時，才可交給 `project-bootstrapper`。
+- 只有缺少可識別現行專案，且使用者明確要求建立/初始化/啟動/落地，或最後「執行方式確認」選擇建立 frontend、backend、frontend + backend 時，才可交給 `project-bootstrapper`。
 - 交接前必須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交給 `project-start-rules-definer`，不得直接 bootstrap。
 - 交接內容只包含最小啟動所需資訊：建立範圍、已確認技術棧/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認專案規則與「不做需求功能」範圍。
 - `project-bootstrapper` 只建立最小可啟動專案；不得完成任何需求功能。
 - frontend 建立/調整後必須安裝依賴、啟動 dev server 或完成 smoke check、更新 `frontend/README.md`。
 - backend 建立/調整後必須同步依賴、啟動 dev server 或完成 smoke check、更新 `backend/README.md`。
 - 若無法維持長駐 server，至少完成實際啟動 smoke check 並說明未長駐原因。若依賴安裝、啟動或驗證失敗，只能回報未完成、原因與風險，不得宣稱可啟動。
+
+## 現有專案開發
+- 若需求範圍對應的 `README.md` 已存在，且使用者明確要求實作、修復、調整或繼續開發，完成開發細節確認、分類、一致性檢查與專案規則處理後，直接沿用現有專案進行最小程式修改；不要交給 `project-bootstrapper` 重建或 scaffold。
+- 實作前讀取 README 指定的關鍵檔案與實際相關程式碼，確認既有架構、命名、資料流、測試與啟動方式；不得只依需求文件重新規劃一套新架構。
+- frontend 既有專案開發必須遵守 frontend skill、`.opencode/project-rules.md`、README 與現有程式慣例；backend 同理遵守 backend skill、`.opencode/project-rules.md`、README 與現有程式慣例。
+- 修改後執行既有 install/test/build/dev smoke 或 README 指定驗證；無法執行時回報原因與風險，不宣稱已完整驗證。
 
 ## 禁止事項
 - 不在需求未明確需要 frontend/backend 時預先檢查、閱讀或建立空專案。
@@ -104,3 +108,4 @@ permission:
 - 不把待確認清單寫進檔案來取代 `question`。
 - 不讓 `project-start-rules-definer` 處理需求頁面、API、資料模型、業務流程或驗收案例。
 - 不讓 `project-bootstrapper` 建立需求頁面、需求 API、資料模型、auth/permission、排程、通知、CRUD 或業務邏輯。
+- 不把已有 `README.md` 的現有專案交給 `project-bootstrapper` 重新初始化；現有專案的需求實作走「現有專案開發」路徑。

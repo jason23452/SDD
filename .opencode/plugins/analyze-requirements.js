@@ -371,9 +371,10 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "",
     "## 流程提醒",
     "- 推薦需先經 question 確認；未確認只能列候選/待確認，不能寫成已採用。",
+    "- 若對應 README 已存在，先沿用現有專案並交叉檢查 package/lockfile、pyproject、src/app、routes、tests、config 等實際檔案；不要按空白專案重新規劃。",
     "- 產檔前依序執行 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。一致性未通過不得產檔或 bootstrap。",
     "- project-start-rules-definer 只處理長期規則並判斷/建立 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
-    "- 只有使用者選擇或明確要求建立時才交 project-bootstrapper；它只做最小可啟動專案、依賴安裝、啟動/smoke、README 更新，不實作需求功能。",
+    "- 只有缺少可識別現行專案且使用者選擇/要求建立時才交 project-bootstrapper；現有專案需求實作走既有程式修改，不重建 scaffold。",
   ].join("\n")
 }
 
@@ -386,7 +387,7 @@ function buildQuestionFreedomLines(analysis) {
     "- 下方是 question 設計素材，不是固定問題庫；可拆分、合併、改寫或跳過。",
     `- ${scopeHint}`,
     "- 每題只確認會改變實作路徑或驗收標準的決策；需求原文已給答案時直接記為已確認。",
-    "- 最後一題必須確認執行方式：frontend、backend、frontend + backend、或暫不初始化；第一個推薦依需求範圍排序，建立選項需明示只做最小啟動、不實作需求功能。",
+    "- 最後一題必須確認執行方式：frontend、backend、frontend + backend、或暫不初始化；第一個推薦依需求範圍排序。若 README 已存在，描述為沿用現有專案；若不存在，描述為最小啟動建立且不實作需求功能。",
   ]
 }
 
@@ -710,7 +711,7 @@ function buildQuestions(analysis) {
         ? "直接建立 frontend 最小可啟動專案與初始檔案（推薦）"
         : "直接建立 backend 最小可啟動專案與初始檔案（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認。第一個推薦必須是「${recommendedExecution}」；選項須涵蓋建立 frontend、backend、frontend + backend，或暫不初始化。建立選項只允許最小啟動、依賴安裝、dev server/smoke、README 更新，不得實作需求功能。`
+      `- 最後 question：執行方式確認。第一個推薦必須是「${recommendedExecution}」；選項須涵蓋 frontend、backend、frontend + backend，或暫不初始化。若對應 README 已存在，描述為沿用現有專案開發/驗證；若不存在，才描述為最小啟動建立。不得用 bootstrapper 實作需求功能。`
     )
   }
 

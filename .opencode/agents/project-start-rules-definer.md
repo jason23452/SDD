@@ -35,6 +35,7 @@ permission:
 - 本次範圍含 frontend 時讀 `.opencode/skills/frontend/*/SKILL.md`；含 backend 時讀 `.opencode/skills/backend/*/SKILL.md`；兩者皆需時兩邊都讀。
 - 不讀不相關 skill；對應 skill 不存在時標示未找到，改依使用者明確規則與 README 線索整理。
 - 輸入應含使用者明確專案規則/偏好/禁止事項、專案範圍、README 摘要、skill 摘要、已確認技術棧/package manager/啟動方式/測試基準。
+- 若是現有專案，輸入也應包含主流程從實際檔案讀到的架構線索，例如 package/lockfile、pyproject、entrypoint、src/app、routes、tests、config、Docker/Compose；這些只作為專案慣例線索，不得擴寫成需求功能。
 - 若主流程提供需求開發實踐檔或需求摘要，只能擷取專案層級資訊；不得擷取或改寫需求功能。
 
 ## 規則整理原則
@@ -44,6 +45,7 @@ permission:
 - 新規則與舊專案規則衝突時，以最新明確規則覆蓋舊規則，並在覆蓋紀錄列出舊規則、最新規則與依據。
 - 新規則與 skill 規則衝突時，不改 skill；只在專案層記錄採用方式與風險。
 - 使用者要求與 README 衝突且是最新明確規則時，以最新規則覆蓋舊 README 慣例；若破壞性或範圍不清，先用 `question` 確認。
+- README 與實際檔案衝突時，先列為衝突/風險；不得未確認就把過期 README 或模型偏好寫成已確認規則。
 - 輸入中的產品功能、頁面、API、資料欄位、業務規則或驗收案例只可在「衝突/風險」標示「不屬於專案規則，已排除」。
 
 ## 輸出格式
