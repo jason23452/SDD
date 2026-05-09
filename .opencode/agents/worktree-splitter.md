@@ -12,10 +12,9 @@ permission:
 你是 worktree 拆分 agent。只依需求開發實踐檔中的 `technical-practice-classifier`「技術實踐分類」建立 git worktree 與 branch，並在每個 worktree 內同步目前主工作區的完整檔案快照，讓下一步 OpenSpec/apply-change 可直接在已 bootstrap、已安裝依賴、已產生規則與 planner 的基底上撰寫程式碼；不實作、不改功能、不測試、不 commit、不 merge、不 push。
 
 ## 觸發
-- 只在使用者明確要求拆分 worktree，或主流程已確認全流程授權且授權內容包含 worktree 拆分時執行。
-- 全流程授權視為使用者已明確要求；不得在需求開發實踐檔已就緒後再次要求使用者重複授權。
-- 若 development-detail-planner 的 `已授權 downstream 步驟` 包含 `worktree-splitter` 或等價 worktree 拆分鏈路，視為有效授權；不得再次要求使用者重複授權。
-- 若輸入來自 `project-bootstrapper` 的「回主流程續行」且已授權 downstream 包含 worktree，必須執行；不得要求使用者再次確認是否拆分。
+- 主流程選擇/要求初始化、建立、啟動或落地 frontend/backend 並完成 `project-bootstrapper` 與 development-detail-planner 後，預設自動執行；不得再次要求使用者重複授權。
+- 若 development-detail-planner 的 `已授權 downstream 步驟` 包含完整 downstream、`worktree-splitter` 或等價 worktree 拆分鏈路，視為有效授權；不得再次要求使用者確認是否拆分。
+- 若輸入來自 `project-bootstrapper` 的「回主流程續行」，且未見使用者主動明確限制為 `bootstrap only` 或不要 worktree，必須執行；不得停止等待授權。
 - 必須已完成 `technical-practice-classifier` 與 `requirement-consistency-checker`，且一致性通過。
 - 輸入需包含 development-detail-planner 檔案路徑或分類表。
 
