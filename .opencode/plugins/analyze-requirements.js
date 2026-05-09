@@ -411,6 +411,7 @@ function buildQuestionFreedomLines(analysis) {
     `- ${scopeHint}`,
     "- 若需求原文已給出答案，直接記為已確認；若只是低風險工程偏好，放入實踐建議即可，不必為了填表打斷使用者。",
     "- 每個 question 只確認一個會改變實作路徑或驗收標準的決策；選項數量與類型依情境自由設計，通常 2-5 個，不固定套推薦/替代/待確認三分法。",
+    "- 最後一題必須確認執行方式。若本次範圍包含 backend，最後一題第一個預設推薦選項必須是「直接建立 backend 最小可啟動專案與初始檔案（推薦）」，並說明只建立啟動必要初始檔案、安裝依賴、啟動 development server、更新 backend/README.md，不實作需求 API、資料模型、auth、CRUD 或業務邏輯。",
   ]
 }
 
@@ -769,6 +770,12 @@ function buildQuestions(analysis) {
       "- 技術補問策略：以下只補需求未交代但會影響落地的缺口；已有明確偏好或可由模型低風險決定時，可跳過、合併或改寫成更貼近需求的選項。"
     )
     questions.push(...technicalQuestions)
+  }
+
+  if (analysis.needBackend) {
+    questions.push(
+      "- 最後 question：執行方式確認：第一個預設推薦選項必須是「直接建立 backend 最小可啟動專案與初始檔案（推薦）」；此選項只允許建立 backend 啟動必要初始檔案、安裝依賴、啟動 development server、更新 backend/README.md，不得實作需求 API、資料模型、auth、CRUD 或業務邏輯。替代選項可包含「只產生需求開發實踐檔」、「暫不初始化」、「只建立/更新 README」。"
+    )
   }
 
   if (!analysis.needFrontend && !analysis.needBackend) {
