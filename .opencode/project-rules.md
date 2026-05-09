@@ -20,6 +20,7 @@
 - 主工作區 OpenSpec path 固定為 `spec-flow/`；不得為同一 run 建立 `.worktree/<run_id>/...` 或以 worktree branch 作為 apply 單位。
 - classification 仍可用於拆任務與排序，但 OpenSpec change 預設為單一整合 change：`<run_id>-implementation`。所有分類需在同一 change 的 specs/design/tasks 中完整呈現，並依依賴順序 apply。
 - 自動化順序固定為：`init-project -> technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer -> project-bootstrapper（需要時） -> development-detail-planner -> single-workspace OpenSpec propose/spec -> strict validate -> single-workspace apply/fallback -> integration verification -> final report`。
+- 使用者選擇初始化、建立、啟動或落地 frontend/backend 時，視為授權完整 downstream；完整 downstream 同時授權 apply/fallback 成功後依小功能自動建立中文細分 commit。只有使用者主動明確要求不要 commit 時，才改為回報未提交變更與建議 commit 切分。
 - OpenSpec artifacts 必須自動生成：`proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`；不得只產空目錄或口頭計畫。
 - apply 完成後必須更新 tasks checkbox、執行可用驗證、確認 `git status --porcelain` 只剩使用者既有無關變更或流程允許的未追蹤資料；若新增需求/流程檔未提交或未說明，不得宣稱完成。
 - Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。

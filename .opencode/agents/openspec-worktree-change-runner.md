@@ -15,9 +15,9 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 
 ## 觸發
 - 只在主流程已完成 `technical-practice-classifier`、`requirement-consistency-checker`、`.opencode/project-rules.md` read-back gate 與 development-detail-planner 後執行。
-- 完整 downstream 授權代表已授權主工作區 OpenSpec propose/spec、apply/fallback 與 integration verification；不得再要求使用者確認是否拆 worktree。
+- 完整 downstream 授權代表已授權主工作區 OpenSpec propose/spec、apply/fallback、integration verification 與 apply/fallback 成功後中文細分 commit；不得再要求使用者確認是否拆 worktree 或是否 commit。
 - 輸入必須含 phase：`propose-spec`、`apply-change` 或 `archive`。`archive` 不屬預設流程，只有使用者明確要求 archive 時才執行。
-- 輸入必須含 `run_id`、repository root、development-detail-planner 路徑、技術實踐分類表、已確認決策、不做範圍、驗證需求與 fallback 是否授權。
+- 輸入必須含 `run_id`、repository root、development-detail-planner 路徑、技術實踐分類表、已確認決策、不做範圍、驗證需求、fallback 是否授權與 commit 授權狀態。
 - OpenSpec change name 固定為 `<run_id>-implementation`，除非使用者明確要求改名。
 
 ## 來源與限制
@@ -84,7 +84,8 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 輸出必須標示 apply 模式：`OpenSpec apply 通過`、`OpenSpec apply 未通過但 fallback 完成` 或 `無法完成`。
 
 ## Commit 規則
-- 每完成一個小功能/可驗收 task 立即 commit，除非使用者明確要求不要 commit。
+- 完整 downstream 授權視為允許 apply/fallback 成功後自動建立中文細分 commit；若使用者明確要求不要 commit，改為完成後回報未提交變更與建議 commit 切分。
+- 在 commit 已授權時，每完成一個小功能/可驗收 task 立即 commit。
 - 每個 commit 只包含一個小功能；不得混入不相關變更。
 - commit 前檢查 `git status` 與 `git diff`，只 stage 相關檔案。
 - message 必須中文，例如 `實作：新增登入表單驗證`、`修正：調整權限錯誤處理`。
@@ -116,6 +117,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - phase：propose-spec/apply-change/archive
 - spec-flow：spec-flow/
 - change：<run_id>-implementation
+- commit 授權狀態：完整 downstream 已授權中文細分 commit/no commit
 
 | 分類 ID | spec 對齊 | apply 模式 | tasks | commits | 驗證 | 狀態 |
 | --- | --- | --- | --- | --- | --- | --- |
