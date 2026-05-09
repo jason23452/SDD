@@ -39,14 +39,14 @@ permission:
 - 快照同步可用非破壞性檔案複製命令，例如 Windows `robocopy <source> <target> /E /XD .git .worktree spec-flow /XF .git`；禁止用會刪除目標內容的 mirror/delete 模式，除非使用者明確確認。
 - 每個 worktree 必須分配一組不使用預設 port 的開發/驗證 ports；預設起始值為 `frontendDevPort=15100+index`、`frontendPreviewPort=15200+index`、`backendApiPort=15300+index`、`postgresHostPort=15400+index`，`index` 依分類表順序從 1 開始。
 - 分配前必須檢查同一 run 內不可重複；若本機已佔用預計 port，選擇同一區段下一個未分配且未佔用 port，並寫入 port map。不得分配 frontend `5173`、backend `8000` 或 PostgreSQL host `5432` 給 worktree。
-- `PORTS.md` 必須記錄每個 worktree 的 port、用途、建議啟動命令與清理要求；`port-map.json` 必須可機器讀取，至少包含 run_id、worktree name、path、分類 ID 與上述四種 port。
+- `PORTS.md` 必須記錄每個 worktree 的 port、用途、建議啟動命令與清理要求；`port-map.json` 必須可機器讀取，至少包含 run_id、worktree name、path、分類 ID、branch、spec-flow path、OpenSpec change、主要分類、技術實踐項目、依賴/關聯註記、worktree 狀態、快照同步結果、關鍵基底檢查結果、worktree 內 planner path、port map path 與上述四種 port。
 - 下游交接必須包含 port map path 與該 worktree ports；不得只讓下游自行選 port。
 - 若同步過程遇到檔案鎖定、路徑過長、依賴目錄過大或敏感檔風險，先回報並用 `question` 確認處理方式；不得默默省略必要基底檔。
 - 同步完成後，必須至少檢查每個 worktree 是否存在關鍵基底檔：`frontend/README.md`、`backend/README.md`、`.opencode/project-rules.md`、development-detail-planner；若 frontend/backend 不在本次範圍，才可略過對應檢查。
 - ID 缺失、run_id 不一致或格式不符時，停止並回報。
-- path 或 branch 已存在時，先回報現況；不得覆蓋、刪除或重建，需用 `question` 確認。
+- path 或 branch 已存在時，先回報現況；不得覆蓋、刪除或重建，需用 `question` 確認。若使用者已明確要求清除舊 worktree/branch，主流程必須先完成清除並驗證 `git worktree list`、`git branch --list "worktree/<run_id>/*"` 與 `.worktree/<run_id>` 均無殘留，再重新呼叫 splitter；splitter 不得在殘留狀態下混用舊 worktree。
 - 明顯衝突同一檔案/範圍時，只標示風險；不合併、不排序實作。
-- 輸出給主流程的每一列必須可直接作為單一 `openspec-worktree-change-runner` 的完整輸入；不得只輸出簡表、不得省略 spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、快照同步結果、關鍵基底檢查結果、port map path 與 worktree 專屬 ports。
+- 輸出給主流程的每一列必須可直接作為單一 `openspec-worktree-change-runner` 的完整輸入；不得只輸出簡表、不得省略 spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、worktree 狀態、快照同步結果、關鍵基底檢查結果、worktree 內 planner path、port map path 與 worktree 專屬 ports。
 - 若任何 worktree 顯示 `prunable`、path 不存在、或 key files 不存在，該列快照同步必須標示 `未同步` 或 `需確認`，不得回報可進入 OpenSpec。
 
 ## Git 限制

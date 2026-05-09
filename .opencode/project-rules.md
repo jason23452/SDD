@@ -38,7 +38,7 @@
 - 若導入或修改 Tailwind/CSS，必須依 Tailwind CSS v4 官方文件與目前 bundler 整合，不使用 v3 初始化方式，不新增未確認的 UI/styling 套件。
 
 ## Backend 規則
-- Backend 已確認採 FastAPI + PostgreSQL；新增後端功能需沿用 `app/`、`app/core/`、`app/features/` 的 feature-based 結構。
+- Backend 已確認採 FastAPI + SQLite（migration 管理 schema）；新增後端功能需沿用 `app/`、`app/core/`、`app/features/` 的 feature-based 結構。若未來要改用 PostgreSQL 或其他資料庫，需先經使用者明確確認並記錄遷移影響。
 - FastAPI `app/main.py` 保持薄，只負責建立 app、middleware/exception handlers、lifespan 與 router include。
 - Router 只處理 HTTP boundary；business rules 放 service；persistence/query 放 repository；schema/DTO 與 ORM model 不混用。
 - 資料結構變更必須使用 migration；不得以 startup `create_all()` 取代正式 migration。

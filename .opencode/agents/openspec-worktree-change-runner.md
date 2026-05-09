@@ -17,8 +17,8 @@ permission:
 - 必須由主流程以多個 subagent 平行啟動；每個 subagent 只收一個 `.worktree/<run_id>/<name>` 與對應 branch。若收到多個 worktree，停止並要求主流程拆成多個平行 subagent。
 - 輸入必須含 phase：`propose-spec`、`apply-change` 或 `archive`。舊名 `propose-alignment` 只視為 `propose-spec` 的相容別名；新流程輸出與交接一律使用 `propose-spec`。
 - 輸入必須含 run_id、分類 ID、branch、path、OpenSpec change 建議名、spec-flow path、主要分類、技術實踐項目、依賴/關聯註記。
-- 輸入必須含 `worktree-splitter` 對應該 worktree 的完整交接列或逐項欄位：分類 ID、branch、path、spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、worktree 狀態、快照同步、關鍵基底檢查。若缺少或顯示未同步，停止並要求回到 splitter 補同步，不得在空 worktree 或缺 bootstrap 基底的 worktree 上產 spec/apply。
-- `apply-change` phase 若需啟動 frontend/backend/database/smoke server，輸入必須含 port map path 與該 worktree 專屬 `frontendDevPort`、`frontendPreviewPort`、`backendApiPort`、`postgresHostPort`。若 splitter 尚未提供，先讀 `.worktree/<run_id>/port-map.json`；仍缺少時停止並要求主流程補 port map，不得自行使用預設 port。
+- 輸入必須含 `worktree-splitter` 對應該 worktree 的完整交接列或逐項欄位：分類 ID、branch、path、spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、worktree 狀態、快照同步、關鍵基底檢查。若 prompt 缺少上述欄位，但可從 `.worktree/<run_id>/port-map.json` 讀到同分類列且 `snapshotSync/keyChecks` 通過，必須先補齊交接資訊再繼續；只有 port map 缺失、列缺失或顯示未同步時才停止要求回到 splitter。
+- `propose-spec` 與 `apply-change` phase 都必須取得 port map path 與該 worktree 專屬 `frontendDevPort`、`frontendPreviewPort`、`backendApiPort`、`postgresHostPort`。若 splitter 尚未提供，先讀 `.worktree/<run_id>/port-map.json`；仍缺少時停止並要求主流程補 port map，不得自行使用預設 port。
 - 分類 ID 必須符合 `<run_id>-featurs-<name>`。
 - `apply-change` phase 必須含所有 worktree 的 propose/spec 結果，且全部通過；任一未通過時不得進入 apply。
 
@@ -30,7 +30,7 @@ permission:
 - 需要使用者補充時用 `question`，不得要求使用者改跑 slash command。
 - 不修改 `.opencode/skills/**/SKILL.md`、不修改 OpenSpec 規則來源。
 - 不 merge、不 push、不 force push。
-- 每個 worktree 進入 propose 前必須檢查關鍵基底檔存在：`.opencode/project-rules.md`、development-detail-planner，以及本次範圍內已存在的 `frontend/README.md`、`backend/README.md`、package/lockfile、source tree 或設定檔。若某檔案在 planner 中明確記錄為「本 worktree 要補齊」或「現況缺失」，不得把該缺失當成 splitter 失敗；只能把已應同步但未同步的檔案列為 blocker。
+- 每個 worktree 進入 propose 前必須檢查關鍵基底檔存在：`.opencode/project-rules.md`、development-detail-planner，以及本次範圍內已存在的 `frontend/README.md`、`backend/README.md`、package/lockfile、source tree 或設定檔。development-detail-planner 優先使用 splitter 交接的 worktree 內 planner path；若未提供，依序檢查 `<worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md` 與 prompt 指定路徑相對於 worktree 的位置。若某檔案在 planner 中明確記錄為「本 worktree 要補齊」或「現況缺失」，不得把該缺失當成 splitter 失敗；只能把已應同步但未同步的檔案列為 blocker。
 - OpenSpec change 必須一對一對應 `technical-practice-classifier` 分類 ID；不得自行重分組、合併分類或新增未確認分類。
 
 ## Propose/Spec 內建流程
