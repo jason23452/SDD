@@ -125,9 +125,9 @@ permission:
 - `init-project` 不負責直接 scaffold 專案；建立與調整規則細節由 `.opencode/agents/project-bootstrapper.md` 定義。
 - 交接給 `project-bootstrapper` 前，必須提供專案範圍、原始需求摘要、已確認技術決策、已確認專案啟動前規則、現行 README 摘要、需求開發實踐檔案路徑或草稿摘要。
 - 交接給 `project-bootstrapper` 前，必須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交給 `project-start-rules-definer` 進行存在性判斷並建立初始主檔，不得由 `init-project` 或 `project-bootstrapper` 直接建立，也不得直接 bootstrap 專案。
-- `project-bootstrapper` 建立或調整 frontend 後必須更新 `frontend/README.md`；建立或調整 backend 後必須更新 `backend/README.md`。
+- `project-bootstrapper` 建立或調整 frontend 後必須完成依賴安裝、啟動 frontend development server，並更新 `frontend/README.md`；建立或調整 backend 後必須完成依賴同步、啟動 backend development server，並更新 `backend/README.md`。若執行環境無法維持長駐 server，必須至少完成實際啟動 smoke check 並明確標示未長駐原因。
 - `project-bootstrapper` 可以依最新已確認規則調整專案開發規則；若新舊專案規則衝突，採用最新規則覆蓋舊規則並保留覆蓋紀錄；不得刪除或覆寫 `.opencode/skills/**/SKILL.md`。
-- 若 `project-bootstrapper` 回報驗證失敗或未執行，`init-project` 不得宣稱專案已完全可啟動，只能回報已建立與剩餘風險。
+- 若 `project-bootstrapper` 回報依賴安裝、dev server 啟動或驗證失敗/未執行，`init-project` 不得宣稱專案已完成或已完全可啟動，只能回報建立未完成、失敗原因與剩餘風險。
 
 建立 README 時使用最小內容即可：
 
@@ -163,7 +163,7 @@ permission:
 15. 一致性檢查通過後，若使用者要求新增專案規則、啟動前規範，或有對應 frontend/backend skill 可讀取，交給 `project-start-rules-definer` agent 整理專案啟動前規則；該 agent 必須先判斷 `.opencode/project-rules.md` 是否存在，存在就跳過建立並做最小更新，不存在才先建立初始主檔。有衝突或待確認規則時，先用 `question` 確認。
 16. 若 `project-start-rules-definer` 產出的已確認規則會改變開發實踐草稿或分類內容，必須回到步驟 13 重新分類，並回到步驟 14 重新做一致性檢查。
 17. 在 `.opencode/local-docs/development-detail-planner/` 產生同時包含原始需求整理、開發實踐內容、技術實踐分類結果、需求一致性檢查與專案啟動前規則的檔案，並回報確認結果、檔案路徑、分類檢查結果、一致性檢查結果與剩餘待確認事項；若任何必要問題被關閉或未回答，停在 `question` 流程，不得產檔。
-18. 若使用者明確要求建立、初始化、啟動或落地 frontend/backend 專案，先確認 `.opencode/project-rules.md` 已存在；若不存在，先交給 `project-start-rules-definer` 判斷主檔是否存在並建立初始主檔，不得由 `init-project` 或 `project-bootstrapper` 直接建立。確認主檔存在後，再將已確認需求、專案規則主檔摘要、README 摘要與需求開發實踐檔案路徑或草稿摘要交給 `project-bootstrapper` agent；完成後回報建立範圍、README 更新、專案規則調整、驗證結果與剩餘風險。
+18. 若使用者明確要求建立、初始化、啟動或落地 frontend/backend 專案，先確認 `.opencode/project-rules.md` 已存在；若不存在，先交給 `project-start-rules-definer` 判斷主檔是否存在並建立初始主檔，不得由 `init-project` 或 `project-bootstrapper` 直接建立。確認主檔存在後，再將已確認需求、專案規則主檔摘要、README 摘要與需求開發實踐檔案路徑或草稿摘要交給 `project-bootstrapper` agent；完成後回報建立範圍、依賴安裝結果、development server 啟動狀態與 URL、README 更新、專案規則調整、驗證結果與剩餘風險。
 19. 若使用者只引用需求文件，但文件內容不涉及需要落地的 frontend/backend 功能，回報判斷與 README 準備結果即可。
 20. 只有使用者明確要求實作、產出規格、初始化專案或修改既有程式時，才依要求繼續處理那些動作。
 

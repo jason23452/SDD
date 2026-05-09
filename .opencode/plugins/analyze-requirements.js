@@ -397,7 +397,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 技術實踐分類通過後，需交給 requirement-consistency-checker agent 比對原始需求、前次需求線索、已確認決策、實踐草稿與分類結果；若存在未解的不一致、未經確認、超出需求或遺漏，不得產檔。",
     "- 一致性檢查通過後，若需要新增/更新後續專案規則或存在 .opencode/skills/frontend/*/SKILL.md、.opencode/skills/backend/*/SKILL.md，需交給 project-start-rules-definer agent 整理規則並確保 .opencode/project-rules.md 存在；該 agent 必須先判斷主檔是否存在，存在就跳過建立，不存在才先建立。推薦或待確認規則不可寫成已確認。",
     "- skill.md 來源規則不可刪除；若使用者要求刪除 skill 規則需報錯。新規則與舊專案規則衝突時，以最新規則覆蓋舊規則並留下覆蓋紀錄。",
-    "- 只有使用者明確要求建立、初始化、啟動或落地專案，且 .opencode/project-rules.md 已存在時，才可交給 project-bootstrapper agent 建立 frontend/backend；完成後必須更新對應 README 並回報驗證結果。",
+    "- 只有使用者明確要求建立、初始化、啟動或落地專案，且 .opencode/project-rules.md 已存在時，才可交給 project-bootstrapper agent 建立 frontend/backend；完成後必須完成依賴安裝、啟動最小 development server、更新對應 README，並回報實際 URL 與驗證結果。若執行環境無法維持長駐 server，必須至少完成實際啟動 smoke check 並明確標示未長駐原因。",
   ].join("\n")
 }
 
