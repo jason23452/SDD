@@ -14,6 +14,7 @@ permission:
 ## 觸發
 - 只在使用者明確要求拆分 worktree，或主流程已確認全流程授權且授權內容包含 worktree 拆分時執行。
 - 全流程授權視為使用者已明確要求；不得在需求開發實踐檔已就緒後再次要求使用者重複授權。
+- 若 development-detail-planner 的 `已授權 downstream 步驟` 包含 `worktree-splitter` 或等價 worktree 拆分鏈路，視為有效授權；不得再次要求使用者重複授權。
 - 若輸入來自 `project-bootstrapper` 的「回主流程續行」且已授權 downstream 包含 worktree，必須執行；不得要求使用者再次確認是否拆分。
 - 必須已完成 `technical-practice-classifier` 與 `requirement-consistency-checker`，且一致性通過。
 - 輸入需包含 development-detail-planner 檔案路徑或分類表。
