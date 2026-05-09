@@ -31,17 +31,22 @@ permission:
 - branch：`worktree/<run_id>/<name>`。
 - OpenSpec change 建議名：`<run_id>-<name>`。
 - spec-flow path：`.worktree/<run_id>/<name>/spec-flow`，由 `openspec-worktree-change-runner` 在啟動 OpenSpec propose 流程時建立並初始化。
+- port map：`.worktree/<run_id>/port-map.json` 與 `.worktree/<run_id>/PORTS.md`，必須在拆分時產生，並把每列 worktree 的專屬 ports 輸出給下游。
 - `.worktree/` 不加入 ignore。
 - 建立 worktree 後，必須把目前主工作區的檔案快照同步到該 worktree，然後才可輸出給 `openspec-worktree-change-runner`。
 - 快照同步必須包含 tracked、modified、untracked 檔案與目錄，也必須包含 bootstrap 產生的 `frontend/`、`backend/`、lockfile、依賴目錄（例如 `node_modules`、`.venv`）、`.opencode/project-rules.md`、development-detail-planner 與其他目前工作區已存在的支援檔，但不得把主工作區既有 `spec-flow/` 複製進 worktree。
 - 快照同步必須排除 Git 控制資料、worktree 容器本身與主工作區 spec-flow：不得複製 `.git`，不得遞迴複製 `.worktree/`，不得複製 `spec-flow/`，不得覆蓋目標 worktree 的 `.git` 檔。
 - 快照同步可用非破壞性檔案複製命令，例如 Windows `robocopy <source> <target> /E /XD .git .worktree spec-flow /XF .git`；禁止用會刪除目標內容的 mirror/delete 模式，除非使用者明確確認。
+- 每個 worktree 必須分配一組不使用預設 port 的開發/驗證 ports；預設起始值為 `frontendDevPort=15100+index`、`frontendPreviewPort=15200+index`、`backendApiPort=15300+index`、`postgresHostPort=15400+index`，`index` 依分類表順序從 1 開始。
+- 分配前必須檢查同一 run 內不可重複；若本機已佔用預計 port，選擇同一區段下一個未分配且未佔用 port，並寫入 port map。不得分配 frontend `5173`、backend `8000` 或 PostgreSQL host `5432` 給 worktree。
+- `PORTS.md` 必須記錄每個 worktree 的 port、用途、建議啟動命令與清理要求；`port-map.json` 必須可機器讀取，至少包含 run_id、worktree name、path、分類 ID 與上述四種 port。
+- 下游交接必須包含 port map path 與該 worktree ports；不得只讓下游自行選 port。
 - 若同步過程遇到檔案鎖定、路徑過長、依賴目錄過大或敏感檔風險，先回報並用 `question` 確認處理方式；不得默默省略必要基底檔。
 - 同步完成後，必須至少檢查每個 worktree 是否存在關鍵基底檔：`frontend/README.md`、`backend/README.md`、`.opencode/project-rules.md`、development-detail-planner；若 frontend/backend 不在本次範圍，才可略過對應檢查。
 - ID 缺失、run_id 不一致或格式不符時，停止並回報。
 - path 或 branch 已存在時，先回報現況；不得覆蓋、刪除或重建，需用 `question` 確認。
 - 明顯衝突同一檔案/範圍時，只標示風險；不合併、不排序實作。
-- 輸出給主流程的每一列必須可直接作為單一 `openspec-worktree-change-runner` 的完整輸入；不得只輸出簡表、不得省略 spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、快照同步結果與關鍵基底檢查結果。
+- 輸出給主流程的每一列必須可直接作為單一 `openspec-worktree-change-runner` 的完整輸入；不得只輸出簡表、不得省略 spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、快照同步結果、關鍵基底檢查結果、port map path 與 worktree 專屬 ports。
 - 若任何 worktree 顯示 `prunable`、path 不存在、或 key files 不存在，該列快照同步必須標示 `未同步` 或 `需確認`，不得回報可進入 OpenSpec。
 
 ## Git 限制
@@ -57,9 +62,14 @@ permission:
 - 快照來源：...
 
 ### Worktrees
-| 分類 ID | branch | path | spec-flow path | OpenSpec change 建議名 | 主要分類 | 技術實踐項目 | worktree 狀態 | 快照同步 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| <run_id>-featurs-... | worktree/<run_id>/... | .worktree/<run_id>/... | .worktree/<run_id>/.../spec-flow | <run_id>-... | frontend | ... | 已建立/已存在/未建立 | 已同步/未同步/需確認 |
+| 分類 ID | branch | path | spec-flow path | OpenSpec change 建議名 | ports | 主要分類 | 技術實踐項目 | worktree 狀態 | 快照同步 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| <run_id>-featurs-... | worktree/<run_id>/... | .worktree/<run_id>/... | .worktree/<run_id>/.../spec-flow | <run_id>-... | frontendDev=15101, preview=15201, backend=15301, postgres=15401 | frontend | ... | 已建立/已存在/未建立 | 已同步/未同步/需確認 |
+
+### Port Map
+- port map：`.worktree/<run_id>/port-map.json`
+- port 說明：`.worktree/<run_id>/PORTS.md`
+- worktree 階段禁止使用預設 ports；merge integration 最終驗證才使用預設 ports。
 
 ### 快照同步
 - 已同步內容：目前主工作區完整快照，排除 `.git`、`.worktree/` 與主工作區 `spec-flow/`。
@@ -68,7 +78,7 @@ permission:
 
 ### 下游交接
 - 給主流程：必須針對每個 worktree 同批平行啟動一個 `openspec-worktree-change-runner` subagent 執行 `propose-spec` phase；全部 propose/spec 對齊與 validate 通過後，再針對每個 worktree 同批平行啟動一個 `openspec-worktree-change-runner` subagent 執行 `apply-change` phase。所有 worktree 都 apply 完成、驗證完成且中文 commit 後，才可啟動 merge integration。
-- 給 `openspec-worktree-change-runner`：主流程必須逐 worktree 傳入本表該列完整內容，包含 run_id、分類 ID、branch、path、spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、快照同步結果、關鍵基底檢查結果、phase。不得只傳 path/branch/分類 ID。
+- 給 `openspec-worktree-change-runner`：主流程必須逐 worktree 傳入本表該列完整內容，包含 run_id、分類 ID、branch、path、spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、依賴/關聯註記、快照同步結果、關鍵基底檢查結果、phase、port map path、frontendDevPort、frontendPreviewPort、backendApiPort、postgresHostPort。不得只傳 path/branch/分類 ID。
 
 ### 未執行
 - OpenSpec：未執行

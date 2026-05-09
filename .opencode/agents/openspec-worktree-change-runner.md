@@ -18,6 +18,7 @@ permission:
 - 輸入必須含 phase：`propose-spec`、`apply-change` 或 `archive`。舊名 `propose-alignment` 只視為 `propose-spec` 的相容別名；新流程輸出與交接一律使用 `propose-spec`。
 - 輸入必須含 run_id、分類 ID、branch、path、OpenSpec change 建議名、spec-flow path、主要分類、技術實踐項目、依賴/關聯註記。
 - 輸入必須含 `worktree-splitter` 對應該 worktree 的完整交接列或逐項欄位：分類 ID、branch、path、spec-flow path、OpenSpec change 建議名、主要分類、技術實踐項目、worktree 狀態、快照同步、關鍵基底檢查。若缺少或顯示未同步，停止並要求回到 splitter 補同步，不得在空 worktree 或缺 bootstrap 基底的 worktree 上產 spec/apply。
+- `apply-change` phase 若需啟動 frontend/backend/database/smoke server，輸入必須含 port map path 與該 worktree 專屬 `frontendDevPort`、`frontendPreviewPort`、`backendApiPort`、`postgresHostPort`。若 splitter 尚未提供，先讀 `.worktree/<run_id>/port-map.json`；仍缺少時停止並要求主流程補 port map，不得自行使用預設 port。
 - 分類 ID 必須符合 `<run_id>-featurs-<name>`。
 - `apply-change` phase 必須含所有 worktree 的 propose/spec 結果，且全部通過；任一未通過時不得進入 apply。
 
@@ -73,6 +74,16 @@ permission:
 8. 逐一處理 pending task：最小修改、完成後把 task checkbox 改成 done。
 9. task 不清楚、設計衝突、需求偏離、錯誤或 blocker 時停止該 worktree 並回報。
 
+## Worktree Port 規則
+- Worktree 階段禁止使用預設 ports：frontend `5173`、backend `8000`、PostgreSQL host `5432`。
+- Vite dev/smoke 必須使用分配到的 `frontendDevPort`，命令形式優先為 `pnpm exec vite --host 127.0.0.1 --port <frontendDevPort> --strictPort`。
+- Vite preview smoke 必須使用分配到的 `frontendPreviewPort`，命令形式優先為 `pnpm exec vite preview --host 127.0.0.1 --port <frontendPreviewPort> --strictPort`。
+- 禁止使用 `pnpm dev -- --host 127.0.0.1 --port <port>`，也不得在 `package.json` script 已含 `vite --host` 時用 `--` 追加 port，避免 Vite 忽略 port 並回落到 `5173`。
+- Backend smoke 必須使用分配到的 `backendApiPort`，例如 `uv run uvicorn app.main:app --host 127.0.0.1 --port <backendApiPort>`。
+- PostgreSQL/Compose 若需對 host 開 port，必須使用分配到的 `postgresHostPort` 對映 container `5432`。
+- 啟動前必須檢查分配 port 是否可用；若被佔用，停止並回報 PID/command line，不得自動跳到其他 port。
+- 背景 server 必須記錄 PID/job，smoke 完成後停止，並確認 port 已釋放；未釋放不得回報驗證完成。
+
 ## Fallback 開發模式
 - 只在 `alignment-check.md` 通過、`openspec validate` 通過、OpenSpec CLI apply blocked/失敗/無法產 instructions，且使用者或主流程已明確授權 fallback 時使用。
 - 必須依已通過 alignment 的 `spec-flow/openspec/changes/<change-name>/` artifacts、tasks、project rules、README 與既有程式碼完成開發。
@@ -95,6 +106,7 @@ permission:
 - 依 README、project rules、`spec-flow` OpenSpec tasks 與既有 scripts 做最小必要驗證。
 - backend-only 用 pytest 或既有 backend tests。
 - frontend/fullstack 用既有 test/build/browser smoke；若需要 Playwright MCP 但不可用，回報原因。
+- 任何 server smoke 必須遵守 Worktree Port 規則；若無 port map，不得改用預設 port。
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。
 
 ## Archive 內建流程
@@ -117,6 +129,14 @@ permission:
 
 ### 停止/風險
 - ...
+
+### Port 使用
+- port map：...
+- frontendDevPort：...
+- frontendPreviewPort：...
+- backendApiPort：...
+- postgresHostPort：...
+- 背景 server PID/job 與停止結果：...
 
 ### 未執行
 - merge：未執行

@@ -47,6 +47,10 @@ permission:
 ## 整合測試
 - 全部 source branch merge 完成後才執行整合測試。
 - 依 `.opencode/project-rules.md`、frontend/backend README、`spec-flow` OpenSpec tasks 與既有 scripts 選最小必要測試。
+- Merge integration 最終驗證使用專案預設 ports：frontend `5173`、backend `8000`、PostgreSQL `5432`；此規則只適用 merge worktree，不適用單獨 worktree apply/smoke。
+- 啟動預設 port 前必須檢查佔用狀態並輸出 PID/command line。若 port 被非本 run 管理的行程佔用，必須 fail fast 並回報；不得自動 fallback 到其他 port。
+- 若預設 port 被本 run 殘留 worktree server 佔用，必須先停止該 server、確認 port 釋放，再進行 merge 驗證。
+- Merge 階段的 Vite/preview/uvicorn/Compose smoke 也必須記錄 PID/job，驗證完成後自動停止並確認 port 釋放。
 - backend 使用 pytest 或既有 backend tests。
 - frontend/fullstack 使用既有 test/build/browser smoke；若專案規則要求且 Playwright MCP 可用，執行 Playwright MCP。
 - 測試失敗時停止並回報命令、錯誤、疑似來源 branch/分類 ID；不得宣稱整合完成。
@@ -77,6 +81,10 @@ permission:
 ### 整合測試
 | 命令 | 結果 |
 | --- | --- |
+
+### Port 檢查
+| port | 用途 | 佔用檢查 | 處理結果 |
+| --- | --- | --- | --- |
 
 ### 未執行
 - push：未執行
