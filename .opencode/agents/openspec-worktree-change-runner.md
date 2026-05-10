@@ -18,7 +18,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 只在主流程已完成 `technical-practice-classifier`、`requirement-consistency-checker`、`.opencode/project-rules.md` read-back gate、development-detail-planner 與 `worktree-splitter` 後執行。
 - 完整 downstream 授權代表已授權該 worktree 的 OpenSpec propose/spec、apply/fallback、驗證，以及 apply/fallback 成功後中文細分 commit；不得再要求使用者確認是否 commit。
 - 輸入必須含 phase：`propose-spec`、`propose-alignment`、`apply-change` 或 `archive`。`propose-alignment` 是 `propose-spec` alias。`archive` 不屬預設流程，只有使用者明確要求 archive 時才執行。
-- 輸入必須含 `run_id`、`classification_id`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、development-detail-planner 路徑、技術實踐項目、已確認決策、不做範圍、驗證需求、ports、fallback 是否授權與 commit 授權狀態。若 `openspec_change` 缺失或不合法，依「OpenSpec Change Name 契約」自動派生合法名稱，不得直接使用 `classification_id`。
+- 輸入應含 `run_id`、`classification_id`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、development-detail-planner 路徑、技術實踐項目、已確認決策、不做範圍、驗證需求、ports、fallback 是否授權與 commit 授權狀態。若 development-detail-planner 路徑缺失，或該檔不在 worktree 內，必須依「Run Artifacts 與 Planner 解析契約」自動解析；不得在尚未嘗試 manifest、port-map 與主工作區 fallback 前要求使用者補路徑。若 `openspec_change` 缺失或不合法，依「OpenSpec Change Name 契約」自動派生合法名稱，不得直接使用 `classification_id`。
 
 ## 來源與限制
 
@@ -50,10 +50,36 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 3. 只有上述 diff 顯示 `.opencode/skills/**/SKILL.md` 實際內容變更時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`。
 4. 單純 `git status` 顯示 modified、其他非 skill 檔出現 `needs update`，或 line-ending/stat 造成的假異動，只要 skill diff 無內容差異，就不得當成 blocker，也不得 stage/commit skill 檔。
 
+## Run Artifacts 與 Planner 解析契約
+
+propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關對齊文件，並與 `.opencode/project-rules.md` 對齊。這些文件應由 `worktree-splitter` 複製到每個 worktree；runner 必須優先讀 worktree 內文件，但可使用 source fallback 修復舊 splitter 產物。
+
+每個 worktree 的標準位置：
+
+- `<worktree>/.opencode/project-rules.md`
+- `<worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md`
+- `<worktree>/.opencode/run-artifacts/<run_id>/manifest.json`
+- `<worktree>/.opencode/run-artifacts/<run_id>/...` 內的本 run 分類、一致性、planner、規則與其他產檔副本
+
+解析順序固定如下，前一項找到單一可讀來源即使用，並在 `alignment-check.md` 與 final 輸出記錄來源：
+
+1. 讀取 `<worktree>/.opencode/run-artifacts/<run_id>/manifest.json`。若存在，必須優先使用其中的 `planner_path_in_worktree`、`project_rules_path_in_worktree`、`run_artifacts_in_worktree` 與 `copied_files`。
+2. 使用輸入提供的 planner path：若是絕對路徑且檔案存在，直接讀取；若是相對路徑，先以 worktree root 解讀，再以目前工作目錄解讀。
+3. 使用 worktree 內 planner：先找 `<worktree>/.opencode/local-docs/development-detail-planner/<輸入檔名>`，再找 `<worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md`。
+4. 使用 splitter 產物：讀取 `<worktree parent>/port-map.json`，以 `classification_id` 或 `name` 找到本列；若 `run_artifacts_manifest`、`planner_path_in_worktree` 或 `planner_path_source` 存在且可讀，依序使用。
+5. 使用 git worktree registry：在目前 worktree 執行 `git worktree list --porcelain`，找出包含 `.git/` 且不是目前 worktree 的主工作區候選，搜尋 `<main-worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md` 與 `<main-worktree>/.opencode/run-artifacts/<run_id>/manifest.json`。
+6. 若同一位置找到多個同 `run_id` planner，優先選檔名時間戳最新者，並記錄選用原因；若無法判斷最新者才停止回報 blocker。
+
+只有上述全部失敗時，才可停止並回報缺少 planner 或 run artifacts。禁止改用只有 `.opencode/project-rules.md` 與 README 作為 planner 替代來源，除非使用者明確確認。
+
+若 worktree 內缺少 manifest 但從 source fallback 找到 planner，runner 可以繼續 propose/spec，但必須在輸出標示 `run-artifacts manifest missing in worktree`，並建議重跑新版 `worktree-splitter`。
+
+`<worktree>/.opencode/run-artifacts/<run_id>/` 是 runner 的上下文資料，不是產品或 OpenSpec 交付物；不得 stage、commit 或 merge 這些檔案。
+
 ## Propose/Spec 內建流程
 
 1. 確認 worktree path、branch、classification ID 與 port map 交接一致。
-2. 讀取 development-detail-planner、技術實踐分類、`.opencode/project-rules.md`、README 與需求一致性結果；若輸入 planner 路徑在 worktree 內不存在，依序尋找 `<worktree>/.opencode/local-docs/development-detail-planner/<同檔名>`、`<worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md`。若找到唯一檔案則使用；找不到或找到多個才停止回報 blocker。若 planner 與 rules 不一致，停止並回報。
+2. 依「Run Artifacts 與 Planner 解析契約」讀取 development-detail-planner、技術實踐分類、`.opencode/project-rules.md`、README 與需求一致性結果；若 planner 與 rules 不一致，停止並回報。
 3. 建立並初始化 `spec-flow/`；若 `spec-flow/openspec/` 不存在，必須先在 worktree root 執行 `openspec init spec-flow --tools opencode`。
 4. 依 OpenSpec Change Name 契約確認或派生合法的 `<openspec_change>`；若 `spec-flow/openspec/changes/<openspec_change>` 已存在，用 `question` 確認續用或改名；不得覆蓋。
 5. 在 `spec-flow/` 執行 `openspec new change "<openspec_change>" --schema spec-driven`；不得只手寫 `openspec/changes/<change>/` 目錄跳過 CLI propose。
@@ -77,6 +103,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 原需求與已確認決策。
 - 本 classification ID、技術實踐項目、依賴/關聯註記。
 - project rules 與 planner 的技術選型。
+- run artifacts manifest、planner 與 project rules 的來源路徑。
 - proposal/specs/design/tasks artifacts。
 
 結果只能是：`一致`、`偏離需求`、`新增未確認範圍`、`遺漏分類項目`。結論必須是通過/未通過。
@@ -114,6 +141,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 在 commit 已授權時，每完成一個小功能/可驗收 task 立即 commit。
 - 每個 commit 只包含一個小功能；不得混入不相關變更。
 - commit 前檢查 `git status` 與 `git diff`，只 stage 相關檔案。
+- 不得 stage/commit `.opencode/run-artifacts/**` 或 `.opencode/run/**`；這些是 worktree runner 上下文與 runtime state，不是交付物。
 - message 必須中文，例如 `實作：新增登入表單驗證`、`修正：調整權限錯誤處理`。
 - body 必須記錄 run_id、實際 OpenSpec change、classification ID、完成 task、驗證結果或未驗證原因。
 - 不改 git config、不用 `--no-verify`、不 amend，除非使用者明確要求且符合安全條件。
