@@ -18,11 +18,20 @@
 
 ## Multi-Worktree OpenSpec 自動化
 - 主工作區只負責 init/project rules/bootstrap/planner 與協調；OpenSpec artifacts 由各 worktree 在各自 `<worktree>/spec-flow/` 內建立，不在主工作區共用單一 change。
-- `worktree-splitter` 依分類 ID 建立 `.worktree/<run_id>/<name>` 與對應 branch，並同步目前主工作區完整檔案快照；同步時排除 `.git`、`.worktree`、主工作區 `spec-flow` 與 `.opencode/skills`，讓各 worktree 保留 HEAD 中乾淨的 skill 檔；不得在 splitter 階段實作、測試、commit、merge 或 push。
+- `worktree-splitter` 依分類 ID 建立 `.worktree/<run_id>/<name>` 與對應 branch，並同步目前主工作區完整檔案快照；同步時排除 `.git`、`.worktree`、主工作區 `spec-flow`、`.opencode/skills`、`node_modules`、`.venv`、`dist`、`build`、cache、coverage 與測試報告等 generated artifacts，讓各 worktree 保留 HEAD 中乾淨的 skill 檔並自行依 lockfile/pyproject 重建依賴；不得在 splitter 階段實作、測試、commit、merge 或 push。
 - OpenSpec propose/spec 必須同批平行啟動：每個 worktree 先用 `openspec new change "<change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
 - 所有 worktree 的 alignment 與 strict validate 全部通過後，才能同批平行執行 apply-change/fallback；每個 worktree 必須獨立 apply、驗證，並依小功能建立中文細分 commit。
 - 所有 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，才可由 `worktree-merge-integrator` 一般 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
 - Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。
+
+## 測試與卡住防護
+- 執行任何 bootstrap、worktree apply 或 integration 驗證前，必須先產生單點測試矩陣，列出 frontend、backend、E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
+- Frontend 測試 gate：只有存在 `frontend/package.json`、對應 script 與 source/test entry 時才可跑 npm/pnpm/yarn scripts；缺入口且分類需要前端功能時是 blocker，不得硬跑。
+- Backend 測試 gate：只有存在 `backend/pyproject.toml` 或既有 dependency file、正式 app entrypoint 與測試檔或 import/health check 時才可跑 uv/pytest；缺入口且分類需要後端功能時是 blocker，不得硬跑。
+- E2E gate：只有存在 Playwright config、E2E 測試檔、必要 server 啟動方式與 assigned ports 時才可跑；缺入口時需標記未執行原因，不得進入互動或 watch mode。
+- 測試命令必須 one-shot、非互動且可自動結束。禁止 watch mode；Vitest 使用 `vitest run` 或 package script 等價命令；pytest 使用 `pytest -q --maxfail=1` 或既有等價命令；Playwright 使用 headless/non-interactive。
+- 每個 install/build/test/smoke 命令都必須有 timeout。逾時時回報 `TEST_TIMEOUT`、清理 process tree、檢查 assigned port listener，不能無限等待、不能自動換未知 port、不能宣稱完成。
+- 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案；README 佔位也不等於可測專案。
 
 ## Frontend 規則
 - Frontend 沿用 React SPA、Vite、TypeScript 與現有 lockfile 對應的 package manager；無 lockfile 且無 repo 慣例時使用 npm，不混用 npm/pnpm/yarn。
@@ -43,6 +52,8 @@
 - 前後端整合變更需明確列出 API contract、錯誤格式、狀態碼與前端對應行為。
 - 可用的 build、test、typecheck、lint、migration、startup、smoke 指令不得跳過；不存在或失敗時要明確回報。
 - 各 worktree 使用 `worktree-splitter` 分配的 ports；整合驗證使用 integration 專用 ports，避免平行測試互相干擾。
+- 若測試入口不存在，必須依單點測試矩陣標記 skip 或 blocker；不得直接執行會卡住的預設命令。
 
 ## 規則更新紀錄
 - 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每分類獨立 worktree、各自 spec-flow、平行 OpenSpec propose/apply、一般 merge integration、實際內容 diff 型 skill immutable gate、project rules read-back gate 與 bounded server smoke gate。
+- 2026-05-10：新增測試卡住防護規則：測試前必須有單點測試矩陣、frontend/backend/E2E gate、one-shot 非互動命令、timeout、`TEST_TIMEOUT` cleanup；worktree snapshot 不同步 dependency/cache/build/test artifacts。

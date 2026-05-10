@@ -37,6 +37,7 @@ permission:
 - `project-bootstrapper` 完成後的下一步固定是：回收啟動結果 -> 產生/更新 development-detail-planner -> 交 `worktree-splitter`；不得停在「專案啟動結果」，不得要求 baseline commit。
 - OpenSpec 階段在各 worktree 的 `spec-flow/` 執行；每個分類對應一個 OpenSpec change，不在主工作區建立單一整合 change。
 - 硬性停止只限：`question` 未回答、使用者明確限制 downstream、分類/一致性未通過、project rules 缺失且無法建立、bootstrap/驗證無法修復、任一 worktree OpenSpec 對齊未通過、apply/task blocker 且 fallback 無法安全完成、merge/integration 測試失敗且無法修復。
+- 測試或 smoke 卡住不得無限等待。所有 bootstrap、worktree apply 與 integration 驗證都必須先做可測性 gate，確認測試入口存在，再用 one-shot command 與 timeout 執行；逾時需清理 process tree 並回報 `TEST_TIMEOUT` 或明確 blocker。
 - 任一 bootstrap、apply 或 integration verification 產生/執行 smoke script 時，必須要求 process-tree cleanup 與 port-listener cleanup；若 assigned port 未釋放，不得視為驗證完成，不得提交或宣稱完成。
 
 ## 範圍與現況
@@ -45,7 +46,7 @@ permission:
 - backend 線索：API、資料庫、登入/驗證、權限、server、資料模型、ORM、middleware、webhook、排程、服務端規則。
 - UI 加資料/API/登入/CRUD/端到端流程 => `frontend + backend`。
 - 只檢查需求範圍內的 `frontend/README.md`、`backend/README.md`；不讀其他 README。
-- README 存在 => 現有專案。閱讀 README，並交叉檢查 package/lockfile、pyproject、src/app、routes、tests、config、Docker/Compose；衝突時記錄並用 `question` 確認。
+- README 存在 => 只代表有文件線索，不等於現有可測專案。閱讀 README 後必須交叉檢查 package/lockfile、pyproject、src/app、routes、tests、config、Docker/Compose；若只有 README、`node_modules`、`.venv`、`dist`、cache、空 `src/tests` 或其他 generated artifacts，判定為「不可測基底」，不得直接跑測試或交現有專案開發。
 - README 不存在 => 無可識別現行專案。`init-project` 不自行 scaffold package、src、範例或需求功能；若使用者在執行方式確認選擇建立/初始化/啟動/落地，必須交 `project-bootstrapper` 建立最小可啟動專案。不得用 README-only 取代已選擇的最小可啟動 bootstrap。
 - 不需 frontend/backend => 不檢查、不讀、不建 frontend/backend README。
 - 現有專案開發：沿用既有 stack、scripts、測試、目錄與命名；不重設架構、不替換 stack、不 scaffold、不搬無關檔。
@@ -102,7 +103,8 @@ permission:
 - 只有缺少可識別現行專案且使用者選擇/要求建立時，才可交 `project-bootstrapper`。
 - 交 bootstrapper 前須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交 `project-start-rules-definer`。
 - bootstrapper 只收最小啟動資訊：範圍、已確認 stack/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認規則、不做需求功能範圍、完整 multi-worktree downstream 鏈路與 commit 授權狀態（除非使用者主動明確限制流程）。
-- bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須完成依賴安裝、非互動驗證或可結束 smoke、README 更新，失敗只回報未完成與風險。
+- bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須補齊可測基底（例如 frontend `package.json`/source/test entry、backend `pyproject.toml`/entrypoint/test entry）、完成依賴安裝、非互動 one-shot 驗證或可結束 smoke、README 更新，失敗只回報未完成與風險。
+- bootstrapper、worktree runner 與 merge integrator 執行測試前必須建立「單點測試矩陣」：frontend 有 `package.json` 才可跑 npm scripts；backend 有 `pyproject.toml` 才可跑 uv/pytest；E2E 有 Playwright config 與測試檔才可跑；缺入口時不得硬跑，必須標記 skip 或 blocker，並說明依據。
 - bootstrapper 回來後，主流程需整理啟動結果並繼續：產生/更新需求開發實踐檔，立即交 `worktree-splitter`，再續行平行 OpenSpec propose/apply 與整合驗證；不得在「專案啟動結果」後停止。只有使用者主動明確限制為 `bootstrap only` 時，才能停止於 bootstrap 結果。
 - README 已存在且使用者要求實作/修復/調整/繼續開發時，完成確認、分類、一致性與規則後，直接沿用現有專案做最小程式修改；修改前讀相關程式碼，修改後跑 README/既有 scripts 指定驗證，無法驗證就回報原因。
 - apply/fallback 必須在各自 worktree 依分類職責進行；完整 downstream 授權時，每個小功能完成後必須中文 commit，commit 必須按功能仔細拆分。若使用者明確要求不要 commit，必須改為回報未提交變更與建議 commit 切分。

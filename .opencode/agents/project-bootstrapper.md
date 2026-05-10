@@ -41,11 +41,21 @@ permission:
 - 資料夾非空但無可識別專案時，列風險並用 `question` 確認。
 - 不用 destructive commands，不刪資料夾，不覆蓋 README，不清空設定。
 
+## 可測性 Gate
+
+- 建立或補齊後、執行任何測試前，必須輸出並檢查單點測試矩陣。
+- Frontend 必須先確認 `package.json` 存在、scripts 存在、source entry 存在；缺任一項不得跑 `npm run ...`，必須先補最小可啟動檔或回報 blocker。
+- Backend 必須先確認 `pyproject.toml` 或既有 dependency file、正式 app entrypoint、至少一個可執行測試或 import/health check；缺任一項不得跑 `uv run pytest`，必須先補最小可啟動檔或回報 blocker。
+- E2E 必須先確認 Playwright config、測試檔與可啟動 frontend/backend；缺任一項不得硬跑，bootstrap 階段可標記「E2E 未建立，後續功能 worktree 補齊」。
+- 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案。
+- 測試命令必須 one-shot；禁止 watch/interactive mode，例如 `vitest` 必須用 `vitest run`，Playwright 必須用非互動 headless mode，pytest 必須一次結束。
+- 每個 install/build/test/smoke 命令都必須有 timeout 或由工具 timeout 包住。逾時時輸出 `TEST_TIMEOUT`、停止 process tree、檢查 port listener，不能無限等待或假裝完成。
+
 ## 完成定義
 
 - 依賴已安裝：frontend 依 lockfile 用 npm/pnpm/yarn 等；backend 預設 `uv sync` 或既有等價命令。
 - 驗證必須非互動且可自動結束；不得開新 terminal/window，不得要求使用者關閉 terminal 才繼續。
-- 優先使用會結束的命令驗證：frontend install/build/typecheck/test；backend `uv sync`、import app、pytest 或等價測試。
+- 優先使用會結束的命令驗證：frontend install/build/typecheck/test；backend `uv sync`、import app、pytest 或等價測試。沒有測試入口時不得硬跑，必須先補最小測試或明確標記未驗證原因。
 - 如需 server smoke，必須在同一 shell 背景啟動、記錄 PID/job、完成 smoke 後自動停止；不得前景長駐執行 `npm run dev`、`uvicorn`、`fastapi dev` 或等價 dev server。
 - Server smoke 停止必須清理整個 process tree，不得只停止 direct PID。`npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 可能留下 child/grandchild listener；bootstrapper 產生或執行 smoke script 時，必須在 `finally` 中遞迴停止 descendants、停止 parent，並再用 port listener 檢查補殺本次 smoke 的殘留 process。
 - 產生 PowerShell smoke/validation script 時，必須使用 `Get-CimInstance Win32_Process` 依 `ParentProcessId` 遞迴找 descendants，並用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 找殘留 listener；禁止只用 `Stop-Process $Process.Id` 或只停止 PowerShell job。
@@ -58,8 +68,8 @@ permission:
 
 ## Stack 規則
 
-- Frontend 預設 Vite + React + TypeScript SPA，除非已確認其他 stack；遵守 frontend skill 與 `.opencode/project-rules.md`；需 install、build、可用 typecheck/test；preview/smoke 僅能用背景可停止方式執行。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature 或 API 串接。
-- Backend 預設 FastAPI + uv，除非已確認其他 stack；遵守 backend skill 與 `.opencode/project-rules.md`；新專案至少有 `app/main.py`、`app = FastAPI()`、health、dev/prod-like 命令。需 sync、import app、可用 test；`/health` 或 `/docs` smoke 僅能用背景可停止方式執行。不建需求 schema/migration/auth/service/repository/業務流程；若規則要求 DB/Redis/Compose，只建基礎設定並註明尚無需求 schema。
+- Frontend 預設 Vite + React + TypeScript SPA，除非已確認其他 stack；遵守 frontend skill 與 `.opencode/project-rules.md`；需 install、build、可用 typecheck/test；測試 script 必須 one-shot，建議 `test: "vitest run"` 或等價；preview/smoke 僅能用背景可停止方式執行。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature 或 API 串接。
+- Backend 預設 FastAPI + uv，除非已確認其他 stack；遵守 backend skill 與 `.opencode/project-rules.md`；新專案至少有 `app/main.py`、`app = FastAPI()`、health、dev/prod-like 命令。需 sync、import app、可用 test；pytest 建議 `uv run pytest -q --maxfail=1` 或等價 one-shot 命令；`/health` 或 `/docs` smoke 僅能用背景可停止方式執行。不建需求 schema/migration/auth/service/repository/業務流程；若規則要求 DB/Redis/Compose，只建基礎設定並註明尚無需求 schema。
 - 同時建立時，定義啟動順序、API base URL、CORS/session/cookie/token 邊界、環境變數與錯誤格式。
 - README 只摘錄/引用 `.opencode/project-rules.md`；新舊規則衝突以最新明確規則覆蓋並記錄；不改 skill 原文。
 

@@ -371,13 +371,13 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。",
     "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
-    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> development-detail-planner -> 主工作區 OpenSpec propose/spec -> 主工作區 apply-change/fallback -> integration verification，並授權 apply/fallback 成功後中文細分 commit；不再另問 downstream 或 commit 授權題。",
+    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 平行 OpenSpec propose/spec -> 平行 apply-change/fallback -> worktree-merge-integrator，並授權 apply/fallback 成功後中文細分 commit；不再另問 downstream 或 commit 授權題。",
     "- project-bootstrapper 驗證必須非互動、不得開新 terminal/window；如需 server smoke，背景啟動後必須自動停止。",
-    "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner，立即在主工作區 spec-flow 產生單一 OpenSpec change，不能在啟動結果後中斷；只有使用者主動明確要求停止，才可限制 downstream。",
-    "- 不使用 worktree-splitter、不建立 .worktree/<run_id>/<name>、不走 worktree merge；分類只用於 tasks 與 apply 順序。",
-    "- 主流程必須在主工作區 spec-flow/ 初始化/產 proposal/specs/design/tasks，產 alignment-check，全通過才可進入 apply。",
-    "- alignment 全通過後主流程在同一工作區執行 apply-change/fallback；OpenSpec apply blocked/失敗但 alignment 已通過時，必須 fallback 依 spec-flow artifacts 完成開發任務、驗證，並依 commit 授權狀態中文細分 commit。",
-    "- apply-change 或 fallback 完成後自動執行 integration verification；衝突或測試失敗先讀 run_id 技術文件與 spec-flow artifacts，必要時用 question 確認修復方向。",
+    "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner，立即交 worktree-splitter 建立 .worktree/<run_id>/<name>，不能在啟動結果後中斷；只有使用者主動明確要求停止，才可限制 downstream。",
+    "- worktree-splitter 依分類建立多個 worktree，排除 node_modules、.venv、dist、cache、coverage 與測試報告等 generated artifacts；各 worktree 自行依 lockfile/pyproject 重建依賴。",
+    "- 每個 worktree 必須在自己的 spec-flow/ 初始化/產 proposal/specs/design/tasks，產 alignment-check，全通過才可進入 apply。",
+    "- alignment 全通過後同批平行執行 apply-change/fallback；OpenSpec apply blocked/失敗但 alignment 已通過時，必須 fallback 依該 worktree 的 spec-flow artifacts 完成開發任務、驗證，並依 commit 授權狀態中文細分 commit。",
+    "- apply-change 或 fallback 完成後交 worktree-merge-integrator 做一般 merge 與 integration verification；衝突或測試失敗先讀 run_id 技術文件與 worktree spec-flow artifacts，必要時用 question 確認修復方向。",
   ].join("\n")
 }
 
@@ -401,7 +401,7 @@ function buildQuestionFreedomLines(analysis) {
     `- ${scopeHint}`,
     `- ${QUESTION_DESIGN_GUIDE}`,
     "- 原文已答者直接記已確認；每題只問會改變實作/驗收的決策。",
-    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> 主工作區 OpenSpec propose/spec -> 主工作區 apply-change/fallback -> integration verification，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。",
+    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 平行 OpenSpec propose/spec -> 平行 apply-change/fallback -> worktree-merge-integrator，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。",
   ]
 }
 
@@ -722,7 +722,7 @@ function buildQuestions(analysis) {
         ? "frontend（推薦）"
         : "backend（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> 主工作區 OpenSpec propose/spec -> 主工作區 apply-change/fallback -> integration verification，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。`
+      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 平行 OpenSpec propose/spec -> 平行 apply-change/fallback -> worktree-merge-integrator，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。`
     )
   }
 

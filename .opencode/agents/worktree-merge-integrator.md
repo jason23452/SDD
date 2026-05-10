@@ -61,6 +61,10 @@ permission:
 
 整合後必須依 README、project rules、OpenSpec tasks 與已確認驗證門檻跑最小必要驗證。
 
+整合驗證前必須先產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。缺 `frontend/package.json` 不得跑 frontend scripts；缺 `backend/pyproject.toml` 或既有 dependency file 不得跑 backend pytest；缺 Playwright config 或 e2e tests 不得跑 E2E。若缺入口但來源 worktree 宣稱已完成對應功能，視為 blocker。
+
+所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。逾時時必須回報 `TEST_TIMEOUT`、清理 process tree、檢查 assigned port listener，不能無限等待或宣稱完成。
+
 常見驗證：
 - frontend install/typecheck/build/test。
 - backend sync/import/pytest/migration/DB config。

@@ -28,6 +28,8 @@ permission:
 - 主流程若提供 development-detail-planner，必須比對 planner 的已確認技術選型與 `.opencode/project-rules.md`；若 planner 與 rules 不一致，不得進入 bootstrap、OpenSpec propose/spec、apply 或 verification。
 - 若建立或更新的專案規則含任何 server smoke、preview smoke、dev server smoke、startup smoke 或 integration verification，必須寫入長期 cleanup contract：啟動前檢查 port；啟動後記錄 PID/job；清理時遞迴停止 parent process 與所有 child/descendant process；再用 assigned port 查 listener PID 補殺本工作區/本次 smoke 的殘留 process；未知 listener 必須 fail fast 回報 PID/command line；任一 assigned port 未釋放時不得宣稱完成、不得勾 tasks、不得 commit。
 - 產生 PowerShell smoke/validation 範例或規則時，必須要求等價的 `Stop-ProcessTree`、`Stop-PortListener`、`Assert-PortFree` helper；禁止只用 `Stop-Process $Process.Id` 當成完整 cleanup，因為 `npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 會產生子程序鏈。
+- 若建立或更新的專案規則含 build、test、typecheck、lint、pytest、Vitest、Playwright、E2E 或 integration verification，必須寫入長期測試卡住防護：測試前產生單點測試矩陣；確認 frontend/backend/E2E 入口存在；只跑 one-shot 非互動命令；每個 install/build/test/smoke 都有 timeout；逾時回報 `TEST_TIMEOUT` 並 cleanup；缺入口時標記 skip 或 blocker，不得硬跑或無限等待。
+- 規則中若包含 multi-worktree snapshot sync，必須排除 dependency/cache/build/test artifacts，例如 `node_modules`、`.venv`、`dist`、`build`、`test-results`、`playwright-report`、`.pytest_cache`、`.ruff_cache`、`.mypy_cache`、`__pycache__`、`*.pyc`、`*.tsbuildinfo`；不得要求把這些大型產物同步到每個 worktree。
 
 ## Skill 保護
 - `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。

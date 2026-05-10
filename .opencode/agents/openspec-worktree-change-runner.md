@@ -113,8 +113,12 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 ## 驗證
 
 - 依 README、project rules、`spec-flow` OpenSpec tasks 與既有 scripts 做最小必要驗證。
-- backend-only 用 pytest 或既有 backend tests。
-- frontend/fullstack 用既有 test/build/browser smoke；若需要 Playwright 但不可用，回報原因。
+- 執行任何測試前必須先產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
+- backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與測試檔存在時，才可用 pytest 或既有 backend tests；缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
+- frontend/fullstack 只有在 `frontend/package.json` 與 scripts 存在時，才可跑 npm/pnpm/yarn scripts；缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
+- E2E 只有在 Playwright config、E2E 測試檔與必要 server 啟動方式都存在時才可跑；缺入口時必須標記未執行原因，不得進入 watch 或互動模式。
+- 測試命令必須 one-shot 且可結束：Vitest 用 `vitest run` 或 package script 的等價 one-shot；pytest 用 `pytest -q --maxfail=1` 或既有等價；Playwright 用 headless/non-interactive；禁止 watch mode。
+- 所有 install/build/test/smoke 必須有 timeout。逾時回報 `TEST_TIMEOUT`、執行 cleanup、檢查 port listener，不能無限等待或假裝通過。
 - 任何 server smoke 必須 bounded：優先使用非 server 的 build/test/import 驗證；只有需要 runtime smoke 時才啟動 server。啟動 server 後必須用 finally/清理段停止 PID/job，即使 HTTP 檢查失敗或命令中斷也要停止並確認 port 釋放。
 - Bounded smoke cleanup 必須停止整個 process tree，不得只停止 direct PID。`npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 等命令可能產生 parent/child/grandchild process；agent 產生或修改任何 smoke/validation script 時，必須包含等價 `Stop-ProcessTree` 邏輯，先遞迴停止 descendants，再停止 parent。
 - Bounded smoke cleanup 必須再以 assigned port 檢查 listener PID。若 port listener 的 command line 指向本 worktree 與本次 smoke 命令，必須強制停止該 listener；若是未知行程，必須 fail fast 並回報 port、PID、command line，不得自動換 port。
