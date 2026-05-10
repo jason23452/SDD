@@ -119,10 +119,12 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - E2E 只有在 Playwright config、E2E 測試檔與必要 server 啟動方式都存在時才可跑；缺入口時必須標記未執行原因，不得進入 watch 或互動模式。
 - 測試命令必須 one-shot 且可結束：Vitest 用 `vitest run` 或 package script 的等價 one-shot；pytest 用 `pytest -q --maxfail=1` 或既有等價；Playwright 用 headless/non-interactive；禁止 watch mode。
 - 所有 install/build/test/smoke 必須有 timeout。逾時回報 `TEST_TIMEOUT`、執行 cleanup、檢查 port listener，不能無限等待或假裝通過。
+- 執行任何 install/build/test/smoke 前，必須先做 stale process recovery gate：讀取該 worktree `.opencode/run/<run_id>/smoke-processes/*.json` 與 assigned ports；只清理 command line 同時符合目前 worktree path、registry command/smoke command 與 assigned port 的 stale process tree。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port 或強殺。
 - 任何 server smoke 必須 bounded：優先使用非 server 的 build/test/import 驗證；只有需要 runtime smoke 時才啟動 server。啟動 server 後必須用 finally/清理段停止 PID/job，即使 HTTP 檢查失敗或命令中斷也要停止並確認 port 釋放。
 - Bounded smoke cleanup 必須停止整個 process tree，不得只停止 direct PID。`npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 等命令可能產生 parent/child/grandchild process；agent 產生或修改任何 smoke/validation script 時，必須包含等價 `Stop-ProcessTree` 邏輯，先遞迴停止 descendants，再停止 parent。
 - Bounded smoke cleanup 必須再以 assigned port 檢查 listener PID。若 port listener 的 command line 指向本 worktree 與本次 smoke 命令，必須強制停止該 listener；若是未知行程，必須 fail fast 並回報 port、PID、command line，不得自動換 port。
 - 驗證 script 必須在 `finally` 中執行 process-tree cleanup 與 port-listener cleanup；即使命令中斷、HTTP smoke 失敗、測試失敗或發生 exception，也必須嘗試清理。
+- 驗證 script 必須在啟動 server 後立即寫 PID registry 到 `.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`；cleanup 成功且 port 釋放後刪除 registry。若 subagent 被 abort，下一次同 worktree 驗證必須先用 registry recovery 補救，不得直接重跑 server。
 - 產生 PowerShell validation script 時，必須使用 `Get-CimInstance Win32_Process` 依 `ParentProcessId` 遞迴找 descendants，並用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 找殘留 listener；禁止只用 `Stop-Process $Process.Id` 或只停止 PowerShell job。
 - 任一 assigned port 未釋放時，不得把 tasks checkbox 勾完成、不得 commit、不得回報 apply 完成；必須修復 cleanup 或回報 blocker。
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。

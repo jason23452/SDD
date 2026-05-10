@@ -65,6 +65,8 @@ permission:
 
 所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。逾時時必須回報 `TEST_TIMEOUT`、清理 process tree、檢查 assigned port listener，不能無限等待或宣稱完成。
 
+整合驗證前必須先做 stale process recovery gate：讀取 merge worktree `.opencode/run/<run_id>/smoke-processes/*.json` 與 integration assigned ports；只清理 command line 同時符合 merge worktree path、registry command/smoke command 與 assigned port 的 stale process tree。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port 或強殺。
+
 常見驗證：
 - frontend install/typecheck/build/test。
 - backend sync/import/pytest/migration/DB config。
@@ -73,9 +75,10 @@ permission:
 
 Server smoke 必須 bounded：
 - 啟動前檢查 port。
-- 啟動後記錄 PID/job。
+- 啟動後記錄 PID/job，並立即寫 PID registry：`.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`。
 - 用 finally/清理段停止 parent process 與所有 descendants。
 - 再用 assigned port 查 listener PID 做二次清理。
+- cleanup 成功且 port 釋放後刪除 registry；若 subagent 被 abort，下一次整合驗證必須先靠 registry recovery 補救。
 - 未釋放 port 不得回報完成。
 - 若 port 被未知行程佔用，fail fast 並回報 PID/command line，不得自動換 port。
 

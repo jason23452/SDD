@@ -39,6 +39,8 @@ permission:
 - 硬性停止只限：`question` 未回答、使用者明確限制 downstream、分類/一致性未通過、project rules 缺失且無法建立、bootstrap/驗證無法修復、任一 worktree OpenSpec 對齊未通過、apply/task blocker 且 fallback 無法安全完成、merge/integration 測試失敗且無法修復。
 - 測試或 smoke 卡住不得無限等待。所有 bootstrap、worktree apply 與 integration 驗證都必須先做可測性 gate，確認測試入口存在，再用 one-shot command 與 timeout 執行；逾時需清理 process tree 並回報 `TEST_TIMEOUT` 或明確 blocker。
 - 任一 bootstrap、apply 或 integration verification 產生/執行 smoke script 時，必須要求 process-tree cleanup 與 port-listener cleanup；若 assigned port 未釋放，不得視為驗證完成，不得提交或宣稱完成。
+- 若 subagent 被使用者或工具中斷、沒有 final output、或主流程只看到部分產物，主流程必須先執行 stale process recovery：讀取 `.opencode/run/<run_id>/smoke-processes/*.json`、檢查 assigned ports、只清理 command line 可確認屬於目前 workspace/worktree 與本流程的 process tree；未知 port listener 必須 fail fast，不得自動換 port 或強殺。
+- 中斷後恢復時，主流程必須回收 partial files、PID registry、測試 cache 與 port 狀態，再決定 resume、cleanup 或重新交 subagent；不得把「使用者中斷後殘留 server」誤判為測試卡住或直接重跑同一 smoke。
 
 ## 範圍與現況
 
@@ -105,6 +107,7 @@ permission:
 - bootstrapper 只收最小啟動資訊：範圍、已確認 stack/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認規則、不做需求功能範圍、完整 multi-worktree downstream 鏈路與 commit 授權狀態（除非使用者主動明確限制流程）。
 - bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須補齊可測基底（例如 frontend `package.json`/source/test entry、backend `pyproject.toml`/entrypoint/test entry）、完成依賴安裝、非互動 one-shot 驗證或可結束 smoke、README 更新，失敗只回報未完成與風險。
 - bootstrapper、worktree runner 與 merge integrator 執行測試前必須建立「單點測試矩陣」：frontend 有 `package.json` 才可跑 npm scripts；backend 有 `pyproject.toml` 才可跑 uv/pytest；E2E 有 Playwright config 與測試檔才可跑；缺入口時不得硬跑，必須標記 skip 或 blocker，並說明依據。
+- bootstrapper、worktree runner 與 merge integrator 在執行任何 smoke 前必須先做 stale process recovery gate；smoke server 啟動後必須寫 `.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`，cleanup 完成且 port 釋放後才可刪除 registry。若流程被中斷，下一次執行必須先依 registry 與 port 檢查補救。
 - bootstrapper 回來後，主流程需整理啟動結果並繼續：產生/更新需求開發實踐檔，立即交 `worktree-splitter`，再續行平行 OpenSpec propose/apply 與整合驗證；不得在「專案啟動結果」後停止。只有使用者主動明確限制為 `bootstrap only` 時，才能停止於 bootstrap 結果。
 - README 已存在且使用者要求實作/修復/調整/繼續開發時，完成確認、分類、一致性與規則後，直接沿用現有專案做最小程式修改；修改前讀相關程式碼，修改後跑 README/既有 scripts 指定驗證，無法驗證就回報原因。
 - apply/fallback 必須在各自 worktree 依分類職責進行；完整 downstream 授權時，每個小功能完成後必須中文 commit，commit 必須按功能仔細拆分。若使用者明確要求不要 commit，必須改為回報未提交變更與建議 commit 切分。

@@ -7,6 +7,16 @@
 - Backend 變更需遵守 `fastapi-feature-builder`。
 - `.opencode/skills/**/SKILL.md` 是不可變規則來源，不得刪除、覆寫、截斷、清空或弱化。
 
+## 本次已確認需求決策（calendar-fullstack-20260510-b1）
+- 本次落地範圍為 `frontend + backend`，採完整 MVP；frontend 使用 Vite + React + TypeScript，backend 使用 FastAPI，資料與登入採 PostgreSQL + JWT。
+- 個人行事曆登入迭代必須保留既有行程管理、檢視、提醒、重複、分類、衝突、取消、恢復、完成與逾期規則；登入僅作為個人行事曆進入門檻與存取隔離，不覆蓋既有規則。
+- 後端是日期、重複、衝突、逾期與提醒狀態的權威；前端負責輸入、顯示、互動與使用者回饋，不得自行成為業務規則權威。
+- 提醒第一版採站內提醒狀態與今日清單補救；必須支援行程前、當日、多次、逾期與可關閉提醒；不保證系統推播或通知絕對送達，且關閉提醒後不得再打擾該行程。
+- 登入/登出/失敗/失效狀態不得非必要外露帳號存在性、行程內容、提醒或敏感原因；登出後個人內容不得繼續顯示，再操作需重新登入。
+- 第一版不做：純筆記、新註冊、社群登入、多人共享/協作、管理後台、帳號救援/忘記密碼、外部日曆同步、智慧自動排程、地圖/交通整合。
+- 已確認驗收包含單元測試與 E2E；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
+- 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> parallel OpenSpec propose/spec -> parallel apply-change/fallback -> worktree-merge-integrator`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。
+
 ## 通用流程
 - 需求落地前必須先讀取需求來源與相關 `frontend/README.md`、`backend/README.md`，並沿用現有專案脈絡。
 - 既有專案不得重新初始化；若基底不完整，優先在既有資料夾內補齊可啟動、可建置、可測試的必要檔案。
@@ -24,6 +34,14 @@
 - 所有 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，才可由 `worktree-merge-integrator` 一般 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
 - Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。
 
+## 中斷恢復與 Stale Process 防護
+- 任何 bootstrap、worktree apply 或 integration server smoke 不得只依賴 `finally` cleanup；使用者或工具中斷 subagent 時，`finally` 可能無法執行，因此每次啟動 smoke server 前都必須具備可重入的 stale process recovery gate。
+- 每個 smoke server 啟動後必須立即寫入 PID registry：`.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`；worktree 內可使用該 worktree 自己的 `.opencode/run/<run_id>/...`。registry 至少記錄 `run_id`、scope、workspace/worktree path、command、port、parent PID、startedAt。`.opencode/run/` 是 generated runtime state，不得 commit。
+- 執行任何 install/build/test/smoke 前，必須先執行 stale process recovery gate：讀取 PID registry 與 assigned ports，檢查 process command line；只有 command line 同時符合目前 workspace/worktree path、registry command 或該次 smoke 命令、assigned port 時，才可遞迴停止 process tree 與 port listener。
+- 若 assigned port 被未知行程佔用、command line 不屬於目前 workspace/worktree 或無法確認是本流程殘留，不得自動換 port 或強殺；必須 fail fast，列出 port、PID、command line，請主流程或使用者決策。
+- smoke script 成功、失敗或 timeout 時仍必須在 cleanup 段遞迴停止 descendants、停止 parent、檢查並清理本次 smoke listener、刪除 registry；若 script 被中斷，下次流程必須靠 recovery gate 清理 registry 指向的 stale process。
+- subagent 被 abort、工具中斷或沒有回傳 final output 時，主流程不得直接重跑同一步驟或宣稱卡住；必須先回收已產生檔案、PID registry、port listener 與測試 cache，清理可確認的本流程殘留後，再判斷 resume、cleanup 或回報 blocker。
+
 ## 測試與卡住防護
 - 執行任何 bootstrap、worktree apply 或 integration 驗證前，必須先產生單點測試矩陣，列出 frontend、backend、E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
 - Frontend 測試 gate：只有存在 `frontend/package.json`、對應 script 與 source/test entry 時才可跑 npm/pnpm/yarn scripts；缺入口且分類需要前端功能時是 blocker，不得硬跑。
@@ -32,6 +50,7 @@
 - 測試命令必須 one-shot、非互動且可自動結束。禁止 watch mode；Vitest 使用 `vitest run` 或 package script 等價命令；pytest 使用 `pytest -q --maxfail=1` 或既有等價命令；Playwright 使用 headless/non-interactive。
 - 每個 install/build/test/smoke 命令都必須有 timeout。逾時時回報 `TEST_TIMEOUT`、清理 process tree、檢查 assigned port listener，不能無限等待、不能自動換未知 port、不能宣稱完成。
 - 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案；README 佔位也不等於可測專案。
+- Bootstrapper 建立新專案時必須同步建立忽略規則，避免 `node_modules`、`.venv`、`dist`、cache、test results 與 `.opencode/run` 成為待 commit 檔案。
 
 ## Frontend 規則
 - Frontend 沿用 React SPA、Vite、TypeScript 與現有 lockfile 對應的 package manager；無 lockfile 且無 repo 慣例時使用 npm，不混用 npm/pnpm/yarn。

@@ -1,0 +1,21 @@
+# Runtime and dependency artifacts
+node_modules/
+**/node_modules/
+**/.venv/
+**/venv/
+**/env/
+
+# Build outputs
+**/dist/
+**/build/
+
+# Test and tool caches
+**/test-results/
+**/coverage/
+**/.pytest_cache/
+**/.ruff_cache/
+**/__pycache__/
+**/*.py[cod]
+
+# OpenCode runtime recovery state
+.opencode/run/
