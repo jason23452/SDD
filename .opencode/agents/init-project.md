@@ -13,11 +13,11 @@ permission:
 
 ## 固定流程
 
-1. `explore/read-project-rules`：先讀 `.opencode/project-rules.md`，整理已確認規則、待確認規則、測試/port/worktree/OpenSpec 限制；若不存在，先交 `project-start-rules-definer` 建立，不得跳過規則對齊。
+1. `explore/read-project-rules`：先讀 `.opencode/project-rules.md`，整理已確認規則、待確認規則、測試/port/worktree/OpenSpec 限制；此檔是開發前專案規則主檔，預設由 `project-start-rules-definer` 讀取 relevant `.opencode/skills/**/SKILL.md` 與使用者明確規則後建立/更新，且允許 user 手動編輯。若不存在，先交 `project-start-rules-definer` 建立，不得跳過規則對齊。
 2. `init-project`：判斷範圍、準備 README、用 `question` 確認開發細節。
-3. `technical-practice-classifier`：由大模型提出可行切分方案，選擇互相影響度最低且互斥的分類；輸出 owner、excluded responsibilities、apply 階段、parallelGroupId、eligibleSetId、touchSet、contractInputs/Outputs、testImpact、isolationStrategy 與 Stage Execution Graph；分類 ID 固定 `<run_id>-featurs-<name>`。
+3. `technical-practice-classifier`：由大模型提出可行切分方案，建立 `readSet/writeSet`、Dependency Graph 與 Conflict Graph，選擇互相影響度最低且互斥的分類；完全不衝突者必須平行，只有上游未 merge 或 hard conflict 者進 flow；輸出 owner、excluded responsibilities、apply 階段、parallelGroupId、eligibleSetId、touchSet、contractInputs/Outputs、testImpact、isolationStrategy、parallelSafety 與 Stage Execution Graph；分類 ID 固定 `<run_id>-featurs-<name>`。
 4. `requirement-consistency-checker`：比對原始需求、已確認決策、project rules、草稿與分類，確認分類判斷自洽、無重工、無同批隱性依賴。
-5. `project-start-rules-definer`：只在缺少或需更新長期規則時整理 `.opencode/project-rules.md`，完成後回到本流程重新 read-back。
+5. `project-start-rules-definer`：只在缺少或需更新長期規則時整理、建立或更新 `.opencode/project-rules.md`；更新時必須讀取 relevant skills，保留 user 手動編輯規則，不得覆蓋、清空或弱化 immutable skill 規則。
 6. `project-bootstrapper`：只在缺少可識別現行專案且使用者選擇/要求初始化、建立、啟動或落地時建立最小可啟動專案。
 7. `development-detail-planner`：bootstrap 後自動產生/更新，納入啟動結果、project rules 摘要、互斥低影響分類、一致性、Stage Execution Graph、atomic batch plan、port 分配策略、dispatch ledger 與完整 multi-worktree 自動化步驟。
 8. `worktree-splitter`：以目前 stage 的 ready `eligibleSetId` 為 atomic batch，同時建立該 batch 全部 `.worktree/<run_id>/stage-<n>/<name>`、分支、manifest、port-map 與 dispatch ledger；stage 1 用 bootstrap/main baseline，stage N 必須等 stage N-1 integration 完成後再建立/同步。
@@ -42,7 +42,8 @@ permission:
 - Dispatch ledger：每次建立 batch、啟動 runner、runner 進入 propose/apply/test/commit/completed 前後，主流程與 runner 必須建立或更新 `.opencode/run-artifacts/<run_id>/dispatch-ledger.json`，記錄 `phase=execute-worktree`、`stage`、`eligibleSetId`、`parallelGroupId`、預期 classification/worktree/branch/ports、Task 啟動結果、`propose_started`、`propose_validated`、`apply_started`、`local_tests_passed`、`committed`、`completed`、錯誤碼與重試次數。若無法寫入或讀回 ledger，停止並回報 `DISPATCH_LEDGER_UNAVAILABLE`。
 - Batch completion gate：每批 runner 回來後，主流程必須用 dispatch ledger、runner final output、worktree branch HEAD、`alignment-check.md`/tasks/commits/local verification 結果交叉核對。缺 final output、ledger 與實際 worktree 不一致、同 eligible set 漏派、任一 worktree 局部測試未通過或未 commit 時，不得進入 merge；先標記 failed/blocked 並回報對應錯誤。
 - Retry/resume gate：中斷或失敗後只能重試同一 `eligibleSetId` 中 failed/aborted 的 worktree；已完成且 ledger/commit/verification 對齊的 worktree 不得重跑，除非使用者明確要求重建。重試前必須確認 worktree status、port registry、skill gate 與 stage baseline 未漂移。
-- Low-impact ownership gate：進入 splitter 前，主流程必須確認 classifier 已用大模型比較可行切分方案並選擇互相影響度最低方案；每個需求、能力、contract、schema、helper、測試責任都有唯一 owner 與明確 excludedResponsibilities。若分類有重工、同批隱性依賴、或需同 stage 另一 worktree 未 merge 輸出，必須回到分類調整、合併分類或移 stage，不得交給 runner 實作時協調。
+- Low-impact ownership gate：進入 splitter 前，主流程必須確認 classifier 已用大模型比較可行切分方案並選擇互相影響度最低方案；每個需求、能力、contract、schema、helper、測試責任都有唯一 owner 與明確 excludedResponsibilities。classifier 必須輸出 `readSet/writeSet`、Dependency Graph、Conflict Graph 與 `parallelSafety`，並證明沒有 dependency edge / hard conflict edge 的分類已被放入同批或同輪平行 dispatch。若分類有重工、同批隱性依賴、需同 stage 另一 worktree 未 merge 輸出，或把可平行分類因保守策略任意序列化，必須回到分類調整、合併分類、contract-first 或移 stage，不得交給 runner 實作時協調。
+- Parallel safety gate：主流程不得接受「所有分類都進需要優先度 lane」作為預設結果。只有每個序列化關係都能對應具體 dependency edge 或 hard conflict edge（writeSet 重疊、未穩定 API/schema/form submit flow、migration chain、test fixture/helper 語意衝突）時才可序列化；soft risk 必須用 isolationStrategy 與測試 gate 控制，不能阻止平行。
 - OpenSpec propose/spec 與 apply 只在目前 stage worktree 的 `spec-flow/` 執行。每個分類對應一個 OpenSpec change，不在主工作區建立單一整合 change，不使用 `/opsx-*` commands，不讀 OpenSpec 初始化帶入的原始 skills。
 - 硬性停止只限：`question` 未回答、使用者明確限制 downstream、分類/一致性未通過、分類有未解同階段阻塞依賴或循環依賴、優先度 lane/執行優先度互相衝突、project rules 缺失且無法建立、bootstrap/驗證無法修復、任一 worktree OpenSpec 對齊未通過、apply/task blocker 且 fallback 無法安全完成、merge/integration 測試失敗且無法修復。
 - 測試或 smoke 卡住不得無限等待。所有 bootstrap、worktree apply 與 integration 驗證都必須先做可測性 gate，確認測試入口存在，再用 one-shot command 與 timeout 執行；逾時需回報 `TEST_TIMEOUT` 或明確 blocker。
@@ -84,14 +85,14 @@ permission:
 - 檔名：`development-detail-planner_<run_id>_YYYYMMDD_HHmmss.md`，不可覆蓋。
 - `<run_id>` 必須同步給分類 agent；分類 ID 固定 `<run_id>-featurs-<name>`，保留 `featurs`，不得用 `TP-001`。
 - OpenSpec CLI 使用的 `openspec_change` 必須和分類 ID 分離，固定派生為 `change-<run_id>-<name>`，並符合 `^[a-z][a-z0-9-]*$`；不得直接把可能以數字開頭的 classification ID 傳給 `openspec new change`。
-- 文件用繁中，同份包含原始需求、現行專案、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則、Stage Execution Graph、canonical `eligibleSetId`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
+- 文件用繁中，同份包含原始需求、現行專案、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則、Dependency Graph、Conflict Graph、readSet/writeSet、parallelSafety、Stage Execution Graph、canonical `eligibleSetId`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
 - 待確認章節只放使用者已選擇延後/待確認的項目；不得把未問或未答事項寫進檔案假裝完成。
 - 若需 `project-bootstrapper`，需求開發實踐檔可在 bootstrapper 完成後產生或更新，必須納入最小專案啟動結果、README/命令/URL/驗證摘要與完整 multi-worktree downstream 鏈路；不得在 bootstrapper 完成後停止而不產檔或不續行 downstream。
 - 需求開發實踐檔中的 `已授權 downstream 步驟` 預設寫完整 stage-scoped multi-worktree 鏈路，並在 `commit 授權狀態` 記錄「完整 downstream 已授權中文細分 commit」。只有使用者主動明確限制流程或明確要求不要 commit 時，才可寫有限 downstream、`bootstrap only` 或 `no commit`。
 
 ## 交接契約
 
-- 分類：交 `<run_id>`、原始需求、已確認決策、project rules 摘要、開發範圍、實作順序草稿給 `technical-practice-classifier`。分類必須由大模型比較多個可行切分方案，選出互相影響度最低且互斥的通用需求能力分類；同類能力放同一分類，並輸出 ownerCapability、ownedRequirements、excludedResponsibilities、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、Stage Execution Graph 與上游依賴；若未分類/重複分類/多 owner/無 owner/同階段阻塞依賴/循環依賴/不需優先度 lane 不可同步平行分類/缺 parallelGroupId/缺 touchSet/缺 contract inputs outputs/缺 Stage Execution Graph 或 eligibleSetId/缺低影響判斷理由/無法在所列上游合併後 apply 分類數不為 0，或 ID 不符，不進一致性檢查。
+- 分類：交 `<run_id>`、原始需求、已確認決策、project rules 摘要、開發範圍、實作順序草稿給 `technical-practice-classifier`。分類必須由大模型比較多個可行切分方案，選出互相影響度最低且互斥的通用需求能力分類；同類能力放同一分類，並輸出 ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、Dependency Graph、Conflict Graph、parallelSafety、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、Stage Execution Graph 與上游依賴。分類必須把沒有 dependency edge / hard conflict edge 的 ready 分類放入同批或同輪平行 dispatch；若未分類/重複分類/多 owner/無 owner/同階段阻塞依賴/循環依賴/可平行分類被序列化/缺 parallelGroupId/缺 touchSet/缺 readSet/writeSet/缺 contract inputs outputs/缺 Stage Execution Graph 或 eligibleSetId/缺低影響判斷理由/無法在所列上游合併後 apply 分類數不為 0，或 ID 不符，不進一致性檢查。
 - 一致性：交原始需求、已確認決策、待確認項、草稿與分類給 `requirement-consistency-checker`。若有未解的 `不一致`、`未經確認`、`超出需求`、`遺漏`，不得規則定義、產檔或 bootstrap。
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，依 `project-start-rules-definer` 規則執行；它是 primary 規則流程，不處理需求功能，完成後必須返回本流程續行。
 - Bootstrap：若需建立最小專案，交 `project-bootstrapper`；傳入資料必須包含完整 multi-worktree downstream 鏈路與 commit 授權狀態，除非使用者已主動明確限制流程。它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，下一步直接交 `worktree-splitter`。
@@ -103,7 +104,8 @@ permission:
 
 ## 專案規則
 
-- `.opencode/project-rules.md` 只由 `project-start-rules-definer` 判斷/建立；存在則讀取並最小更新，不存在才建初始主檔。
+- `.opencode/project-rules.md` 是開發前專案規則主檔；預設由 `project-start-rules-definer` 依 relevant `.opencode/skills/**/SKILL.md`、README、實際檔案線索與使用者明確規則建立/更新，user 也可以手動編輯。
+- agent 更新 `.opencode/project-rules.md` 時必須保留 user 手動規則與覆蓋紀錄；不得清空、覆寫或弱化 user 規則。若 user 規則與 immutable skill 規則衝突，skill 不可弱化，需回報衝突並要求澄清。
 - frontend 範圍提供 `.opencode/skills/frontend/*/SKILL.md`；backend 範圍提供 `.opencode/skills/backend/*/SKILL.md`。
 - `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷或清空；刪除要求回報 `ERROR: skill rules are immutable and cannot be deleted`。
 - Skill gate 必須以實際內容 diff 判斷：只有 `git diff --name-only -- .opencode/skills` 或 `git diff --cached --name-only -- .opencode/skills` 顯示 skill 檔內容變更時才停止。純 line-ending/stat 假異動、或其他非 skill 檔的 `needs update` 不得當成 blocker。
@@ -113,7 +115,7 @@ permission:
 ## 專案建立與現有專案開發
 
 - 只有缺少可識別現行專案且使用者選擇/要求建立時，才可交 `project-bootstrapper`。
-- 交 bootstrapper 前須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交 `project-start-rules-definer`。
+- 交 bootstrapper 前須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交 `project-start-rules-definer` 依 relevant skills 與使用者明確規則建立。
 - bootstrapper 只收最小啟動資訊：範圍、已確認 stack/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認規則、不做需求功能範圍、完整 multi-worktree downstream 鏈路與 commit 授權狀態（除非使用者主動明確限制流程）。
 - bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須補齊可測基底（例如 frontend `package.json`/source/test entry、backend `pyproject.toml`/entrypoint/pytest entry）、完成依賴安裝、非互動 one-shot 驗證、README 更新；browser smoke 僅在 Playwright MCP 與受控 server lifecycle 可用時執行，否則標記 skip/blocker。失敗只回報未完成與風險。
 - bootstrapper、worktree runner 與 merge integrator 執行測試前必須建立「單點測試矩陣」：frontend 有 `package.json` 才可跑 npm scripts；backend 有 `pyproject.toml` 且有 pytest entry 才可跑 `uv run pytest`；E2E 有 Playwright config、測試檔、受控 server lifecycle 與 Playwright MCP 才可跑；缺入口時不得硬跑，必須標記 skip 或 blocker，並說明依據。功能測試不得拆成等待其他 worktree 的獨立分類，必須放回 owning slice。

@@ -20,16 +20,19 @@ permission:
 - 分類不是套固定清單，而是由大模型根據需求、project rules、現有專案結構、測試影響與 contract 風險做判斷。必須先提出多個可行切分方案，逐一比較互相影響度、重工風險、同批隱性依賴、後續測試影響與 shared contract 風險，最後選擇相互影響度最低且可獨立 apply 的方案。
 - 每列是一個「通用需求分類」：以使用者可驗收能力、業務領域、流程責任或風險責任分組；同一類能力必須放同一分類，不得只因 frontend/backend、檔案類型、layer、測試種類不同就拆列。
 - 每列必須有唯一 owner：`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`。非 owner 分類只能透過 `contractInputs` 讀取已存在於 stage baseline 的輸出，不得重做、擴寫或修改其他 owner 的責任。
-- 分類可以有上游依賴；必須輸出 Stage Execution Graph，讓 worktree execute 依 apply 階段與上游依賴，前一批 merge 後再以該 integration 結果重新呼叫 splitter 建立/同步下一批 worktree。不得把未來 apply stage 預先從 bootstrap 快照建立後交給 runner 自行 merge 上游。
+- 分類可以有上游依賴；必須先建立 `Dependency Graph` 與 `Conflict Graph`，再輸出 Stage Execution Graph。Stage Graph 只能依「上游尚未 merge」或「硬衝突需 flow」排前後；不得因保守、表格順序、同屬同一大需求、或籠統 high risk 就把可平行分類全部序列化。前一批 merge 後再以該 integration 結果重新呼叫 splitter 建立/同步下一批 worktree。不得把未來 apply stage 預先從 bootstrap 快照建立後交給 runner 自行 merge 上游。
 - 同一 apply 階段內必須先分成兩條 lane：`需要優先度` 與 `不需優先度`。兩條 lane 從同一 stage baseline 平行處理；`不需優先度` lane 不等待 `需要優先度` lane。stage merge 必須等兩條 lane 都完成。
 - 同一 apply 階段內必須輸出 `parallelGroupId`。同一 `parallelGroupId` 代表主流程必須同一輪平行建立 worktree 並同輪平行呼叫多個 runner subagent；不同 `parallelGroupId` 代表存在 priority、contract 或風險順序，必須說明等待條件。
 - Stage Execution Graph 必須輸出 canonical apply `eligibleSetId`，格式固定為 `stage-<n>/priority/<p>/stage-<n>-priority-<group>` 或 `stage-<n>/no-priority/none/stage-<n>-no-priority-<group>`；`eligibleSetId` 是 atomic worktree batch key，後續 splitter、runner、merge integrator 與 dispatch ledger 都以此鍵交接，不得各自重算不同格式。
-- `需要優先度` lane：只有存在明確需求先後、風險先後或技術先後時使用，必須輸出數字 `執行優先度`，數字越小越先執行；同數字且無阻塞依賴者同步/平行執行。
-- `不需優先度` lane：沒有優先度時使用，`執行優先度` 填 `無` 或 `null`，同一 apply 階段內全部同步/平行執行，不得任意序列化。
-- 每列必須輸出 `touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`portNeeds`、`conflictRisk`。`touchSet` 用於預判平行 merge 衝突；`contractInputs/Outputs` 用於判斷是否需要前置 contract-first stage；`testImpact` 與 `impactReason` 必須由大模型依當前需求與專案判斷，不得套固定清單；`conflictRisk` 可為 low/medium/high，high 不代表不可平行，但必須說明隔離、合併、移 stage 或前置 contract。
+- `需要優先度` lane：只有存在明確需求先後、硬衝突先後或技術先後時使用，必須輸出數字 `執行優先度`，數字越小越先執行；同數字且無阻塞依賴者同步/平行執行。不得用 `需要優先度` lane 掩蓋「其實可平行但想保守」的分類。
+- `不需優先度` lane：沒有硬性先後時使用，`執行優先度` 填 `無` 或 `null`，同一 apply 階段內全部同步/平行執行，不得任意序列化。
+- 每列必須輸出 `readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`portNeeds`、`conflictRisk`、`parallelSafety`。`readSet/writeSet` 用於判斷完全不衝突者是否可平行；`touchSet` 用於預判平行 merge 衝突；`contractInputs/Outputs` 用於判斷是否需要前置 contract-first stage；`parallelSafety` 必須標示 `safe-parallel`、`flow-required` 或 `needs-contract-first`，並附具體理由；`testImpact` 與 `impactReason` 必須由大模型依當前需求與專案判斷，不得套固定清單；`conflictRisk` 可為 low/medium/high，high 不代表不可平行，只有出現硬衝突或未穩定 contract 才能要求 flow，且必須說明隔離、合併、移 stage 或前置 contract。
 - 每項需求只能有一個主要分類；跨分類影響寫上游依賴/關聯註記。若兩分類互相依賴、同批互相等待、或需要共同修改同一尚未穩定的 schema/API/helper/test fixture，表示分類錯誤，必須合併或重新分批。
+- 完全不衝突分類必須平行：若兩個分類只讀 stage baseline 中已穩定的 contract，且 `writeSet` 不重疊、沒有共同修改同一 API/schema/form submit flow/migration chain/test fixture，必須放入同一 ready batch 或同輪可 dispatch 的 no-priority eligible set。若不平行，必須列出具體硬衝突 edge；否則完整性檢查不得通過。
+- 硬衝突才 flow：只有符合下列任一條件時，才能把分類排成不同 apply stage 或不同 priority：A 的 `contractOutputs` 是 B 的 `contractInputs` 且尚未在 baseline merge；兩者 `writeSet` 重疊且無法隔離；兩者同時修改同一 DB migration chain 或同一資料表關鍵 schema；兩者同時修改同一核心 form submit flow 且 contract 未固定；兩者會覆蓋同一 test fixture 或 helper 語意；語意合併需人工重新設計而非單純文字 merge。
+- 軟風險不得阻止平行：不同檔案、不同 feature-owned UI、不同 service/repository、只讀同一已穩定 schema、或只新增相互獨立 tests，屬 soft merge risk；應以 isolationStrategy、owned contract 與測試 gate 控制，不得直接序列化。
 - 不用「其他」；無法歸類時改寫、拆分或列待確認。
-- 判定順序：使用者可驗收能力/業務分類 -> 產生多個可行切分方案 -> 比較互相影響度/重工/測試影響/contract 風險 -> 選擇最低影響方案 -> 同類能力聚合 -> 必要上游 contract -> contract-first stage 是否需要 -> apply 階段 -> parallelGroupId/eligibleSetId atomic batch -> 主要驗收責任 -> touchSet/contractInputs/contractOutputs/testImpact -> 拆分、合併或移 stage。
+- 判定順序：使用者可驗收能力/業務分類 -> 產生多個可行切分方案 -> 同類能力聚合 -> 定義唯一 owner -> 建立 readSet/writeSet/contractOwner -> 建立 Dependency Graph -> 建立 Conflict Graph -> 判斷 contract-first stage 是否需要 -> 將「依賴已滿足且無硬衝突」分類最大化放入平行 eligible set -> 只有硬衝突或上游未滿足者排 flow -> 比較互相影響度/重工/測試影響/contract 風險 -> 選擇最低影響方案 -> apply 階段 -> parallelGroupId/eligibleSetId atomic batch -> 主要驗收責任 -> touchSet/contractInputs/contractOutputs/testImpact/parallelSafety -> 拆分、合併或移 stage。
 - ID 固定 `<run_id>-featurs-<name>`；保留 `featurs`，不得用 `features`、`TP-001` 或純流水號；`<name>` 用可讀小寫英數與 hyphen，重名時改更具體。
 
 ## 粒度、同類聚合與依賴批次
@@ -41,8 +44,17 @@ permission:
 - Documentation 可獨立分類，但若文件只描述某功能的啟動/驗收，應隨該功能分類提交；只有全專案啟動、驗證矩陣、skip/blocker 彙整才獨立。
 - 允許上游依賴：後續分類可依賴前一 apply 階段已 merge 的穩定程式碼、schema、API contract、helper 或 fixture；必須明確列出依賴與 apply 階段。
 - 禁止同批隱性依賴：同一 apply 階段內不得出現需要另一同階段分類先完成的程式依賴；若存在，改為不同階段或合併分類。
+- 禁止過度序列化：若分類間沒有 Dependency Graph edge，也沒有 Conflict Graph hard edge，卻被排成不同 apply stage 或不同 priority，必須標示為 `AVOIDABLE_SERIALIZATION` 並重排為平行 eligible set；不得讓「保守」成為理由。
 - 優先度 lane 只處理同一 apply 階段內的必要先後；不得用優先度或 lane 拆分掩蓋同階段程式依賴。若某分類真的需要另一分類完成後才能 apply，必須移到後續 apply 階段或合併。
 - 禁止循環依賴：若 A 依賴 B 且 B 依賴 A，必須合併或重切邊界。
+
+## 平行安全判斷
+- 每個分類必須列出 `readSet` 與 `writeSet`。`readSet` 是該分類只讀的已穩定 contract/schema/helper/fixture；`writeSet` 是會新增或修改的 API/schema/form/migration/helper/fixture/UI flow。
+- 建立 `Dependency Graph`：若 B 的 `contractInputs` 來自 A 的 `contractOutputs`，且 A 尚未在 baseline 中 merge，建立 A -> B dependency edge。
+- 建立 `Conflict Graph`：若 A 與 B 的 `writeSet` 直接重疊，或共同修改同一未穩定 API/schema/form submit flow/migration chain/test fixture，建立 hard conflict edge，並說明 flow/merge/contract-first 處理方式。
+- 沒有 dependency edge、沒有 hard conflict edge、且只共享已穩定 readSet 的分類，必須標示 `parallelSafety=safe-parallel`。
+- 有 hard conflict 但可透過前置 contract 固定後平行者，必須標示 `parallelSafety=needs-contract-first`，並建立 contract/foundation classification 作為上游；contract merge 後才可把後續分類平行。
+- 確實需依序處理者，標示 `parallelSafety=flow-required`，並在 Stage Execution Graph 的 wait/impactReason 中引用具體 dependency/conflict edge。
 
 ## 輸出
 ```markdown
@@ -52,9 +64,17 @@ permission:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### 分類表
-| classificationId | name | ownerCapability | ownedRequirements | excludedResponsibilities | description | scope | applyStage | priorityLane | executionPriority | parallelGroupId | eligibleSetId | touchSet | contractInputs | contractOutputs | testImpact | impactReason | isolationStrategy | portNeeds | upstreamDependencies | conflictRisk | suggestedOpenSpecChange |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| <run_id>-featurs-auth-access | auth-access | auth/access | ... | ... | ... | both | 1 | 不需優先度 | null | group-auth | stage-1/no-priority/none/stage-1-no-priority-group-auth | backend:auth,frontend:auth | ... | ... | ... | ... | ... | frontend/backend/db | 無 | medium | change-<run_id>-auth-access |
+| classificationId | name | ownerCapability | ownedRequirements | excludedResponsibilities | description | scope | applyStage | priorityLane | executionPriority | parallelGroupId | eligibleSetId | readSet | writeSet | contractOwner | touchSet | contractInputs | contractOutputs | testImpact | impactReason | isolationStrategy | portNeeds | upstreamDependencies | conflictRisk | parallelSafety | suggestedOpenSpecChange |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| <run_id>-featurs-auth-access | auth-access | auth/access | ... | ... | ... | both | 1 | 不需優先度 | null | group-auth | stage-1/no-priority/none/stage-1-no-priority-group-auth | bootstrap health/config | backend:auth,frontend:auth | auth contract owner | backend:auth,frontend:auth | ... | ... | ... | ... | ... | frontend/backend/db | 無 | medium | safe-parallel | change-<run_id>-auth-access |
+
+### Dependency Graph
+| fromClassification | toClassification | edgeType | contract/source | reason | hardBlocker |
+| --- | --- | --- | --- | --- | --- |
+
+### Conflict Graph / Parallel Safety Check
+| classificationA | classificationB | sharedReadSet | overlappingWriteSet | conflictType | decision | reason |
+| --- | --- | --- | --- | --- | --- | --- |
 
 ### Ownership / Mutual Exclusion Matrix
 | requirement/contract/test responsibility | ownerClassification | nonOwnerReferences | duplicateRisk | modelDecision |
@@ -63,14 +83,15 @@ permission:
 ### Mutual Impact Review
 - 重工風險：模型判斷 + 理由
 - 同批隱性依賴：模型判斷 + 理由
+- 可避免序列化：模型判斷 + 理由；若非 0，必須重排
 - 後續測試影響：模型判斷 + 理由
 - shared contract 風險：模型判斷 + 理由
 - 是否需要前置 contract/foundation stage：模型判斷 + 理由
 - 最低影響度結論：通過/需調整
 
 ### Apply 批次與依賴檢查
-| Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | eligibleSetId | 分類 ID | 上游依賴 | 同階段阻塞依賴 | lane 執行方式 | touchSet 衝突檢查 | 合併/拆分理由 | 風險 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | eligibleSetId | 分類 ID | 上游依賴 | dependency edges | hard conflict edges | lane 執行方式 | touchSet 衝突檢查 | 合併/拆分理由 | 風險 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Stage Execution Graph
 | Stage | Baseline | Lane | Priority | parallelGroupId | eligibleSetId | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
@@ -96,6 +117,10 @@ permission:
 - 同階段阻塞依賴數：
 - 循環依賴數：
 - 同批隱性依賴數：
+- Dependency Graph edge 未反映到 Stage Graph 數：
+- Conflict Graph hard edge 未反映到 Stage Graph 數：
+- 無 dependency/hard conflict 卻被序列化數：
+- 缺 readSet/writeSet/contractOwner/parallelSafety 分類數：
 - 缺 parallelGroupId 分類數：
 - 缺 eligibleSetId 數：
 - 缺 touchSet 分類數：
