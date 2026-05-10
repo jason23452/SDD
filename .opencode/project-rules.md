@@ -7,14 +7,15 @@
 - Backend 變更需遵守 `fastapi-feature-builder`。
 - `.opencode/skills/**/SKILL.md` 是不可變規則來源，不得刪除、覆寫、截斷、清空或弱化。
 
-## 本次已確認需求決策（calendar-fullstack-20260510-b1）
-- 本次落地範圍為 `frontend + backend`，採完整 MVP；frontend 使用 Vite + React + TypeScript，backend 使用 FastAPI，資料與登入採 PostgreSQL + JWT。
-- 個人行事曆登入迭代必須保留既有行程管理、檢視、提醒、重複、分類、衝突、取消、恢復、完成與逾期規則；登入僅作為個人行事曆進入門檻與存取隔離，不覆蓋既有規則。
-- 後端是日期、重複、衝突、逾期與提醒狀態的權威；前端負責輸入、顯示、互動與使用者回饋，不得自行成為業務規則權威。
-- 提醒第一版採站內提醒狀態與今日清單補救；必須支援行程前、當日、多次、逾期與可關閉提醒；不保證系統推播或通知絕對送達，且關閉提醒後不得再打擾該行程。
+## 本次已確認需求決策（20260510-094343-calendar）
+- 本次落地範圍為 `frontend + backend`，MVP 為「登入 + 核心個人行事曆」；frontend 使用 React + Vite + TypeScript + Tailwind CSS v4 並以 pnpm 管理；backend 使用 FastAPI + PostgreSQL 並以 uv 管理，PostgreSQL 本機開發依賴由 Docker Compose 啟動。
+- 登入採既有帳號帳密 + DB server-side session，使用 seed 既有帳號供本機與驗收使用；不採 JWT 作為第一版 session 方案，不做新註冊、社群登入或帳號救援/忘記密碼。
+- 個人行事曆登入迭代必須保留既有行程管理、重要日期、具日期待辦、日/週/月/清單檢視、提醒、重複、分類、衝突、取消、恢復、完成、完成可回復與逾期規則；登入僅作為個人行事曆進入門檻與存取隔離，不覆蓋既有規則。
+- Asia/Taipei 是日期、今日清單、跨日、逾期與重複展開的第一版判斷基準；後端是日期、重複、衝突、逾期與提醒狀態的權威，前端負責輸入、顯示、互動與使用者回饋，不得自行成為業務規則權威。
+- 提醒第一版採提醒設定、提醒關閉狀態、逾期標示與今日清單補救；必須支援行程前、當日、多次、逾期與可關閉提醒；不保證系統推播或通知絕對送達，且關閉提醒後不得再打擾該行程。
 - 登入/登出/失敗/失效狀態不得非必要外露帳號存在性、行程內容、提醒或敏感原因；登出後個人內容不得繼續顯示，再操作需重新登入。
 - 第一版不做：純筆記、新註冊、社群登入、多人共享/協作、管理後台、帳號救援/忘記密碼、外部日曆同步、智慧自動排程、地圖/交通整合。
-- 已確認驗收包含單元測試與 E2E；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
+- 已確認驗收包含 API 測試、前端測試與端到端 smoke；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
 - 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> parallel OpenSpec propose/spec -> parallel apply-change/fallback -> worktree-merge-integrator`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。
 
 ## 通用流程
@@ -29,7 +30,8 @@
 ## Multi-Worktree OpenSpec 自動化
 - 主工作區只負責 init/project rules/bootstrap/planner 與協調；OpenSpec artifacts 由各 worktree 在各自 `<worktree>/spec-flow/` 內建立，不在主工作區共用單一 change。
 - `worktree-splitter` 依分類 ID 建立 `.worktree/<run_id>/<name>` 與對應 branch，並同步目前主工作區完整檔案快照；同步時排除 `.git`、`.worktree`、主工作區 `spec-flow`、`.opencode/skills`、`node_modules`、`.venv`、`dist`、`build`、cache、coverage 與測試報告等 generated artifacts，讓各 worktree 保留 HEAD 中乾淨的 skill 檔並自行依 lockfile/pyproject 重建依賴；不得在 splitter 階段實作、測試、commit、merge 或 push。
-- OpenSpec propose/spec 必須同批平行啟動：每個 worktree 先用 `openspec new change "<change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
+- OpenSpec propose/spec 必須同批平行啟動：每個 worktree 先用 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
+- `classification_id` 與 `openspec_change` 必須分離：classification ID 固定為 `<run_id>-featurs-<name>` 供追蹤；OpenSpec change name 固定派生為 `change-<run_id>-<name>`，必須符合 `^[a-z][a-z0-9-]*$`，不得直接使用可能以數字開頭的 classification ID。
 - 所有 worktree 的 alignment 與 strict validate 全部通過後，才能同批平行執行 apply-change/fallback；每個 worktree 必須獨立 apply、驗證，並依小功能建立中文細分 commit。
 - 所有 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，才可由 `worktree-merge-integrator` 一般 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
 - Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。
@@ -53,7 +55,7 @@
 - Bootstrapper 建立新專案時必須同步建立忽略規則，避免 `node_modules`、`.venv`、`dist`、cache、test results 與 `.opencode/run` 成為待 commit 檔案。
 
 ## Frontend 規則
-- Frontend 沿用 React SPA、Vite、TypeScript 與現有 lockfile 對應的 package manager；無 lockfile 且無 repo 慣例時使用 npm，不混用 npm/pnpm/yarn。
+- Frontend 沿用 React SPA、Vite、TypeScript 與現有 lockfile 對應的 package manager；本次已明確指定 frontend 使用 pnpm，後續不得混用 npm/pnpm/yarn。
 - 前端採 feature-based 結構：使用者可見流程放在 `src/features/<feature>/`，route/page 組裝放在 `src/pages/` 或 `src/app/`，跨功能且不含業務語意的程式才放 `src/shared/`。
 - `shared/` 不得 import `features/`；跨 feature 使用需透過 feature public entry 或抽成真正通用的 shared code。
 - 前端完成標準至少包含可安裝、可啟動、可 build，並針對主要 route/流程做 smoke 驗證；無法驗證時需記錄原因與風險。
@@ -61,6 +63,7 @@
 
 ## Backend 規則
 - Backend 已確認採 FastAPI + PostgreSQL（migration 管理 schema）；新增後端功能需沿用 `app/`、`app/core/`、`app/features/` 的 feature-based 結構。若未來要改用 SQLite 或其他資料庫，需先經使用者明確確認並記錄遷移影響。
+- Backend 本次已明確指定以 uv 管理套件與執行命令，PostgreSQL 本機開發依賴使用 Docker Compose；登入 session 使用 DB server-side session，不得未確認改為 JWT、signed-cookie-only 或 in-memory session。
 - FastAPI `app/main.py` 保持薄，只負責建立 app、middleware/exception handlers、lifespan 與 router include。
 - Router 只處理 HTTP boundary；business rules 放 service；persistence/query 放 repository；schema/DTO 與 ORM model 不混用。
 - 資料結構變更必須使用 migration；不得以 startup `create_all()` 取代正式 migration。
@@ -76,3 +79,4 @@
 ## 規則更新紀錄
 - 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每分類獨立 worktree、各自 spec-flow、平行 OpenSpec propose/apply、一般 merge integration、實際內容 diff 型 skill immutable gate、project rules read-back gate 與 bounded server smoke gate。
 - 2026-05-10：新增測試卡住防護規則：測試前必須有單點測試矩陣、frontend/backend/E2E gate、one-shot 非互動命令、timeout、`TEST_TIMEOUT` cleanup；worktree snapshot 不同步 dependency/cache/build/test artifacts。
+- 2026-05-10：更新本次明確決策為 run_id `20260510-094343-calendar`：frontend 使用 pnpm + React/Vite/TypeScript/Tailwind CSS v4，backend 使用 uv + FastAPI + PostgreSQL + Docker Compose，Auth 使用 DB server-side session，Asia/Taipei 為日期時間權威基準，驗收為 API + 前端 + smoke。

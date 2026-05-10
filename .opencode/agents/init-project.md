@@ -74,6 +74,7 @@ permission:
 - 路徑：`.opencode/local-docs/development-detail-planner/`。
 - 檔名：`development-detail-planner_<run_id>_YYYYMMDD_HHmmss.md`，不可覆蓋。
 - `<run_id>` 必須同步給分類 agent；分類 ID 固定 `<run_id>-featurs-<name>`，保留 `featurs`，不得用 `TP-001`。
+- OpenSpec CLI 使用的 `openspec_change` 必須和分類 ID 分離，固定派生為 `change-<run_id>-<name>`，並符合 `^[a-z][a-z0-9-]*$`；不得直接把可能以數字開頭的 classification ID 傳給 `openspec new change`。
 - 文件用繁中，同份包含原始需求、現行專案、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則、multi-worktree 實作順序、驗收/測試、不做範圍。
 - 待確認章節只放使用者已選擇延後/待確認的項目；不得把未問或未答事項寫進檔案假裝完成。
 - 若需 `project-bootstrapper`，需求開發實踐檔可在 bootstrapper 完成後產生或更新，必須納入最小專案啟動結果、README/命令/URL/驗證摘要與完整 multi-worktree downstream 鏈路；不得在 bootstrapper 完成後停止而不產檔或不續行 downstream。
@@ -86,7 +87,7 @@ permission:
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，依 `project-start-rules-definer` 規則執行；它是 primary 規則流程，不處理需求功能，完成後必須返回本流程續行。
 - Bootstrap：若需建立最小專案，交 `project-bootstrapper`；傳入資料必須包含完整 multi-worktree downstream 鏈路與 commit 授權狀態，除非使用者已主動明確限制流程。它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，下一步直接交 `worktree-splitter`。
 - Worktree Split：需求開發實踐檔產生後，交 `worktree-splitter` 建立 `.worktree/<run_id>/<name>`、branch、port map 並同步快照。splitter 不實作、不測試、不 commit、不 merge、不 push。
-- OpenSpec Propose/Spec：每個 worktree 先在自己的 `spec-flow/` 內執行 `openspec new change "<change>" --schema spec-driven`，產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並 strict validate。
+- OpenSpec Propose/Spec：每個 worktree 先在自己的 `spec-flow/` 內以 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven`，產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並 strict validate；`classification_id` 只作追蹤，不得直接當 change name。
 - OpenSpec Apply：所有 worktree 的 `alignment-check.md` 與 strict validate 全部通過後，平行啟動 apply-change。若 OpenSpec apply blocked/失敗但 alignment 已通過且 fallback 已授權，依該 worktree 的 `spec-flow` artifacts fallback 完成、驗證與中文細分 commit。
 - Merge Integration：所有 worktree apply/fallback 完成、驗證完成且無未提交變更後，交 `worktree-merge-integrator` 一般 merge 到 `.worktree/<run_id>/merge` 與 integration branch，跑整合驗證。
 - 若 subagent 不可用，依對應 agent 輸出契約手動完成；不得省略。

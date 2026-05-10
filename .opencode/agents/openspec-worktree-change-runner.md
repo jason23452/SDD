@@ -18,7 +18,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 只在主流程已完成 `technical-practice-classifier`、`requirement-consistency-checker`、`.opencode/project-rules.md` read-back gate、development-detail-planner 與 `worktree-splitter` 後執行。
 - 完整 downstream 授權代表已授權該 worktree 的 OpenSpec propose/spec、apply/fallback、驗證，以及 apply/fallback 成功後中文細分 commit；不得再要求使用者確認是否 commit。
 - 輸入必須含 phase：`propose-spec`、`propose-alignment`、`apply-change` 或 `archive`。`propose-alignment` 是 `propose-spec` alias。`archive` 不屬預設流程，只有使用者明確要求 archive 時才執行。
-- 輸入必須含 `run_id`、`classification_id`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、development-detail-planner 路徑、技術實踐項目、已確認決策、不做範圍、驗證需求、ports、fallback 是否授權與 commit 授權狀態。
+- 輸入必須含 `run_id`、`classification_id`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、development-detail-planner 路徑、技術實踐項目、已確認決策、不做範圍、驗證需求、ports、fallback 是否授權與 commit 授權狀態。若 `openspec_change` 缺失或不合法，依「OpenSpec Change Name 契約」自動派生合法名稱，不得直接使用 `classification_id`。
 
 ## 來源與限制
 
@@ -29,6 +29,16 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 不修改 `.opencode/skills/**/SKILL.md`、不修改 OpenSpec 規則來源。
 - 不 push、不 force push、不改寫歷史、不 merge。
 - 需要使用者補充時用 `question`，不得要求使用者改跑 slash command。
+
+## OpenSpec Change Name 契約
+
+- `classification_id` 是分類追蹤 ID，固定格式可為 `<run_id>-featurs-<name>`，可能以數字開頭；它只能用於 artifacts、alignment、commit body 與回報追蹤。
+- `openspec_change` 是 OpenSpec CLI change name，必須以英文字母開頭並符合 `^[a-z][a-z0-9-]*$`。
+- 不得把 `classification_id` 直接傳給 `openspec new change`，因為 OpenSpec CLI 會拒絕以數字開頭的名稱。
+- Canonical `openspec_change` 產生規則：取 `classification_id` 中 `<run_id>-featurs-` 後的 `<name>`，組成 `change-<run_id>-<name>`，轉小寫、將非英數與 hyphen 字元替換成 hyphen、合併連續 hyphen、去除頭尾 hyphen。
+- 若輸入的 `openspec_change` 缺失、不符合 `^[a-z][a-z0-9-]*$`、等於 `classification_id`，或以數字開頭，runner 必須自動改用 canonical `openspec_change`，並在輸出中同時記錄原始 `classification_id` 與實際 `openspec_change`；此情況不需要詢問使用者。
+- 若 canonical `openspec_change` 已存在，才依既有規則用 `question` 確認續用或改名；不得覆蓋。
+- 若 canonical `openspec_change` 仍不合法，停止並回報 blocker。
 
 ## Skill Gate
 
@@ -43,9 +53,9 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 ## Propose/Spec 內建流程
 
 1. 確認 worktree path、branch、classification ID 與 port map 交接一致。
-2. 讀取 development-detail-planner、技術實踐分類、`.opencode/project-rules.md`、README 與需求一致性結果；若 planner 與 rules 不一致，停止並回報。
+2. 讀取 development-detail-planner、技術實踐分類、`.opencode/project-rules.md`、README 與需求一致性結果；若輸入 planner 路徑在 worktree 內不存在，依序尋找 `<worktree>/.opencode/local-docs/development-detail-planner/<同檔名>`、`<worktree>/.opencode/local-docs/development-detail-planner/development-detail-planner_<run_id>_*.md`。若找到唯一檔案則使用；找不到或找到多個才停止回報 blocker。若 planner 與 rules 不一致，停止並回報。
 3. 建立並初始化 `spec-flow/`；若 `spec-flow/openspec/` 不存在，必須先在 worktree root 執行 `openspec init spec-flow --tools opencode`。
-4. 若 `spec-flow/openspec/changes/<openspec_change>` 已存在，用 `question` 確認續用或改名；不得覆蓋。
+4. 依 OpenSpec Change Name 契約確認或派生合法的 `<openspec_change>`；若 `spec-flow/openspec/changes/<openspec_change>` 已存在，用 `question` 確認續用或改名；不得覆蓋。
 5. 在 `spec-flow/` 執行 `openspec new change "<openspec_change>" --schema spec-driven`；不得只手寫 `openspec/changes/<change>/` 目錄跳過 CLI propose。
 6. 在 `spec-flow/` 執行 `openspec status --change "<openspec_change>" --json`，取得 `applyRequires` 與 artifacts 狀態。
 7. 依原生 `spec-driven` schema 的 artifact 順序建立 apply-ready 所需檔案：`proposal -> specs -> design -> tasks`。
@@ -105,7 +115,7 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - 每個 commit 只包含一個小功能；不得混入不相關變更。
 - commit 前檢查 `git status` 與 `git diff`，只 stage 相關檔案。
 - message 必須中文，例如 `實作：新增登入表單驗證`、`修正：調整權限錯誤處理`。
-- body 必須記錄 run_id、OpenSpec change、classification ID、完成 task、驗證結果或未驗證原因。
+- body 必須記錄 run_id、實際 OpenSpec change、classification ID、完成 task、驗證結果或未驗證原因。
 - 不改 git config、不用 `--no-verify`、不 amend，除非使用者明確要求且符合安全條件。
 - commit 後必須重新執行 `git status --porcelain`。若仍有未提交變更，必須判斷是否為必要檔案、OpenSpec artifacts、bootstrap 基底快照或不相關/禁止檔案；必要檔案需追加新中文 commit，不相關或禁止檔案需回報 blocker。
 - `.opencode/skills/**/SKILL.md` 若有實際內容 diff，必須停止並回報 `ERROR: skill rules are immutable and cannot be changed`；不得 stage、commit、刪除或修改 skill 檔。

@@ -15,7 +15,7 @@ permission:
 
 - 每個技術實踐分類建立一個 worktree。
 - 每個 worktree 使用獨立 branch。
-- 每個 worktree 之後會在自己的 `spec-flow/` 內建立獨立 OpenSpec change。
+- 每個 worktree 之後會在自己的 `spec-flow/` 內建立獨立 OpenSpec change；OpenSpec change name 必須和 classification ID 分離。
 - 同步主工作區目前完整快照，讓後續 worktree runner 可直接執行。
 - 產生 port map，避免平行 worktree smoke 互相占用預設 port。
 
@@ -45,7 +45,11 @@ permission:
 - 每個分類的 `<name>` 取自 classification ID 的 `<name>` 部分。
 - worktree path：`.worktree/<run_id>/<name>`。
 - branch：`worktree/<run_id>/<name>`。
-- OpenSpec change 建議名：`<run_id>-<name>`。
+- OpenSpec change 建議名：`change-<run_id>-<name>`。
+- `classification_id` 必須維持原始分類 ID，例如 `<run_id>-featurs-<name>`；不得為了 OpenSpec CLI 改掉分類 ID。
+- `openspec_change` 必須是 OpenSpec CLI-safe name，符合 `^[a-z][a-z0-9-]*$`，且不得直接使用可能以數字開頭的 `classification_id`。
+- 產生 `openspec_change` 時，先取 classification ID 中 `<run_id>-featurs-` 後的 `<name>`，再組成 `change-<run_id>-<name>`；轉小寫、將非英數與 hyphen 字元替換成 hyphen、合併連續 hyphen、去除頭尾 hyphen。
+- 若產生後仍不符合 `^[a-z][a-z0-9-]*$`，splitter 必須停止回報 blocker，不得把非法 change name 交給 runner。
 - spec-flow path：`.worktree/<run_id>/<name>/spec-flow`。
 - 建立方式：使用 `git worktree add -b <branch> <path> HEAD`。
 - 禁止在 splitter 階段執行 OpenSpec、實作、測試、commit、merge、push。
@@ -138,7 +142,7 @@ robocopy <source> <target> /E /XD .git .worktree spec-flow .opencode\skills node
 - skill gate：通過/失敗
 
 ### Worktrees
-| 分類 ID | branch | path | spec-flow path | OpenSpec change 建議名 | ports | 範圍 | 技術實踐項目 | worktree 狀態 | 快照同步 |
+| 分類 ID | branch | path | spec-flow path | OpenSpec-safe change | ports | 範圍 | 技術實踐項目 | worktree 狀態 | 快照同步 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### 下游交接

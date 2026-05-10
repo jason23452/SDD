@@ -115,7 +115,7 @@ tests/
       test_router.py
       test_service.py
       test_repository.py
-compose.yml
+docker-compose.yml
 .env.example
 pyproject.toml
 ```
