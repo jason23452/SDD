@@ -16,7 +16,7 @@ permission:
 - 已確認決策：`question` 回答、明確授權、明確選擇。
 - 待確認事項：使用者選擇延後/待確認/尚未授權內容。
 - 實踐草稿：需求整理、已確認方案、project rules 摘要、開發拆解、實作建議。
-- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
+- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
 - 前次需求線索；沒有則標示無。
 
 ## 判定
@@ -32,8 +32,8 @@ permission:
 - 分類有同階段阻塞依賴、循環依賴、或上游依賴未在草稿/流程中安排先 merge 再作為下一階段基準 => `不一致`。
 - 分類未分成 `需要優先度` 與 `不需優先度` lane，或草稿/流程讓兩條 lane 互相等待而非平行處理 => `不一致`。
 - `需要優先度` lane 有明確執行優先度但草稿/流程未按優先度執行，或 `不需優先度` lane 被任意序列化而非同步/平行執行 => `不一致`。
-- 分類缺 `parallelGroupId`、`eligibleSetId`、`readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`parallelSafety`，或 Stage Execution Graph 未列出 `stage + lane + priority + parallelGroupId` eligible set、canonical `eligibleSetId`、dispatch 方式、等待條件與 stage merge gate => `不一致`。
-- 兩個分類沒有 Dependency Graph edge、沒有 Conflict Graph hard edge，且只讀已 merge/stable contract，卻被排到不同 apply stage、不同 priority 或互相等待，而不是同批或同輪平行 dispatch => `不一致`。
+- 分類缺 `parallelGroupId`、`eligibleSetId`、`readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`parallelSafety`，或 Stage Execution Graph 未列出 `stage + lane + priority + parallelGroupId` eligible set、canonical `eligibleSetId`、stage ready set / `readyEligibleSetIds`、dispatch 方式、等待條件與 stage merge gate => `不一致`。
+- 兩個分類沒有 Dependency Graph edge、沒有 Conflict Graph hard edge，且只讀已 merge/stable contract，卻被排到不同 apply stage、不同 priority、互相等待，或漏出目前 stage ready set，而不是同批或同輪平行 dispatch => `不一致`。
 - `不需優先度` lane 被標空集合，但分類表中存在 `parallelSafety=safe-parallel` 且 dependency 已滿足的分類，或 `需要優先度` lane 包含沒有具體 dependency/hard conflict 理由的分類 => `不一致`。
 - 分類以 `conflictRisk=high`、同一大需求、同一功能群、同一頁面附近、測試較多、或「保守」作為唯一理由阻止平行，而沒有具體 `writeSet` 重疊、未穩定 contract、migration chain、form submit flow 或 fixture hard conflict => `不一致`。
 - 草稿/流程採舊版全分類 spec-plan 雙平面、要求建立 `worktree/<run_id>/spec/<name>`、或要求 bootstrap 後一次建立所有 planning worktree => `不一致`。
@@ -48,7 +48,7 @@ permission:
 - 草稿/流程未規劃 worktree port 自動分配、port-map/manifest/dispatch ledger 交接，或允許 runner 自行選 port/中途換 port => `不一致`。
 - 草稿/流程要求使用 `/opsx-*` commands、讀 OpenSpec 初始化帶入的原始 skills，或在主工作區執行 OpenSpec propose/apply => `不一致`。
 - 草稿/流程未規劃 dispatch ledger，或未定義中斷後只重試 failed/aborted worktree、不得重跑已完成 worktree 的 resume gate => `不一致`。
-- 草稿/流程一次建立未來多個 apply stage 的 worktree，或要求 runner 自行 merge upstream/stage integration 補基準，而不是在上一 stage integration 後重新呼叫 splitter 建立/同步下一 stage => `不一致`。
+- 草稿/流程一次建立未來多個 apply stage 的 worktree，或要求 runner 自行 merge upstream/stage integration 補基準，而不是在上一 stage integration 後重新呼叫 splitter 建立/同步下一 stage => `不一致`。同一 apply stage 內多個 ready eligibleSetId 同輪建立不屬於此錯誤。
 - 合理工程步驟若未宣稱已確認，可列 `一致` 並標示為實作推導。
 - 原需求與後續確認衝突時，以後續明確確認為準並列覆蓋原因。
 
