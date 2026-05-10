@@ -1,0 +1,4 @@
+.opencode/skills/**/SKILL.md text eol=lf
+.opencode/agents/*.md text eol=lf
+.opencode/project-rules.md text eol=lf
+*.md text=auto

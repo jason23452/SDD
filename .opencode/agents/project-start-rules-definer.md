@@ -33,7 +33,7 @@ permission:
 - `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。
 - 使用者要求刪除/移除/清空/覆蓋/弱化 skill 規則時停止並回報 `ERROR: skill rules are immutable and cannot be deleted`。
 - 可在專案層記錄最新規則覆蓋舊專案採用方式；不得宣稱 skill 原文已刪。
-- 若 `git status` 或 diff 顯示 `.opencode/skills/**/SKILL.md` 已被修改，必須停止並回報 `ERROR: skill rules are immutable and cannot be changed`；不得把 skill 檔修改納入 project rules 更新。
+- 檢查 skill 修改時，只以 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills` 判斷。只有實際內容 diff 顯示 `.opencode/skills/**/SKILL.md` 已被修改時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`；純 line-ending/stat 假異動或其他非 skill 檔的 `needs update` 不得當成 blocker，也不得把 skill 檔修改納入 project rules 更新。
 
 ## 來源與整理
 - 範圍含 frontend 讀 frontend skill；含 backend 讀 backend skill；兩者皆需兩邊都讀；不讀不相關 skill。
