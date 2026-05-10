@@ -26,6 +26,8 @@ permission:
 - 未確認模型/skill 推薦不得寫入已確認規則。
 - 每次建立或更新 `.opencode/project-rules.md` 後，必須立即重新讀取該檔並比對使用者最新明確決策；若寫入後檔案內容仍與決策不一致，必須修正到一致後才可回報完成。
 - 主流程若提供 development-detail-planner，必須比對 planner 的已確認技術選型與 `.opencode/project-rules.md`；若 planner 與 rules 不一致，不得進入 bootstrap、OpenSpec propose/spec、apply 或 verification。
+- 若建立或更新的專案規則含任何 server smoke、preview smoke、dev server smoke、startup smoke 或 integration verification，必須寫入長期 cleanup contract：啟動前檢查 port；啟動後記錄 PID/job；清理時遞迴停止 parent process 與所有 child/descendant process；再用 assigned port 查 listener PID 補殺本工作區/本次 smoke 的殘留 process；未知 listener 必須 fail fast 回報 PID/command line；任一 assigned port 未釋放時不得宣稱完成、不得勾 tasks、不得 commit。
+- 產生 PowerShell smoke/validation 範例或規則時，必須要求等價的 `Stop-ProcessTree`、`Stop-PortListener`、`Assert-PortFree` helper；禁止只用 `Stop-Process $Process.Id` 當成完整 cleanup，因為 `npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 會產生子程序鏈。
 
 ## Skill 保護
 - `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。

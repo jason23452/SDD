@@ -99,6 +99,11 @@ OpenSpec 原生 propose/apply/archive 規則已整合在本 agent；不讀 `open
 - backend-only 用 pytest 或既有 backend tests。
 - frontend/fullstack 用既有 test/build/browser smoke；若需要 Playwright MCP 但不可用，回報原因。
 - 任何 server smoke 必須 bounded：優先使用非 server 的 build/test/import 驗證；只有需要 runtime smoke 時才啟動 server。啟動 server 後必須用 finally/清理段停止 PID/job，即使 HTTP 檢查失敗或命令中斷也要停止並確認 port 釋放。
+- Bounded smoke cleanup 必須停止整個 process tree，不得只停止 `Start-Process` 回傳的 direct PID。`npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 等命令可能產生 parent/child/grandchild process；agent 產生或修改任何 smoke/validation script 時，必須包含等價 `Stop-ProcessTree` 邏輯，先遞迴停止 descendants，再停止 parent。
+- Bounded smoke cleanup 必須再以 assigned port 檢查 listener PID。若 port listener 的 command line 指向本 workspace/worktree 與本次 smoke 命令，必須強制停止該 listener；若是未知行程，必須 fail fast 並回報 port、PID、command line，不得自動換 port。
+- 驗證 script 必須在 `finally` 中執行 process-tree cleanup 與 port-listener cleanup；即使命令中斷、HTTP smoke 失敗、測試失敗或發生 exception，也必須嘗試清理。
+- 產生 PowerShell validation script 時，必須使用 `Get-CimInstance Win32_Process` 依 `ParentProcessId` 遞迴找 descendants，並用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 找殘留 listener；禁止只用 `Stop-Process $Process.Id` 或只停止 PowerShell job。
+- 任一 assigned port 未釋放時，不得把 tasks checkbox 勾完成、不得 commit、不得回報 apply 完成；必須修復 cleanup 或回報 blocker。
 - 主工作區最終驗證使用專案預設 ports 前必須檢查佔用狀態並輸出 PID/command line。若 port 被未知行程佔用，必須 fail fast 並回報；不得自動 fallback 到其他 port。
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。
 - 最終驗證後必須確認相關 server ports 無殘留 listener；未釋放不得回報完成。

@@ -21,7 +21,7 @@ permission:
 6. `development-detail-planner`：bootstrap 後自動產生/更新，納入啟動結果、分類、一致性、規則與完整單一工作區自動化步驟。
 7. `single-workspace OpenSpec propose/spec`：在主工作區 `spec-flow/` 內自動建立單一整合 change `<run_id>-implementation`，依分類產生 `proposal/specs/design/tasks` 與 `alignment-check.md`，並執行 strict validate。
 8. `single-workspace apply-change/fallback`：在主工作區依 OpenSpec apply instructions 或已通過 alignment 的 artifacts 按分類依賴順序實作、更新 tasks、驗證。
-9. `integration verification`：在主工作區執行 frontend/backend/integration/E2E 可用驗證，server smoke 必須可自動停止並檢查 port 釋放。
+9. `integration verification`：在主工作區執行 frontend/backend/integration/E2E 可用驗證，server smoke 必須可自動停止並檢查 port 釋放；cleanup 必須停止 parent process、所有 child/descendant process，並以 assigned port 查 listener PID 做二次清理。
 
 不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、產 OpenSpec、apply-change、驗證或宣稱完成。不得以 worktree splitter、worktree runner 或 merge integrator 取代單一工作區流程。
 
@@ -34,6 +34,7 @@ permission:
 - `project-bootstrapper` 完成後的下一步固定是：回收啟動結果 -> 產生/更新 development-detail-planner -> 在主工作區 `spec-flow/` 產生 OpenSpec change；不得停在「專案啟動結果」、不得要求 baseline commit、不得拆 worktree。
 - OpenSpec 階段在主工作區單一路徑執行；分類只決定 tasks 與 apply 順序，不啟動平行 worktree subagents。
 - 硬性停止只限：`question` 未回答、使用者明確限制 downstream、分類/一致性未通過、project rules 缺失且無法建立、bootstrap/驗證無法修復、OpenSpec 對齊未通過、apply/task blocker 且 fallback 無法安全完成、整合測試失敗且無法修復。
+- 任一 bootstrap、apply 或 integration verification 產生/執行 smoke script 時，主流程必須要求 process-tree cleanup 與 port-listener cleanup；若 assigned port 未釋放，不得視為驗證完成，不得提交或宣稱完成。
 
 ## 範圍與現況
 

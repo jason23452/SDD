@@ -47,7 +47,10 @@ permission:
 - 驗證必須非互動且可自動結束；不得開新 terminal/window，不得要求使用者關閉 terminal 才繼續。
 - 優先使用會結束的命令驗證：frontend install/build/typecheck/test；backend `uv sync`、import app、pytest 或等價測試。
 - 如需 server smoke，必須在同一 shell 背景啟動、記錄 PID/job、完成 smoke 後自動停止；不得前景長駐執行 `npm run dev`、`uvicorn`、`fastapi dev` 或等價 dev server。
-- 禁止用 `cmd /c start`、`start`、未受控 `Start-Process` 或任何會跳出新 terminal/window 的驗證方式。
+- Server smoke 停止必須清理整個 process tree，不得只停止 direct PID。`npm exec vite`、`npm run dev`、`vite preview`、`uvicorn`、`fastapi dev` 可能留下 child/grandchild listener；bootstrapper 產生或執行 smoke script 時，必須在 `finally` 中遞迴停止 descendants、停止 parent，並再用 port listener 檢查補殺本次 smoke 的殘留 process。
+- 產生 PowerShell smoke/validation script 時，必須使用 `Get-CimInstance Win32_Process` 依 `ParentProcessId` 遞迴找 descendants，並用 `Get-NetTCPConnection -LocalPort <port> -State Listen` 找殘留 listener；禁止只用 `Stop-Process $Process.Id` 或只停止 PowerShell job。
+- 禁止用 `cmd /c start`、`start`、未受控 `Start-Process` 或任何會跳出新 terminal/window 的驗證方式。若使用 `Start-Process`，必須受控：記錄 parent PID、清理 process tree、檢查 port listener、確認 port 釋放。
+- 任一 smoke port 未釋放時，不得宣稱 bootstrap 完成；必須修復 cleanup 或回報 blocker，並輸出佔用 port 的 PID/command line。
 - 回報 URL、port、命令、驗證結果、背景 server PID/job 與停止結果；兩者皆建時說明啟動順序與 API base URL。
 - README 保留既有內容，只補技術棧、安裝、啟動、測試/build、目錄、專案規則、驗證、風險；不重排成新模板。
 - 失敗先修；仍失敗只回報未完成、原因、風險、下一步。

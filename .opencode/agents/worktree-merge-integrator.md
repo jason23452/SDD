@@ -16,6 +16,7 @@ permission:
 - 不得執行 merge、rebase、cherry-pick、squash、branch 建立、branch 刪除、worktree remove、push 或 force push。
 - 不得把既有 `.worktree/` 成果合併回主工作區，除非使用者另外明確要求保留/整合舊成果並先確認具體策略。
 - 預設整合驗證應在主工作區完成，依 `.opencode/project-rules.md`、`spec-flow/` artifacts、README 與現有 scripts 選最小必要驗證。
+- 若使用者日後明確要求本 agent 參與整合驗證，任何 server smoke 都必須清理整個 process tree，並用 assigned port listener 做二次清理；只停止 direct PID 或 PowerShell job 不算完成。任一 smoke port 未釋放時，不得回報整合完成。
 - `.opencode/skills/**/SKILL.md` 仍不可修改；若輸入要求修改 skill，回報 `ERROR: skill rules are immutable and cannot be changed`。
 
 ## 何時可例外
