@@ -17,9 +17,9 @@ permission:
 - repository root。
 - `.worktree/<run_id>/port-map.json`。
 - development-detail-planner 路徑。
-- 各 worktree 結果：path、branch、classification ID、openspec change、commit hash、驗證結果、parallelGroupId、touchSet、contractInputs、contractOutputs、conflictRisk。
-- apply 階段、優先度 lane、執行優先度、parallelGroupId、分類依賴順序與本次要 merge 的階段範圍。
-- Stage Execution Graph 與本階段 dispatch 結果，證明同一 eligible set 已由主流程平行處理完成。
+- 各 worktree 結果：path、branch、classification ID、openspec change、commit hash、驗證結果、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk。
+- apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、分類依賴順序與本次要 merge 的階段範圍。
+- Stage Execution Graph、dispatch ledger 與本階段 dispatch 結果，證明同一 eligible set 已由主流程平行處理完成。
 - 已確認決策、不做範圍、驗證門檻。
 
 ## 前置 Gate
@@ -34,8 +34,9 @@ permission:
    - `spec-flow/openspec/changes/<openspec_change>/alignment-check.md` 必須通過。
    - `spec-flow/openspec/changes/<openspec_change>/tasks.md` 必須全部完成，或明確說明為 OpenSpec apply all_done。
 5. 若任一來源 worktree 未完成，不得 merge。若未完成原因是 `CLASSIFICATION_STAGE_INVALID` 或同階段 missing code/schema/helper，停止並要求回到分類階段調整或合併；若原因是 `STAGE_BASELINE_MISSING_UPSTREAM`，停止並要求主流程先完成上游階段 merge 後重建該階段 worktree。
-6. 確認同一 eligible set（stage + lane + priority + parallelGroupId）中多個 worktree 均已完成；若結果顯示主流程把同一 eligible set 任意序列化或漏派，停止並回報 `PARALLEL_DISPATCH_VIOLATION`。
-7. 讀取 port map 或 manifest 中的 `touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。若 high conflict touchSet 在分類階段未標示隔離策略，或實際 merge 需要把未穩定 contract 從一個同階段 worktree 提供給另一個同階段 worktree，停止並回報 `CLASSIFICATION_STAGE_INVALID`。
+6. 確認同一 `eligibleSetId` 中多個 worktree 均已完成，且 dispatch ledger 顯示同一輪平行派工、沒有漏派、沒有未解 failed/aborted 項目；若結果顯示主流程把同一 eligible set 任意序列化或漏派，停止並回報 `PARALLEL_DISPATCH_VIOLATION`。
+7. 讀取 port map 或 manifest 中的 `eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。若 high conflict touchSet 在分類階段未標示隔離策略，或實際 merge 需要把未穩定 contract 從一個同階段 worktree 提供給另一個同階段 worktree，停止並回報 `CLASSIFICATION_STAGE_INVALID`。
+8. 若 dispatch ledger 缺失、不可解析、與來源 worktree manifest/port-map 不一致，停止並回報 `DISPATCH_LEDGER_INVALID`；不得憑人工順序直接 merge。
 
 ## 建立 Merge Worktree
 
@@ -47,7 +48,7 @@ permission:
 
 ## Merge 規則
 
-- 依 apply 階段、優先度 lane、執行優先度、parallelGroupId 與分類整合順序 merge，不能用隨機順序；兩條 lane 都完成後才可 stage merge，lane 間沒有依賴者可按 Stage Execution Graph 的穩定順序 merge。此順序只處理本階段已完成 worktree 的整合，不得用來讓同階段未完成 worktree 取得依賴後再 apply。完成階段整合後，主流程必須用該 integration 結果重新呼叫 `worktree-splitter` 建立/同步下一 apply 階段 worktree。
+- 依 apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId 與分類整合順序 merge，不能用隨機順序；兩條 lane 都完成後才可 stage merge，lane 間沒有依賴者可按 Stage Execution Graph 的穩定順序 merge。此順序只處理本階段已完成 worktree 的整合，不得用來讓同階段未完成 worktree 取得依賴後再 apply。完成階段整合後，主流程必須用該 integration 結果重新呼叫 `worktree-splitter` 建立/同步下一 apply 階段 worktree。
 - 使用一般 merge：`git merge --no-ff <branch>`。
 - 禁止 squash、rebase、cherry-pick、force push。
 - 每次 merge 後檢查 `git status --porcelain`。
@@ -105,8 +106,8 @@ Server smoke 必須 bounded：
 - base：...
 
 ### Merge Summary
-| 順序 | apply stage | execution lane | execution priority | parallelGroupId | classification ID | touchSet | contract | branch | commit | merge 結果 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 順序 | apply stage | execution lane | execution priority | parallelGroupId | eligibleSetId | classification ID | touchSet | contract | branch | commit | merge 結果 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Conflict Handling
 - 無 / 有，處理方式：...

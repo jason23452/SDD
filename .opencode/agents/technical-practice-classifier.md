@@ -21,6 +21,7 @@ permission:
 - 分類可以有上游依賴；不再要求所有分類都從同一 bootstrap 快照同批獨立 apply。必須輸出 apply 階段（wave）與上游依賴，讓主流程可依序「前一批 merge 後再以該 integration 結果重新呼叫 splitter 建立/同步下一批 worktree」。不得把未來 stage 預先從 bootstrap 快照建立後交給 runner 自行 merge 上游。
 - 同一 apply 階段內必須先分成兩條 lane：`需要優先度` 與 `不需優先度`。兩條 lane 從同一 stage baseline 平行處理；`不需優先度` lane 不等待 `需要優先度` lane。stage merge 必須等兩條 lane 都完成。
 - 同一 apply 階段內必須輸出 `parallelGroupId`。同一 `parallelGroupId` 代表主流程必須同一輪平行呼叫多個 runner subagent；不同 `parallelGroupId` 代表存在 priority、contract 或風險順序，必須說明等待條件。
+- Stage Execution Graph 必須輸出 canonical `eligibleSetId`，格式固定為 `stage-<n>/<lane>/<priority>/<safe-parallelGroupId>`；`priority` 在 `不需優先度` lane 固定填 `none`，`safe-parallelGroupId` 需把 `/`、空白與非英數 hyphen 字元轉成 `-`。後續 splitter、runner、merge integrator 與 dispatch ledger 都以此鍵交接，不得各自重算不同格式。
 - `需要優先度` lane：只有存在明確需求先後、風險先後或技術先後時使用，必須輸出數字 `執行優先度`，數字越小越先執行；同數字且無阻塞依賴者同步/平行執行。
 - `不需優先度` lane：沒有優先度時使用，`執行優先度` 填 `無`，同一 apply 階段內全部同步/平行執行，不得任意序列化。
 - 每列必須輸出 `touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。`touchSet` 用於預判平行 merge 衝突；`contractInputs/Outputs` 用於判斷是否需要前置 contract-first stage；`conflictRisk` 可為 low/medium/high，high 不代表不可平行，但必須說明隔離或前置 contract。
@@ -48,19 +49,19 @@ permission:
 ```markdown
 ## 技術實踐分類
 ### 分類表
-| ID | 需求分類 | 技術實踐項目 | 判定理由 | 邊界/排除 | 上游依賴 | Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | touchSet | contractInputs | contractOutputs | conflictRisk |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| <run_id>-featurs-auth-access | auth-access | ... | 同類登入/存取能力聚合 | ... | 無 | 1 | 不需優先度 | 無 | stage-1/no-priority/group-a | backend:auth,frontend:auth | 無 | session API, current-user contract | medium |
+| ID | 需求分類 | 技術實踐項目 | 判定理由 | 邊界/排除 | 上游依賴 | Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | eligibleSetId | touchSet | contractInputs | contractOutputs | conflictRisk |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| <run_id>-featurs-auth-access | auth-access | ... | 同類登入/存取能力聚合 | ... | 無 | 1 | 不需優先度 | 無 | stage-1/no-priority/group-a | stage-1/no-priority/none/stage-1-no-priority-group-a | backend:auth,frontend:auth | 無 | session API, current-user contract | medium |
 
 ### Apply 批次與依賴檢查
-| Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | 分類 ID | 上游依賴 | 同階段阻塞依賴 | lane 執行方式 | touchSet 衝突檢查 | 合併/拆分理由 | 風險 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 不需優先度 | 無 | stage-1/no-priority/group-a | <run_id>-featurs-auth-access | 無 | 無 | 與需要優先度 lane 平行；同 group 內必須多 subagent 同步/平行 | touchSet 無互斥衝突 | ... | ... |
+| Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | eligibleSetId | 分類 ID | 上游依賴 | 同階段阻塞依賴 | lane 執行方式 | touchSet 衝突檢查 | 合併/拆分理由 | 風險 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 不需優先度 | 無 | stage-1/no-priority/group-a | stage-1/no-priority/none/stage-1-no-priority-group-a | <run_id>-featurs-auth-access | 無 | 無 | 同 eligibleSetId 內必須多 subagent 同輪同步/平行 | touchSet 無互斥衝突 | ... | ... |
 
 ### Stage Execution Graph
-| Stage | Baseline | Lane | Priority | parallelGroupId | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | bootstrap/main | 不需優先度 | 無 | stage-1/no-priority/group-a | ... | 主流程同一輪平行呼叫多個 runner subagent | 無 | 本 stage 兩條 lane 全部完成 |
+| Stage | Baseline | Lane | Priority | parallelGroupId | eligibleSetId | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | bootstrap/main | 不需優先度 | 無 | stage-1/no-priority/group-a | stage-1/no-priority/none/stage-1-no-priority-group-a | ... | 主流程同一輪平行呼叫多個 runner subagent | 無 | 本 stage 兩條 lane 全部完成 |
 
 ### 分類順序建議
 - 第 1 批：需要優先度 lane 與不需優先度 lane 平行處理；需要優先度 lane 內依數字小到大，不需優先度 lane 內同步/平行
@@ -80,6 +81,7 @@ permission:
 - 不需優先度 lane 分類數：N
 - 不需優先度 lane 不可同步/平行分類數：0
 - 缺 parallelGroupId 分類數：0
+- 缺 eligibleSetId / Stage Execution Graph batch key 數：0
 - 缺 touchSet 分類數：0
 - 缺 contractInputs/contractOutputs 分類數：0
 - high conflictRisk 未說明隔離策略分類數：0

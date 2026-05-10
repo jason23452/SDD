@@ -13,8 +13,8 @@ permission:
 
 ## 目標
 
-- 每個目前 apply 階段的技術實踐分類建立一個 worktree；同一 apply 階段內分成 `需要優先度` 與 `不需優先度` lane，兩條 lane 由主流程平行處理。`需要優先度` lane 內依數字優先度處理，同優先度同步/平行；`不需優先度` lane 內全部同步/平行。
-- 保留分類表中的 `parallelGroupId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`，寫入 manifest 與 port map，供主流程用 Stage Execution Graph 同批平行 dispatch runner。
+- 每個目前 apply 階段的技術實踐分類建立一個 worktree；同一 apply 階段內分成 `需要優先度` 與 `不需優先度` lane，並由 Stage Execution Graph 派生 canonical `eligibleSetId`。同一 eligible set 內多個 worktree 後續必須由主流程同一輪平行 dispatch；splitter 只保留 metadata，不自行排序或執行 runner。
+- 保留分類表中的 `parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk` 與 dispatch ledger path，寫入 manifest 與 port map，供主流程用 Stage Execution Graph 同批平行 dispatch runner。
 - worktree 對應的是通用需求能力分類；同類能力應已在分類階段聚合，不得為同一能力的 schema、API、UI、tests、fixtures 分別建立互相等待的 worktree。
 - 後續階段分類可以依賴前一階段已 merge 的 integration 結果；splitter 必須被主流程每一階段呼叫一次，以該階段基準建立 worktree。不得一次把未來 stage 從 bootstrap 舊快照全部建立。
 - 每個 worktree 使用獨立 branch。
@@ -28,8 +28,8 @@ permission:
 - repository root。
 - development-detail-planner 路徑。路徑可以是絕對路徑或 repository root 相對路徑；splitter 必須解析成可讀的絕對來源路徑。
 - 目前 apply 階段與 stage baseline（第一階段通常為 bootstrap/main baseline；後續階段必須是上一階段 integration branch/commit）。
-- 技術實踐分類表，且 splitter 只處理目前 apply 階段的列；每列包含：classification ID、name、scope、技術實踐項目、上游依賴、apply 階段、優先度 lane、執行優先度、parallelGroupId、touchSet、contractInputs、contractOutputs、conflictRisk、主要驗證、同類聚合理由、合併/拆分理由。
-- Stage Execution Graph 與 parallel dispatch plan；若缺失，splitter 只能輸出 blocker，不得自行推測 dispatch group。
+- 技術實踐分類表，且 splitter 只處理目前 apply 階段的列；每列包含：classification ID、name、scope、技術實踐項目、上游依賴、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk、主要驗證、同類聚合理由、合併/拆分理由。
+- Stage Execution Graph、canonical eligibleSetId 與 parallel dispatch plan；若缺失，splitter 只能輸出 blocker，不得自行推測 dispatch group。
 - 已確認決策、待確認事項、bootstrap 結果、project rules 摘要。
 
 ## 前置檢查
@@ -38,9 +38,9 @@ permission:
 2. 確認 `.opencode/project-rules.md` 存在，且內容允許 multi-worktree flow。
 3. 確認 development-detail-planner 存在。
 4. 確認分類表未分類數為 0、重複分類數為 0、ID 符合 `<run_id>-featurs-<name>`。
-5. 確認分類表的未分類數、重複分類數、同階段阻塞依賴數、循環依賴數、不需優先度 lane 不可同步/平行分類數、缺 parallelGroupId 數、缺 touchSet 數、缺 contractInputs/contractOutputs 數、high conflictRisk 未說明隔離策略數、同 parallelGroupId touchSet 高衝突未處理數、無法在所列上游合併後 apply 分類數皆為 0。若任一分類需要同階段另一 worktree 尚未 merge 的程式碼、schema、helper、dependency、fixture 或 API contract 才能實作，停止並回報 `ERROR: classification stage dependency invalid; move to later stage or merge dependent items`。
-6. 確認同一 apply 階段內的優先度 lane 有效：`需要優先度` 與 `不需優先度` lane 必須平行處理；`需要優先度` lane 內依小到大分組；`不需優先度` lane 內同步/平行啟動，不得任意序列化。
-7. 確認 Stage Execution Graph 中目前 stage 的每列都有 `Baseline`、`Lane`、`Priority`、`parallelGroupId`、`Eligible 分類`、`Dispatch 方式`、`等待條件`、`Stage merge gate`；若缺失，停止並回報 `ERROR: stage execution graph missing dispatch metadata`。
+5. 確認分類表的未分類數、重複分類數、同階段阻塞依賴數、循環依賴數、不需優先度 lane 不可同步/平行分類數、缺 parallelGroupId 數、缺 eligibleSetId 數、缺 touchSet 數、缺 contractInputs/contractOutputs 數、high conflictRisk 未說明隔離策略數、同 parallelGroupId touchSet 高衝突未處理數、無法在所列上游合併後 apply 分類數皆為 0。若任一分類需要同階段另一 worktree 尚未 merge 的程式碼、schema、helper、dependency、fixture 或 API contract 才能實作，停止並回報 `ERROR: classification stage dependency invalid; move to later stage or merge dependent items`。
+6. 確認同一 apply 階段內的優先度 lane 有效：`需要優先度` 與 `不需優先度` lane 由 Stage Execution Graph 定義 eligible set；同一 eligible set 內多個分類必須可同步/平行啟動，不得任意序列化。
+7. 確認 Stage Execution Graph 中目前 stage 的每列都有 `Baseline`、`Lane`、`Priority`、`parallelGroupId`、`eligibleSetId`、`Eligible 分類`、`Dispatch 方式`、`等待條件`、`Stage merge gate`；若缺失，停止並回報 `ERROR: stage execution graph missing dispatch metadata`。
 8. 執行 skill gate：
    - 只有 `git diff --name-only -- .opencode/skills` 或 `git diff --cached --name-only -- .opencode/skills` 顯示實際內容差異時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`。
    - 純 line-ending/stat 假異動不得當成 blocker。
@@ -66,32 +66,32 @@ permission:
 
 ## 快照同步規則
 
-git worktree add 只會帶出 `<stage-base>` 的 tracked files；因此必須把目前階段基準 snapshot 同步到每個 worktree。
+git worktree add 只會帶出 `<stage-base>` 的 tracked files；因此必須把目前 SDD repository root 的完整可用開發 snapshot 同步到每個 worktree。同步採兩段式：先 bulk copy 目前專案根目錄內容，再只針對本次 `run_id` 明確同步必要規劃文件與 run artifacts。
 
-同步內容：
-- bootstrap 後的 frontend/backend 檔案。
-- untracked 與 modified 檔案。
-- lockfile、dependency manifest（例如 `package.json`、`pyproject.toml`）、README、Compose、`.env.example`。
-- `.opencode/project-rules.md`。
-- development-detail-planner。
-- 其他本 run 必要規劃檔。
-- 當前 `run_id` 產生的本次對齊文件與產檔，包含 `.opencode/local-docs/**`、`.opencode/outputs/**`、`.opencode/run-artifacts/<run_id>/**` 中檔名或內容路徑可對應本 `run_id` 的文件。
+Bulk snapshot 來源與內容：
+- 來源固定是目前 SDD repository root，不是只複製 frontend/backend 子資料夾。
+- 複製 root 下可用開發內容：`frontend/`、`backend/`、`.opencode/agents/`、`.opencode/plugins/`、`.opencode/project-rules.md`、root config、需求來源檔、lockfile、dependency manifest、README、Compose、`.env.example`。
+- 包含 untracked 與 modified 檔案，讓尚未 commit 的 bootstrap/規則/規劃變更可進入 worktree snapshot。
+- 不把舊 run 文件靠 bulk snapshot 混入；`.opencode/local-docs/`、`.opencode/outputs/`、`.opencode/run-artifacts/` 由後續「Run Artifacts 同步規則」只同步當前 `run_id` 需要的檔案。
 
 排除內容：
 - `.git/`。
 - `.worktree/`。
 - 主工作區 `spec-flow/`。
 - `.opencode/skills/`，因每個 worktree 已從 HEAD 取得乾淨 skill 檔；不得用主工作區快照覆寫 skill 檔。
-- dependency、cache 與 build output：`node_modules/`、`.venv/`、`dist/`、`build/`、`coverage/`、`htmlcov/`、`test-results/`、`playwright-report/`、`.pytest_cache/`、`.ruff_cache/`、`.mypy_cache/`、`__pycache__/`、`*.pyc`、`*.tsbuildinfo`。
+- `.opencode/node_modules/`、`.opencode/run/`、`.opencode/local-docs/`、`.opencode/outputs/`、`.opencode/run-artifacts/`；當前 run 文件由後續明確同步，避免舊 run 污染。
+- dependency、cache 與 build output：`node_modules/`、`.venv/`、`venv/`、`env/`、`dist/`、`build/`、`coverage/`、`htmlcov/`、`test-results/`、`playwright-report/`、`.pytest_cache/`、`.ruff_cache/`、`.mypy_cache/`、`.turbo/`、`.vite/`、`.cache/`、`.next/`、`out/`、`__pycache__/`、`*.pyc`、`*.pyo`、`*.tsbuildinfo`。
+- local secrets 與敏感檔：`.env`、`.env.local`、`.env.*.local`、`credentials.json`、`secrets.json`；`.env.example` 可同步。
+- runtime/log/temp/local DB：`*.log`、`*.tmp`、`*.temp`、`*.sqlite`、`*.sqlite3`、`*.db`。
 - worktree 不同步已安裝依賴；後續 runner 必須依 lockfile/pyproject 在各 worktree 自行安裝或同步依賴，避免複製大型目錄造成卡住或污染。
 
 Windows 建議同步命令：
 
 ```powershell
-robocopy <source> <target> /E /XD .git .worktree spec-flow .opencode\skills node_modules .venv dist build coverage htmlcov test-results playwright-report .pytest_cache .ruff_cache .mypy_cache __pycache__ /XF .git *.pyc *.pyo *.tsbuildinfo
+robocopy <repo-root> <worktree> /E /XD .git .worktree spec-flow .opencode\skills .opencode\node_modules .opencode\run .opencode\local-docs .opencode\outputs .opencode\run-artifacts node_modules .venv venv env dist build coverage htmlcov test-results playwright-report .pytest_cache .ruff_cache .mypy_cache .turbo .vite .cache .next out __pycache__ /XF .git .env .env.local .env.*.local credentials.json secrets.json *.log *.tmp *.temp *.sqlite *.sqlite3 *.db *.pyc *.pyo *.tsbuildinfo
 ```
 
-`robocopy` exit code 0-7 視為成功；8 以上視為失敗。若同步卡住或超時，先檢查是否仍複製 dependency/cache/build output；不得改成同步 `node_modules` 或 `.venv` 來求快。
+`robocopy` exit code 0-7 視為成功；8 以上視為失敗。若同步卡住或超時，先檢查是否仍複製 dependency/cache/build output、`.opencode/run` 或舊 `.opencode/local-docs`/`outputs`/`run-artifacts`；不得改成同步 `node_modules` 或 `.venv` 來求快。
 
 ## Run Artifacts 同步規則
 
@@ -110,16 +110,17 @@ robocopy <source> <target> /E /XD .git .worktree spec-flow .opencode\skills node
 - 必須複製 `.opencode/project-rules.md`。
 - 必須搜尋並複製 `.opencode/local-docs/**` 中檔名包含 `<run_id>` 的檔案。
 - 必須搜尋並複製 `.opencode/outputs/**` 中檔名包含 `<run_id>` 的檔案。
+- 必須建立或更新主流程 dispatch ledger：`.opencode/run-artifacts/<run_id>/dispatch-ledger.json`，並同步到每個 worktree manifest 可讀位置。
 - 若有分類、一致性檢查、bootstrap 或 planner 結果檔，即使檔名不含 `<run_id>`，只要主流程明確傳入路徑，也必須複製。
-- 不得複製 `.opencode/skills/**`、`.opencode/node_modules/**`、`.opencode/run/**` 這類規則來源、依賴或 runtime generated state。
+- 不得複製 `.opencode/skills/**`、`.opencode/node_modules/**`、`.opencode/run/**`、非本次 `run_id` 的 `.opencode/local-docs/**`、`.opencode/outputs/**` 或 `.opencode/run-artifacts/**` 這類規則來源、依賴、runtime generated state 或舊 run artifacts。
 - `<worktree>/.opencode/run-artifacts/<run_id>/` 是後續 runner 的上下文資料，不是產品或 OpenSpec 交付物；後續 runner 不得 stage、commit 或 merge 這些檔案。
 
 Manifest 規則：
 
 - splitter 必須在每個 worktree 寫入 `<worktree>/.opencode/run-artifacts/<run_id>/manifest.json`。
-- manifest 至少包含：`run_id`、`classification_id`、`name`、`applyStage`、`executionLane`、`executionPriority`、`parallelGroupId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`upstreamDependencies`、`created_at`、`worktree_path`、`stage_base`、`planner_path_source`、`planner_path_in_worktree`、`project_rules_path_source`、`project_rules_path_in_worktree`、`run_artifacts_source`、`run_artifacts_in_worktree`、`copied_files`。
+- manifest 至少包含：`run_id`、`classification_id`、`name`、`applyStage`、`executionLane`、`executionPriority`、`parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`upstreamDependencies`、`created_at`、`worktree_path`、`stage_base`、`planner_path_source`、`planner_path_in_worktree`、`project_rules_path_source`、`project_rules_path_in_worktree`、`run_artifacts_source`、`run_artifacts_in_worktree`、`dispatch_ledger_path`、`copied_files`。
 - `copied_files` 每列至少記錄 `source`、`destination`、`kind`（例如 `planner`、`project-rules`、`local-doc`、`output`、`consistency`、`classifier`）。
-- port map 必須同步記錄 `planner_path_source`、`planner_path_in_worktree`、`run_artifacts_source`、`run_artifacts_in_worktree`、`run_artifacts_manifest`。
+- port map 必須同步記錄 `planner_path_source`、`planner_path_in_worktree`、`run_artifacts_source`、`run_artifacts_in_worktree`、`run_artifacts_manifest`、`dispatch_ledger_path`。
 
 驗證規則：
 
@@ -155,6 +156,7 @@ Manifest 規則：
 - `executionLane`
 - `executionPriority`
 - `parallelGroupId`
+- `eligibleSetId`
 - `touchSet`
 - `contractInputs`
 - `contractOutputs`
@@ -178,6 +180,7 @@ Manifest 規則：
 - `run_artifacts_source`
 - `run_artifacts_in_worktree`
 - `run_artifacts_manifest`
+- `dispatch_ledger_path`
 - `snapshot_sync_result`
 - `skill_gate_result`
 
@@ -202,13 +205,14 @@ Manifest 規則：
 - skill gate：通過/失敗
 
 ### Worktrees
-| 分類 ID | Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | touchSet | contractInputs | contractOutputs | conflictRisk | 上游依賴 | branch | path | spec-flow path | OpenSpec-safe change | ports | 範圍 | 技術實踐項目 | 階段 apply 可行性 | 合併/拆分理由 | worktree 狀態 | 快照同步 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 分類 ID | Apply 階段 | 優先度 lane | 執行優先度 | parallelGroupId | eligibleSetId | touchSet | contractInputs | contractOutputs | conflictRisk | 上游依賴 | branch | path | spec-flow path | OpenSpec-safe change | ports | 範圍 | 技術實踐項目 | 階段 apply 可行性 | 合併/拆分理由 | worktree 狀態 | 快照同步 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### 下游交接
-- 請對目前 apply 階段的 worktree 依 Stage Execution Graph 分成 eligible set：`stage + lane + priority + parallelGroupId`。同一 eligible set 內若超過一個 worktree，主流程必須同一輪平行啟動多個 `openspec-worktree-change-runner phase=propose-spec` subagent（可用 `multi_tool_use.parallel`），不得任意序列化。
-- 目前階段全部 propose/spec 對齊與 strict validate 通過後，再沿用相同 eligible set 規則由主流程平行啟動多個 `phase=apply-change` runner；stage merge 必須等兩條 lane 都完成。
-- 若主流程無法依 `parallelGroupId` 平行 dispatch 同一 eligible set，必須停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`，不得改成靜默序列化。
+- 請對目前 apply 階段的 worktree 依 Stage Execution Graph 與 `eligibleSetId` 分批。`eligibleSetId` 相同且 worktree 數超過一個時，主流程必須同一輪平行啟動多個 `openspec-worktree-change-runner phase=propose-spec` subagent（可用 `multi_tool_use.parallel`），不得任意序列化。
+- 主流程啟動每批 propose-spec/apply-change 前必須更新 `.opencode/run-artifacts/<run_id>/dispatch-ledger.json`；完成後以 ledger 核對 runner final output、worktree branch、alignment/tasks/commits/verification。
+- 目前階段全部 propose/spec 對齊與 strict validate 通過後，再沿用相同 eligible set 規則由主流程平行啟動多個 `phase=apply-change` runner；stage merge 必須等兩條 lane 都完成且 dispatch ledger 全部完成。
+- 若主流程無法依 `eligibleSetId` 平行 dispatch 同一 eligible set，必須停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`，不得改成靜默序列化。
 - 若任一 worktree 在 apply 前暴露同階段 missing upstream code/schema/helper 依賴，停止並回到分類調整：移到後續階段或合併分類，不得用 dependency hydrate 取代。
 - 目前階段完成後交 `worktree-merge-integrator` 做 stage merge；若仍有後續階段，主流程必須以 stage integration 結果作為下一階段 splitter 基準，重新呼叫 splitter 建立/同步下一 stage worktrees。
 
