@@ -2,7 +2,7 @@
 
 ## 規則來源
 - 使用者最新明確規則優先於既有 README、舊流程說明與舊 agent 文字。
-- 本專案固定採 multi-worktree 流程：每個可獨立 apply 的技術實踐分類一個 worktree，各自擁有自己的 `spec-flow/` 與 OpenSpec change。
+- 本專案固定採 multi-worktree 流程：每個通用需求分類一個 worktree；同類能力放同一分類，各自擁有自己的 `spec-flow/` 與 OpenSpec change，並依 apply 階段分成 `需要優先度` 與 `不需優先度` lane。兩條 lane 平行處理；`需要優先度` lane 內依數字優先度處理，`不需優先度` lane 內同步/平行執行。
 - Frontend 變更需遵守 `react-spa-feature-based`；樣式/Tailwind 變更需遵守 `tailwind-css`。
 - Backend 變更需遵守 `fastapi-feature-builder`。
 - `.opencode/skills/**/SKILL.md` 是不可變規則來源，不得刪除、覆寫、截斷、清空或弱化。
@@ -16,28 +16,29 @@
 - 登入/登出/失敗/失效狀態不得非必要外露帳號存在性、行程內容、提醒或敏感原因；登出後個人內容不得繼續顯示，再操作需重新登入。
 - 第一版不做：純筆記、新註冊、社群登入、多人共享/協作、管理後台、帳號救援/忘記密碼、外部日曆同步、智慧自動排程、地圖/交通整合。
 - 已確認驗收包含 API 測試、前端測試與端到端 smoke；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
-- 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> parallel OpenSpec propose/spec -> independent-slice parallel apply-change/fallback -> worktree-merge-integrator`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。分類粒度必須避免跨 worktree 程式依賴死結。
+- 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> staged/priority-lane OpenSpec propose/spec -> staged/priority-lane apply-change/fallback -> stage merge integration -> final integration`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。分類粒度必須同類能力放同一分類，並用 apply 階段處理合理上游依賴；同階段分成 `需要優先度` 與 `不需優先度` lane，兩條 lane 平行，避免同階段程式依賴死結。
 
 ## 通用流程
 - 需求落地前必須先讀取需求來源與相關 `frontend/README.md`、`backend/README.md`，並沿用現有專案脈絡。
 - 既有專案不得重新初始化；若基底不完整，優先在既有資料夾內補齊可啟動、可建置、可測試的必要檔案。
 - 不得提交 secrets、真實憑證或個資；範例設定只能放非機密預設值。
 - 重大需求變更需先完成分類、一致性檢查與規則檢查，再進入實作。
-- 使用者選擇初始化、建立、啟動或落地 frontend/backend 時，除非主動明確限制 downstream，預設授權完整鏈路：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> parallel OpenSpec propose/spec -> independent-slice parallel apply-change/fallback -> worktree-merge-integrator`。
+- 使用者選擇初始化、建立、啟動或落地 frontend/backend 時，除非主動明確限制 downstream，預設授權完整鏈路：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> staged/priority-lane OpenSpec propose/spec -> staged/priority-lane apply-change/fallback -> stage merge integration -> final integration`。
 - 進入 bootstrap、worktree split、OpenSpec propose/apply 或整合測試前，必須確認 `.opencode/skills/**/SKILL.md` 沒有實際內容 diff。只以 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills` 判斷；若有實際內容修改，一律停止並回報 `ERROR: skill rules are immutable and cannot be changed`。純 line-ending/stat 假異動或其他非 skill 檔的 `needs update` 不得當成 blocker，也不得 stage/commit skill 檔。
 - project-start-rules-definer 更新 `.opencode/project-rules.md` 後，主流程必須重新讀取該檔並確認最新使用者決策已落地；若 planner、question 回答與 project rules 不一致，不得進入 bootstrap 或 OpenSpec apply。
 
 ## Multi-Worktree OpenSpec 自動化
-- 技術實踐分類必須以「可獨立 apply、可獨立驗證、可在單一 worktree 內完成 commit」為基本單位，而不是按 schema/API/UI/test 檔案類型過細拆分。
-- 同一後端 bounded capability 的 model、migration、schema、repository、service、router、dependencies、fixtures 與 tests 必須優先在同一 worktree；同一前端使用者流程的 route/page、feature UI、hook/state、API service、types、tests 與必要樣式必須優先在同一 worktree。
+- 技術實踐分類必須以「通用需求能力」為基本單位，同類能力放同一分類，並輸出 apply 階段、優先度 lane、執行優先度與上游依賴；不得為追求同批平行而把整個 MVP 合成一包，也不得按 schema/API/UI/test 檔案類型過細拆分。
+- 同一後端 bounded capability 的 model、migration、schema、repository、service、router、dependencies、fixtures 與 tests 必須優先在同一 worktree；同一前端使用者流程的 route/page、feature UI、hook/state、API service、types、tests 與必要樣式必須優先在同一 worktree；同一能力若跨 frontend/backend，仍應同類聚合。
 - `backend-tests`、`frontend-tests` 這類純測試分類只有在處理跨專案測試基礎設施或 smoke orchestrator 時才可獨立；功能行為測試必須回到 owning feature 分類。
-- 若分類 apply 時必須等待另一 worktree 尚未 merge 的程式碼、schema、helper、dependency 或 fixture，代表分類過細；主流程必須回到 classifier/planner 合併分類，不得以 dependency hydrate、手動猜測 contract 或在 runner 內跨 worktree merge 取代。
+- 若分類 apply 時必須等待同階段另一 worktree 尚未 merge 的程式碼、schema、helper、dependency 或 fixture，代表分類或 apply 階段錯誤；主流程必須回到 classifier/planner 調整階段或合併分類，不得以 dependency hydrate、手動猜測 contract 或在 runner 內跨 worktree merge 取代。若依賴來自前一階段，必須先完成該階段 merge，再以 integration 結果作為下一階段基準。
+- 同一 apply 階段內必須分成 `需要優先度` 與 `不需優先度` lane；兩條 lane 平行啟動 propose/spec 與 apply/fallback。`需要優先度` lane 內依數字優先度由小到大處理；同優先度無阻塞依賴者同步/平行。`不需優先度` lane 內全部同步/平行，不得任意序列化。
 - 主工作區只負責 init/project rules/bootstrap/planner 與協調；OpenSpec artifacts 由各 worktree 在各自 `<worktree>/spec-flow/` 內建立，不在主工作區共用單一 change。
-- `worktree-splitter` 依分類 ID 建立 `.worktree/<run_id>/<name>` 與對應 branch，並同步目前主工作區完整檔案快照；同步時排除 `.git`、`.worktree`、主工作區 `spec-flow`、`.opencode/skills`、`node_modules`、`.venv`、`dist`、`build`、cache、coverage 與測試報告等 generated artifacts，讓各 worktree 保留 HEAD 中乾淨的 skill 檔並自行依 lockfile/pyproject 重建依賴；不得在 splitter 階段實作、測試、commit、merge 或 push。
-- OpenSpec propose/spec 必須同批平行啟動：每個粗粒度、可獨立 apply 的 worktree 先用 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
+- `worktree-splitter` 依分類 ID 與 apply 階段建立 `.worktree/<run_id>/stage-<n>/<name>` 或等價路徑與對應 branch，並同步目前階段基準快照；同步時排除 `.git`、`.worktree`、主工作區 `spec-flow`、`.opencode/skills`、`node_modules`、`.venv`、`dist`、`build`、cache、coverage 與測試報告等 generated artifacts，讓各 worktree 保留 HEAD 中乾淨的 skill 檔並自行依 lockfile/pyproject 重建依賴；不得在 splitter 階段實作、測試、commit、merge 或 push。
+- OpenSpec propose/spec 依 apply 階段與優先度 lane 啟動：同一階段 `需要優先度` 與 `不需優先度` lane 平行處理；每個 worktree 先用 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
 - `classification_id` 與 `openspec_change` 必須分離：classification ID 固定為 `<run_id>-featurs-<name>` 供追蹤；OpenSpec change name 固定派生為 `change-<run_id>-<name>`，必須符合 `^[a-z][a-z0-9-]*$`，不得直接使用可能以數字開頭的 classification ID。
-- 所有 worktree 的 alignment 與 strict validate 全部通過後，才能對可獨立 apply 的 worktree 同批平行執行 apply-change/fallback；每個 worktree 必須獨立 apply、驗證，並依小功能建立中文細分 commit。若出現因分類過細導致的 missing upstream code/schema/helper blocker，必須停止並重分/合併分類。
-- 所有 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，才可由 `worktree-merge-integrator` 一般 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
+- 同一 apply 階段 worktree 的 alignment 與 strict validate 全部通過後，才能依優先度 lane 對該階段 worktree 執行 apply-change/fallback；`需要優先度` 與 `不需優先度` lane 平行處理。每個 worktree 必須在目前階段基準上 apply、驗證，並依小功能建立中文細分 commit。若出現同階段 missing upstream code/schema/helper blocker，必須停止並調整階段或合併分類。
+- 每個 apply 階段 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，由 `worktree-merge-integrator` 一般 merge 到 stage integration；所有階段完成後再 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
 - Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。
 
 ## 中斷恢復與 Stale Process 防護
@@ -81,7 +82,7 @@
 - 若測試入口不存在，必須依單點測試矩陣標記 skip 或 blocker；不得直接執行會卡住的預設命令。
 
 ## 規則更新紀錄
-- 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每個可獨立 apply 分類一個 worktree、各自 spec-flow、平行 OpenSpec propose/spec、可獨立分類平行 apply、一般 merge integration、實際內容 diff 型 skill immutable gate、project rules read-back gate 與 bounded server smoke gate。
+- 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每個通用需求分類一個 worktree、各自 spec-flow、依 apply 階段分成需要優先度與不需優先度 lane；兩條 lane 平行處理，需要優先度 lane 內依數字優先度，不需優先度 lane 內同步/平行，並做 stage/final merge integration、實際內容 diff 型 skill immutable gate、project rules read-back gate 與 bounded server smoke gate。
 - 2026-05-10：新增測試卡住防護規則：測試前必須有單點測試矩陣、frontend/backend/E2E gate、one-shot 非互動命令、timeout、`TEST_TIMEOUT` cleanup；worktree snapshot 不同步 dependency/cache/build/test artifacts。
 - 2026-05-10：更新本次明確決策為 run_id `20260510-094343-calendar`：frontend 使用 pnpm + React/Vite/TypeScript/Tailwind CSS v4，backend 使用 uv + FastAPI + PostgreSQL + Docker Compose，Auth 使用 DB server-side session，Asia/Taipei 為日期時間權威基準，驗收為 API + 前端 + smoke。
-- 2026-05-10：修正 multi-worktree 分類粒度規則：分類必須是可獨立 apply 的垂直切片，同一後端 domain 的 schema/API/service/tests 與同一前端流程的 UI/state/API service/tests 不得拆成互相等待的 worktree；若 apply 缺另一 worktree 尚未 merge 的程式碼，需回分類合併而非 dependency hydrate。
+- 2026-05-10：修正 multi-worktree 分類粒度規則：分類必須是通用需求能力分類，同類能力放同一分類，同一後端 domain 的 schema/API/service/tests 與同一前端流程的 UI/state/API service/tests 不得拆成互相等待的 worktree；合理上游依賴以 apply 階段處理，若 apply 缺同階段另一 worktree 尚未 merge 的程式碼，需回分類調整階段或合併而非 dependency hydrate。
