@@ -14,6 +14,7 @@ permission:
 ## 目標
 
 - 每個技術實踐分類建立一個 worktree。
+- worktree 對應的是粗粒度、可獨立 apply 的垂直切片；不得為同一 domain 的 schema、API、tests、fixtures 分別建立互相等待的 worktree。
 - 每個 worktree 使用獨立 branch。
 - 每個 worktree 之後會在自己的 `spec-flow/` 內建立獨立 OpenSpec change；OpenSpec change name 必須和 classification ID 分離。
 - 同步主工作區目前完整快照，讓後續 worktree runner 可直接執行。
@@ -24,7 +25,7 @@ permission:
 - `run_id`。
 - repository root。
 - development-detail-planner 路徑。路徑可以是絕對路徑或 repository root 相對路徑；splitter 必須解析成可讀的絕對來源路徑。
-- 技術實踐分類表，每列包含：classification ID、name、scope、技術實踐項目、依賴、主要驗證。
+- 技術實踐分類表，每列包含：classification ID、name、scope、技術實踐項目、依賴、主要驗證、是否可獨立 apply、合併/拆分理由。
 - 已確認決策、待確認事項、bootstrap 結果、project rules 摘要。
 
 ## 前置檢查
@@ -33,11 +34,12 @@ permission:
 2. 確認 `.opencode/project-rules.md` 存在，且內容允許 multi-worktree flow。
 3. 確認 development-detail-planner 存在。
 4. 確認分類表未分類數為 0、重複分類數為 0、ID 符合 `<run_id>-featurs-<name>`。
-5. 執行 skill gate：
+5. 確認分類表的不可獨立 apply 分類數為 0。若任一分類需要另一 worktree 尚未 merge 的程式碼、schema、helper、dependency、fixture 或 API contract 才能實作，停止並回報 `ERROR: classification too fine; merge dependent items before splitting worktrees`。
+6. 執行 skill gate：
    - 只有 `git diff --name-only -- .opencode/skills` 或 `git diff --cached --name-only -- .opencode/skills` 顯示實際內容差異時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`。
    - 純 line-ending/stat 假異動不得當成 blocker。
-6. 執行 `git worktree prune` 清理已不存在的 worktree metadata。
-7. 若目標 `.worktree/<run_id>/` 已存在、或對應 `worktree/<run_id>/*` branch 已存在，且不是明確要求重建，必須停止並用 `question` 確認保留、清理或改 run_id；不得覆蓋或混用舊成果。
+7. 執行 `git worktree prune` 清理已不存在的 worktree metadata。
+8. 若目標 `.worktree/<run_id>/` 已存在、或對應 `worktree/<run_id>/*` branch 已存在，且不是明確要求重建，必須停止並用 `question` 確認保留、清理或改 run_id；不得覆蓋或混用舊成果。
 
 ## 建立規則
 
@@ -148,6 +150,8 @@ Manifest 規則：
 - `openspec_change`
 - `technical_practice_item`
 - `dependency_notes`
+- `apply_independence`（yes/no 與理由）
+- `merge_split_rationale`
 - `frontendDevPort`
 - `frontendPreviewPort`
 - `backendApiPort`
@@ -181,12 +185,13 @@ Manifest 規則：
 - skill gate：通過/失敗
 
 ### Worktrees
-| 分類 ID | branch | path | spec-flow path | OpenSpec-safe change | ports | 範圍 | 技術實踐項目 | worktree 狀態 | 快照同步 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 分類 ID | branch | path | spec-flow path | OpenSpec-safe change | ports | 範圍 | 技術實踐項目 | apply 獨立性 | 合併/拆分理由 | worktree 狀態 | 快照同步 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### 下游交接
-- 請對每個 worktree 同批平行啟動 `openspec-worktree-change-runner phase=propose-spec`。
-- 全部 propose/spec 對齊與 strict validate 通過後，再對每個 worktree 同批平行啟動 `phase=apply-change`。
+- 請對每個可獨立 apply 的粗粒度 worktree 同批平行啟動 `openspec-worktree-change-runner phase=propose-spec`。
+- 全部 propose/spec 對齊與 strict validate 通過後，再對每個已確認可獨立 apply 的 worktree 同批平行啟動 `phase=apply-change`。
+- 若任一 worktree 在 apply 前暴露 missing upstream code/schema/helper 依賴，停止並回到分類合併，不得用依賴等待取代修正分類。
 - 完成後交 `worktree-merge-integrator`。
 
 ### 未執行
