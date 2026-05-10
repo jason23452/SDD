@@ -368,15 +368,15 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "## 流程",
     "- 推薦先經 question；未確認只能列候選/待確認。",
     "- README 存在則沿用現有專案並交叉檢查實際檔案；不要空白重規劃。",
-    "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>。",
+    "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>，分類需輸出 parallelGroupId、touchSet、contractInputs/Outputs、conflictRisk 與 Stage Execution Graph。",
     "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
-    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 依 apply 階段與優先度 lane 分批 OpenSpec propose/spec -> 依 apply 階段與優先度 lane 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 平行處理，並授權 apply/fallback 成功後中文細分 commit；不再另問 downstream 或 commit 授權題。",
+    "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> development-detail-planner -> stage-scoped worktree-splitter -> 依 Stage Execution Graph 與 eligible set 分批 OpenSpec propose/spec -> 依相同 eligible set 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 必須由主流程按 parallelGroupId 平行呼叫多個 runner subagent，並授權 apply/fallback 成功後中文細分 commit；不再另問 downstream 或 commit 授權題。",
     "- project-bootstrapper 驗證必須非互動、不得開新 terminal/window；如需 server smoke，背景啟動後必須自動停止。",
-    "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner，依分類 apply 階段、優先度 lane 與執行優先度交 worktree-splitter 建立 .worktree/<run_id>/stage-<n>/<name> 或等價 worktree，不能在啟動結果後中斷；只有使用者主動明確要求停止，才可限制 downstream。",
-    "- worktree-splitter 依通用需求分類、apply 階段與優先度 lane 建立 worktree，排除 node_modules、.venv、dist、cache、coverage 與測試報告等 generated artifacts；各 worktree 自行依 lockfile/pyproject 重建依賴。",
-    "- 每個 worktree 必須在自己的 spec-flow/ 初始化/產 proposal/specs/design/tasks，產 alignment-check；同一 apply 階段全通過才可進入該階段 apply；需要優先度 lane 與不需優先度 lane 平行處理，需要優先度 lane 內依數字優先度，不需優先度 lane 內同步/平行。",
-    "- 同一 apply 階段 alignment 全通過後，沿用優先度 lane 執行 apply-change/fallback；需要優先度 lane 與不需優先度 lane 平行處理。OpenSpec apply blocked/失敗但 alignment 已通過時，必須 fallback 依該 worktree 的 spec-flow artifacts 完成開發任務、驗證，並依 commit 授權狀態中文細分 commit。",
+    "- project-bootstrapper 完成後回主流程產/更新 development-detail-planner，依分類 apply 階段、優先度 lane、執行優先度、parallelGroupId、touchSet 與 contract metadata 產 Stage Execution Graph，分 stage 交 worktree-splitter 建立 .worktree/<run_id>/stage-<n>/<name> 或等價 worktree，不能在啟動結果後中斷；只有使用者主動明確要求停止，才可限制 downstream。",
+    "- worktree-splitter 依目前 apply stage 的通用需求分類、parallelGroupId 與優先度 lane 建立 worktree；stage 1 用 bootstrap/main baseline，stage N 必須等 stage N-1 integration 完成後以該 integration 結果建立/同步，排除 node_modules、.venv、dist、cache、coverage 與測試報告等 generated artifacts；各 worktree 自行依 lockfile/pyproject 重建依賴。",
+    "- 每個 worktree 必須在自己的 spec-flow/ 初始化/產 proposal/specs/design/tasks，產 alignment-check；同一 apply 階段全通過才可進入該階段 apply；需要優先度 lane 與不需優先度 lane 平行處理，需要優先度 lane 內依數字優先度與 parallelGroupId，不需優先度 lane 內同步/平行。",
+    "- 同一 apply 階段 alignment 全通過後，沿用 Stage Execution Graph eligible set 由主流程平行呼叫多個 runner subagent 執行 apply-change/fallback；eligible set 由 stage + lane + priority + parallelGroupId 組成。OpenSpec apply blocked/失敗但 alignment 已通過時，必須 fallback 依該 worktree 的 spec-flow artifacts 完成開發任務、驗證，並依 commit 授權狀態中文細分 commit；runner 不得 merge upstream integration。",
     "- 每個 apply 階段完成後交 worktree-merge-integrator 做 stage merge 與 integration verification；下一階段以 stage integration 結果為基準。衝突或測試失敗先讀 run_id 技術文件與 worktree spec-flow artifacts，必要時用 question 確認修復方向。",
   ].join("\n")
 }
@@ -401,7 +401,7 @@ function buildQuestionFreedomLines(analysis) {
     `- ${scopeHint}`,
     `- ${QUESTION_DESIGN_GUIDE}`,
     "- 原文已答者直接記已確認；每題只問會改變實作/驗收的決策。",
-    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 依 apply 階段與優先度 lane 分批 OpenSpec propose/spec -> 依 apply 階段與優先度 lane 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 平行處理，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。",
+    "- 最後問執行方式：frontend、backend、frontend + backend、暫不初始化；有 README=沿用，無 README=最小啟動建立；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> stage-scoped worktree-splitter -> 依 Stage Execution Graph eligible set 分批 OpenSpec propose/spec -> 依相同 eligible set 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 由主流程按 parallelGroupId 平行呼叫多個 runner subagent，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。",
   ]
 }
 
@@ -722,7 +722,7 @@ function buildQuestions(analysis) {
         ? "frontend（推薦）"
         : "backend（推薦）"
     questions.push(
-      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> worktree-splitter -> 依 apply 階段與優先度 lane 分批 OpenSpec propose/spec -> 依 apply 階段與優先度 lane 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 平行處理，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。`
+      `- 最後 question：執行方式確認；第一推薦「${recommendedExecution}」。選項含 frontend/backend/frontend+backend/暫不初始化；README 存在=沿用，否則=最小啟動建立；bootstrapper 不實作需求功能；選擇初始化/建立/啟動/落地後預設自動走完整 downstream：bootstrap -> development-detail-planner -> stage-scoped worktree-splitter -> 依 Stage Execution Graph eligible set 分批 OpenSpec propose/spec -> 依相同 eligible set 分批 apply-change/fallback -> stage/final merge integration；同一 apply 階段內需要優先度 lane 與不需優先度 lane 由主流程按 parallelGroupId 平行呼叫多個 runner subagent，並授權 apply/fallback 成功後中文細分 commit；不另問 downstream 或 commit 授權題。`
     )
   }
 
