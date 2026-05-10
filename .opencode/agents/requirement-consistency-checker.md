@@ -16,7 +16,7 @@ permission:
 - 已確認決策：`question` 回答、明確授權、明確選擇。
 - 待確認事項：使用者選擇延後/待確認/尚未授權內容。
 - 實踐草稿：需求整理、已確認方案、開發拆解、實作建議。
-- 技術分類結果：分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk、Stage Execution Graph、dispatch ledger 規劃、上游依賴、同階段阻塞依賴與循環依賴檢查。
+- 技術分類結果：分類表、完整性/互斥性、ID、`run_id`、specPlanGroupId、specPlanWave、Spec Planning Dispatch Graph、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk、Stage Execution Graph、dispatch ledger 規劃、上游依賴、同階段阻塞依賴與循環依賴檢查。
 - 前次需求線索；沒有則標示無。
 
 ## 判定
@@ -30,6 +30,10 @@ permission:
 - 分類未分成 `需要優先度` 與 `不需優先度` lane，或草稿/流程讓兩條 lane 互相等待而非平行處理 => `不一致`。
 - `需要優先度` lane 有明確執行優先度但草稿/流程未按優先度執行，或 `不需優先度` lane 被任意序列化而非同步/平行執行 => `不一致`。
 - 分類缺 `parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`，或 Stage Execution Graph 未列出 `stage + lane + priority + parallelGroupId` eligible set、canonical `eligibleSetId`、dispatch 方式、等待條件與 stage merge gate => `不一致`。
+- 分類缺 `specPlanGroupId`、`specPlanWave` 或 Spec Planning Dispatch Graph，或草稿/流程沒有在 bootstrap/planner 後全分類平行啟動 propose/spec => `不一致`。
+- 草稿/流程因未來 apply stage、上游尚未 merge 或 contract 尚未 apply，而延後某分類的 propose/spec；但該分類可用 assumptions/revalidation 表示依賴 => `不一致`。
+- 草稿/流程允許預建未來 apply-stage worktree，或把 spec-plan worktree 當作可直接 apply 的 execution worktree => `不一致`。
+- 草稿/流程未規劃 apply-stage revalidation（用目前 stage baseline 重驗 spec-plan artifacts、contractInputs/Outputs 與 assumptions）=> `不一致`。
 - 同一 `parallelGroupId` 中有 high conflict touchSet 卻沒有隔離策略，或 contractInputs 未由 stage baseline/同分類內提供卻被安排同階段平行 apply => `不一致`。
 - 草稿/流程讓單一 `openspec-worktree-change-runner` 處理多個 worktree，或同批有多個 eligible worktree 卻未由主流程平行呼叫多個 runner subagent => `不一致`。
 - 草稿/流程把可同批平行的 eligible set 靜默改成序列化，而不是回報 `PARALLEL_DISPATCH_UNAVAILABLE` 或 `PARALLEL_DISPATCH_VIOLATION` => `不一致`。

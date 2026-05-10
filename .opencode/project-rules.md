@@ -2,71 +2,70 @@
 
 ## 規則來源
 - 使用者最新明確規則優先於既有 README、舊流程說明與舊 agent 文字。
-- 本專案固定採 multi-worktree 流程：每個通用需求分類一個 worktree；同類能力放同一分類，各自擁有自己的 `spec-flow/` 與 OpenSpec change，並依 apply 階段分成 `需要優先度` 與 `不需優先度` lane。兩條 lane 平行處理；實際派工以 Stage Execution Graph 的 canonical `eligibleSetId` 為準。
-- 分類需輸出 `parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk` 與 Stage Execution Graph；主流程依 `stage + lane + priority + parallelGroupId` eligible set 同批平行呼叫 runner，並用 dispatch ledger 追蹤每批啟動、完成、錯誤與重試。
+- 本專案固定採 multi-worktree 雙平面流程：`propose/spec planning plane` 先為所有通用需求分類建立 spec-plan worktree，並同輪平行產 OpenSpec proposal/spec/design/tasks/alignment；`apply execution plane` 才依 apply stage、contract 與 integration baseline 分批建立 apply-stage worktree 實作。
+- 分類需輸出 `specPlanGroupId`、`specPlanWave`、Spec Planning Dispatch Graph、`parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk` 與 Stage Execution Graph；主流程在 spec plane 依全分類 ready set 同批平行呼叫 runner，在 apply plane 依 `stage + lane + priority + parallelGroupId` eligible set 同批平行呼叫 runner，並用 dispatch ledger 追蹤每批啟動、完成、錯誤與重試。
 - Frontend 變更需遵守 `react-spa-feature-based`；樣式/Tailwind 變更需遵守 `tailwind-css`。
 - Backend 變更需遵守 `fastapi-feature-builder`。
 - `.opencode/skills/**/SKILL.md` 是不可變規則來源，不得刪除、覆寫、截斷、清空或弱化。
 
-## 本次已確認需求決策（20260510-094343-calendar）
-- 本次落地範圍為 `frontend + backend`，MVP 為「登入 + 核心個人行事曆」；frontend 使用 React + Vite + TypeScript + Tailwind CSS v4 並以 pnpm 管理；backend 使用 FastAPI + PostgreSQL 並以 uv 管理，PostgreSQL 本機開發依賴由 Docker Compose 啟動。
-- 登入採既有帳號帳密 + DB server-side session，使用 seed 既有帳號供本機與驗收使用；不採 JWT 作為第一版 session 方案，不做新註冊、社群登入或帳號救援/忘記密碼。
+## 已確認長期流程決策
+- 使用者要求極致開發效率與品質，因此 OpenSpec propose/spec 不再受 apply stage gate 限制；只要 bootstrap/planner 完成，所有分類都要先建立 spec-plan worktree 並同輪平行產 spec。
+- apply/fallback 仍必須穩定優先：每個 apply stage 只使用該 stage 的 integration baseline，stage N 必須等 stage N-1 integration 完成後再建立 apply-stage worktree。
+- spec-plan worktree 只產 OpenSpec artifacts，不得 apply、測試、commit、merge 或被 merge 到產品 integration。
+- apply-stage worktree 必須複製或引用對應 spec-plan artifacts，先做 strict validate、alignment/revalidation，確認目前 stage baseline 滿足 contractInputs/assumptions 後才可 apply/fallback。
+- 若上游 contract 已變更，runner 必須回報 `SPEC_REVALIDATION_REQUIRED`，主流程只更新受影響分類 spec，不得直接套舊 spec。
+- 若同一 planning wave 或同一 apply eligible set 有多個 worktree，主流程必須同一輪平行呼叫多個 `openspec-worktree-change-runner`；若工具無法平行，停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`。
+- runner 永遠只處理單一 worktree、單一 classification、單一 OpenSpec change；不得 merge upstream/stage integration、不得切到其他 worktree、不得替主流程調度其他 runner。
+
+## 本次已確認需求決策（run-20260510-cal-auth）
+- 本次落地範圍為 `frontend + backend`，MVP 為 `test.md` 的「個人行事曆完整第一版 + 登入迭代」：登入門檻、行程/重要日期/具日期待辦、CRUD、刪除前確認、取消/恢復、完成可回復、日/週/月/清單檢視、提醒、重複、分類顏色/篩選、跨日衝突提示與確認保留都納入第一版。
+- Frontend 已確認使用 React + Vite + TypeScript + Tailwind CSS v4；沿用既有專案規則以 pnpm 管理，不得混用 npm/pnpm/yarn。Backend 已確認使用 FastAPI + PostgreSQL，沿用既有專案規則以 uv 管理；PostgreSQL 本機開發依賴由 Docker Compose 啟動。
+- 登入採 seed/demo 既有帳號供本機與驗收使用；沿用既有專案規則以 DB server-side session 作為第一版 session 方案，若要改 JWT、signed-cookie-only 或 in-memory session 需另行確認；不做新註冊、社群登入、管理後台或帳號救援/忘記密碼。
 - 個人行事曆登入迭代必須保留既有行程管理、重要日期、具日期待辦、日/週/月/清單檢視、提醒、重複、分類、衝突、取消、恢復、完成、完成可回復與逾期規則；登入僅作為個人行事曆進入門檻與存取隔離，不覆蓋既有規則。
-- Asia/Taipei 是日期、今日清單、跨日、逾期與重複展開的第一版判斷基準；後端是日期、重複、衝突、逾期與提醒狀態的權威，前端負責輸入、顯示、互動與使用者回饋，不得自行成為業務規則權威。
-- 提醒第一版採提醒設定、提醒關閉狀態、逾期標示與今日清單補救；必須支援行程前、當日、多次、逾期與可關閉提醒；不保證系統推播或通知絕對送達，且關閉提醒後不得再打擾該行程。
+- 沿用既有專案日期時間規則：Asia/Taipei 是日期、今日清單、跨日、逾期與重複展開的第一版判斷基準；本次已確認後端是日期、重複、衝突、逾期與提醒狀態的權威，前端負責輸入、顯示、互動與使用者回饋，不得自行成為業務規則權威。
+- 提醒第一版採站內提醒、提醒設定、提醒關閉狀態、逾期標示與今日清單補救；必須支援行程前、當日、多次、逾期與可關閉提醒；不保證系統推播或通知絕對送達，且關閉提醒後不得再打擾該行程。
 - 登入/登出/失敗/失效狀態不得非必要外露帳號存在性、行程內容、提醒或敏感原因；登出後個人內容不得繼續顯示，再操作需重新登入。
 - 第一版不做：純筆記、新註冊、社群登入、多人共享/協作、管理後台、帳號救援/忘記密碼、外部日曆同步、智慧自動排程、地圖/交通整合。
-- 已確認驗收包含 API 測試、前端測試與端到端 smoke；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
-- 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> staged/priority-lane/parallelGroup OpenSpec propose/spec -> staged/priority-lane/parallelGroup apply-change/fallback -> stage merge integration -> final integration`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。分類粒度必須同類能力放同一分類，並用 apply 階段處理合理上游依賴；同階段分成 `需要優先度` 與 `不需優先度` lane，兩條 lane 平行，避免同階段程式依賴死結。
+- 已確認驗收層級為完整 E2E，且功能測試必須放回 owning slice；測試與 smoke 必須遵守單點測試矩陣、one-shot、非互動、timeout、`TEST_TIMEOUT` cleanup、process-tree cleanup 與 port-listener cleanup。
+- 使用者已授權完整 downstream：`project-bootstrapper -> development-detail-planner -> worktree-splitter(spec-plan all classifications) -> all-classification parallel OpenSpec propose/spec -> worktree-splitter(apply-stage) -> staged/priority-lane/parallelGroup apply-change/fallback -> stage merge integration -> final integration`，且 apply/fallback 成功後授權依小功能建立中文細分 commit。
+- 本 run 的 dispatch ledger 固定為 `.opencode/run-artifacts/run-20260510-cal-auth/dispatch-ledger.json`；重試只針對同 planning wave 或同 `eligibleSetId` 內 failed/aborted worktree，不得重跑已完成且 ledger/commit/verification 對齊的 worktree。
 
 ## 通用流程
 - 需求落地前必須先讀取需求來源與相關 `frontend/README.md`、`backend/README.md`，並沿用現有專案脈絡。
 - 既有專案不得重新初始化；若基底不完整，優先在既有資料夾內補齊可啟動、可建置、可測試的必要檔案。
 - 不得提交 secrets、真實憑證或個資；範例設定只能放非機密預設值。
 - 重大需求變更需先完成分類、一致性檢查與規則檢查，再進入實作。
-- 使用者選擇初始化、建立、啟動或落地 frontend/backend 時，除非主動明確限制 downstream，預設授權完整鏈路：`project-bootstrapper -> development-detail-planner -> worktree-splitter -> staged/priority-lane/parallelGroup OpenSpec propose/spec -> staged/priority-lane/parallelGroup apply-change/fallback -> stage merge integration -> final integration`。
+- 使用者選擇初始化、建立、啟動或落地 frontend/backend 時，除非主動明確限制 downstream，預設授權完整鏈路：`project-bootstrapper -> development-detail-planner -> worktree-splitter(spec-plan all classifications) -> all-classification parallel OpenSpec propose/spec -> worktree-splitter(apply-stage) -> staged/priority-lane/parallelGroup apply-change/fallback -> stage merge integration -> final integration`。
 - 進入 bootstrap、worktree split、OpenSpec propose/apply 或整合測試前，必須確認 `.opencode/skills/**/SKILL.md` 沒有實際內容 diff。只以 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills` 判斷；若有實際內容修改，一律停止並回報 `ERROR: skill rules are immutable and cannot be changed`。純 line-ending/stat 假異動或其他非 skill 檔的 `needs update` 不得當成 blocker，也不得 stage/commit skill 檔。
-- project-start-rules-definer 更新 `.opencode/project-rules.md` 後，主流程必須重新讀取該檔並確認最新使用者決策已落地；若 planner、question 回答與 project rules 不一致，不得進入 bootstrap 或 OpenSpec apply。
+- project-start-rules-definer 更新 `.opencode/project-rules.md` 後，主流程必須重新讀取該檔並確認最新使用者決策已落地；若 planner、question 回答與 project rules 不一致，不得進入 bootstrap、OpenSpec propose/spec、apply 或 verification。
 
 ## Multi-Worktree OpenSpec 自動化
-- 技術實踐分類必須以「通用需求能力」為基本單位，同類能力放同一分類，並輸出 apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk、Stage Execution Graph 與上游依賴；不得為追求同批平行而把整個 MVP 合成一包，也不得按 schema/API/UI/test 檔案類型過細拆分。
+- 技術實踐分類必須以「通用需求能力」為基本單位，同類能力放同一分類，並輸出 specPlanGroupId、specPlanWave、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、conflictRisk、Spec Planning Dispatch Graph、Stage Execution Graph 與上游依賴。
 - 同一後端 bounded capability 的 model、migration、schema、repository、service、router、dependencies、fixtures 與 tests 必須優先在同一 worktree；同一前端使用者流程的 route/page、feature UI、hook/state、API service、types、tests 與必要樣式必須優先在同一 worktree；同一能力若跨 frontend/backend，仍應同類聚合。
 - Core domain 可在 contract 穩定後拆成多個 vertical micro-slices；每個 slice 必須能在 stage baseline 上獨立 apply、驗證與 commit。若共同 schema/API/helper 尚未穩定，必須先建立 contract-first stage 或合併分類。
 - `backend-tests`、`frontend-tests` 這類純測試分類只有在處理跨專案測試基礎設施或 smoke orchestrator 時才可獨立；功能行為測試必須回到 owning feature 分類。
-- 若分類 apply 時必須等待同階段另一 worktree 尚未 merge 的程式碼、schema、helper、dependency 或 fixture，代表分類或 apply 階段錯誤；主流程必須回到 classifier/planner 調整階段或合併分類，不得以 dependency hydrate、手動猜測 contract 或在 runner 內跨 worktree merge 取代。若依賴來自前一階段，必須先完成該階段 merge，再以 integration 結果作為下一階段基準。
-- 同一 apply 階段內必須分成 `需要優先度` 與 `不需優先度` lane；兩條 lane 平行啟動 propose/spec 與 apply/fallback。`不需優先度` lane 的全部 ready eligible set 可同輪啟動；`需要優先度` lane 只啟動目前最小未完成 priority 的 ready eligible set，下一 priority 等上一 priority 全部完成。不得任意序列化同一 eligible set。
-- Stage Execution Graph 是主流程 dispatch 依據；eligible set 固定為 `stage + lane + priority + parallelGroupId`，並派生 canonical `eligibleSetId`。同一 eligible set 內有多個 worktree 時，主流程必須同一輪平行呼叫多個 `openspec-worktree-change-runner`，不得因表格順序或 runner 單工限制靜默序列化。若工具無法平行，必須停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`。
-- 主流程必須維護 `.opencode/run-artifacts/<run_id>/dispatch-ledger.json`：每批 propose-spec/apply-change 啟動前記錄 phase、stage、eligibleSetId、預期 worktree/branch/classification、Task 啟動結果；完成後記錄 runner final output、commit/verification、錯誤碼與重試次數。ledger 缺失或與實際 worktree 不一致時，不得進入下一批或 merge。
-- 中斷或失敗後只可重試 dispatch ledger 中 failed/aborted 的 worktree；已完成且 ledger/commit/verification 對齊的 worktree 不得重跑，除非使用者明確要求重建。重試前必須確認 worktree status、port registry、skill gate 與 stage baseline 未漂移。
-- `touchSet` 用於預判同批平行 merge 風險；同一 `parallelGroupId` 若有 high conflict touchSet，必須在分類或 planner 內說明隔離策略。`contractInputs` 必須由 stage baseline 或同分類內提供；不得安排同階段另一 worktree 在 apply 後才提供必要 contract。
-- 主工作區只負責 init/project rules/bootstrap/planner 與協調；OpenSpec artifacts 由各 worktree 在各自 `<worktree>/spec-flow/` 內建立，不在主工作區共用單一 change。
-- `worktree-splitter` 依分類 ID 與目前 apply 階段建立 `.worktree/<run_id>/stage-<n>/<name>` 或等價路徑與對應 branch，並從目前 SDD repository root bulk copy 可用開發 snapshot 到該 worktree；第一階段用 bootstrap/main baseline，後續階段必須等前一階段 integration 完成後用該結果建立/同步。不得一次預建未來 stage worktree。
-- worktree bulk snapshot 同步時排除 `.git`、`.worktree`、主工作區 `spec-flow`、`.opencode/skills`、`.opencode/node_modules`、`.opencode/run`、`.opencode/local-docs`、`.opencode/outputs`、`.opencode/run-artifacts`、`node_modules`、`.venv`、`venv`、`env`、`dist`、`build`、cache、coverage、測試報告、local secrets、log/tmp/local DB 等 generated/runtime/sensitive artifacts；當前 `run_id` 的 planner、outputs、dispatch ledger 與 run artifacts 必須在 bulk snapshot 後明確同步。不得在 splitter 階段實作、測試、commit、merge 或 push。
-- Splitter 的 manifest 與 port map 必須保留 `parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk` 與 dispatch ledger path，供 runner、merge integrator 與主流程驗證 dispatch/contract gate。
-- OpenSpec propose/spec 依 Stage Execution Graph eligible set 啟動：每個 worktree 先用 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven` 建立 change，再產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，並通過 strict validate。
-- `classification_id` 與 `openspec_change` 必須分離：classification ID 固定為 `<run_id>-featurs-<name>` 供追蹤；OpenSpec change name 固定派生為 `change-<run_id>-<name>`，必須符合 `^[a-z][a-z0-9-]*$`，不得直接使用可能以數字開頭的 classification ID。
-- 同一 apply 階段 worktree 的 alignment 與 strict validate 全部通過後，才能依 Stage Execution Graph eligible set 對該階段 worktree 執行 apply-change/fallback。每個 worktree 必須在目前階段基準上 apply、驗證，並依小功能建立中文細分 commit。若出現同階段 missing upstream code/schema/helper blocker，必須停止並調整階段或合併分類。
-- `openspec-worktree-change-runner` 永遠只處理單一 worktree、單一 classification、單一 OpenSpec change；不得 merge upstream/stage integration、不得切到其他 worktree、不得替主流程調度其他 runner。缺上游基準時回報 `STAGE_BASELINE_MISSING_UPSTREAM`；同階段互等時回報 `CLASSIFICATION_STAGE_INVALID`。
-- 每個 apply 階段 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，由 `worktree-merge-integrator` 一般 merge 到 stage integration；所有階段完成後再 merge 到 `.worktree/<run_id>/merge` 與 `integration/<run_id>`；禁止 squash/rebase，遇到衝突需先讀 planner 與相關 `spec-flow` artifacts 並用 question 確認解法。
-- Server smoke 必須 bounded：啟動前檢查 port、啟動後記錄 PID/job、驗證完成或失敗都必須停止，最後檢查 port 釋放；不得留下長駐 dev server。
+- Spec Planning Dispatch Graph 是 propose/spec 派工依據：bootstrap/planner 完成後，主流程必須一次建立所有分類的 spec-plan worktree，並在同一輪平行呼叫所有 `openspec-worktree-change-runner phase=propose-spec`。未來 apply stage 的分類不得因上游尚未 merge 而延後 propose/spec；只能在 spec artifact 中標明 contractInputs、assumptions 與 apply 前 revalidation gate。
+- Stage Execution Graph 是 apply/fallback 派工依據；eligible set 固定為 `stage + lane + priority + parallelGroupId`，並派生 canonical `eligibleSetId`，格式為 `stage-<n>::lane-<lane>::priority-<p-or-none>::pg-<parallelGroupId>`。
+- `worktree-splitter` 支援兩種模式：`spec-plan` 一次為所有分類建立 `.worktree/<run_id>/spec/<name>` 與 branch `worktree/<run_id>/spec/<name>`；`apply-stage` 依目前 apply 階段建立 `.worktree/<run_id>/stage-<n>/<name>` 與對應 branch。禁止預建未來 apply worktree；spec-plan worktree 不屬於 apply worktree，可全量預建。
+- Splitter 的 manifest 與 port map 必須保留 `mode`、`specPlanGroupId`、`specPlanWave`、`parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、spec-plan artifact source 與 dispatch ledger path，供 runner、merge integrator 與主流程驗證 dispatch/contract/revalidation gate。
+- OpenSpec propose/spec 依 Spec Planning Dispatch Graph 全量平行啟動；每個 spec-plan worktree 在自己的 `spec-flow/` 內建立 OpenSpec change、proposal、specs、design、tasks 與 alignment-check，並 strict validate。
+- Apply 前必須用 `apply-stage` splitter 從正確 stage baseline 建立/同步 apply worktree，並複製或引用對應 spec-plan worktree 中已通過的 OpenSpec artifacts；runner 必須先對目前 apply baseline 重新 strict validate 與 alignment/revalidation。
+- 每個 apply 階段 worktree apply/fallback 完成、驗證完成且沒有未 commit 變更後，由 `worktree-merge-integrator` 一般 merge 到 stage integration；spec-plan worktree 不得 merge 到產品 integration，只作為 OpenSpec artifact source。
+- 如果分類 apply 時必須等待同階段另一 worktree 尚未 merge 的程式碼、schema、helper、dependency 或 fixture，代表分類或 apply 階段錯誤；主流程必須回到 classifier/planner 調整階段或合併分類，不得以 dependency hydrate、手動猜測 contract 或在 runner 內跨 worktree merge 取代。
+- 主流程必須維護 `.opencode/run-artifacts/<run_id>/dispatch-ledger.json`：每批 `propose-spec-plan` / `apply-change` 啟動前記錄 phase、mode、stage、specPlanGroupId、specPlanWave、eligibleSetId、預期 worktree/branch/classification、Task 啟動結果；完成後記錄 runner final output、commit/verification、錯誤碼與重試次數。ledger 缺失或與實際 worktree 不一致時，不得進入下一批或 merge。
 
 ## 中斷恢復與 Stale Process 防護
 - 任何 bootstrap、worktree apply 或 integration server smoke 不得只依賴 `finally` cleanup；使用者或工具中斷 subagent 時，`finally` 可能無法執行，因此每次啟動 smoke server 前都必須具備可重入的 stale process recovery gate。
-- 每個 smoke server 啟動後必須立即寫入 PID registry：`.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`；worktree 內可使用該 worktree 自己的 `.opencode/run/<run_id>/...`。registry 至少記錄 `run_id`、scope、workspace/worktree path、command、port、parent PID、startedAt。`.opencode/run/` 是 generated runtime state，不得 commit。
+- 每個 smoke server 啟動後必須立即寫入 PID registry：`.opencode/run/<run_id>/smoke-processes/<scope>-<port>.json`。registry 至少記錄 `run_id`、scope、workspace/worktree path、command、port、parent PID、startedAt。`.opencode/run/` 是 generated runtime state，不得 commit。
 - 執行任何 install/build/test/smoke 前，必須先執行 stale process recovery gate：讀取 PID registry 與 assigned ports，檢查 process command line；只有 command line 同時符合目前 workspace/worktree path、registry command 或該次 smoke 命令、assigned port 時，才可遞迴停止 process tree 與 port listener。
 - 若 assigned port 被未知行程佔用、command line 不屬於目前 workspace/worktree 或無法確認是本流程殘留，不得自動換 port 或強殺；必須 fail fast，列出 port、PID、command line，請主流程或使用者決策。
-- smoke script 成功、失敗或 timeout 時仍必須在 cleanup 段遞迴停止 descendants、停止 parent、檢查並清理本次 smoke listener、刪除 registry；若 script 被中斷，下次流程必須靠 recovery gate 清理 registry 指向的 stale process。
-- subagent 被 abort、工具中斷或沒有回傳 final output 時，主流程不得直接重跑同一步驟或宣稱卡住；必須先回收已產生檔案、PID registry、port listener 與測試 cache，清理可確認的本流程殘留後，再判斷 resume、cleanup 或回報 blocker。
 
 ## 測試與卡住防護
 - 執行任何 bootstrap、worktree apply 或 integration 驗證前，必須先產生單點測試矩陣，列出 frontend、backend、E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
-- Frontend 測試 gate：只有存在 `frontend/package.json`、對應 script 與 source/test entry 時才可跑 npm/pnpm/yarn scripts；缺入口且分類需要前端功能時是 blocker，不得硬跑。
-- Backend 測試 gate：只有存在 `backend/pyproject.toml` 或既有 dependency file、正式 app entrypoint 與測試檔或 import/health check 時才可跑 uv/pytest；缺入口且分類需要後端功能時是 blocker，不得硬跑。
-- E2E gate：只有存在 Playwright config、E2E 測試檔、必要 server 啟動方式與 assigned ports 時才可跑；缺入口時需標記未執行原因，不得進入互動或 watch mode。
 - 測試命令必須 one-shot、非互動且可自動結束。禁止 watch mode；Vitest 使用 `vitest run` 或 package script 等價命令；pytest 使用 `pytest -q --maxfail=1` 或既有等價命令；Playwright 使用 headless/non-interactive。
 - 每個 install/build/test/smoke 命令都必須有 timeout。逾時時回報 `TEST_TIMEOUT`、清理 process tree、檢查 assigned port listener，不能無限等待、不能自動換未知 port、不能宣稱完成。
 - 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案；README 佔位也不等於可測專案。
-- Bootstrapper 建立新專案時必須同步建立忽略規則，避免 `node_modules`、`.venv`、`dist`、cache、test results 與 `.opencode/run` 成為待 commit 檔案。
+- Bootstrapper 建立新專案時必須同步建立忽略規則，避免 `node_modules`、`.venv`、`dist`、cache、test results、`.opencode/run` 與 `.opencode/run-artifacts` 成為待 commit 檔案。
 
 ## Frontend 規則
 - Frontend 沿用 React SPA、Vite、TypeScript 與現有 lockfile 對應的 package manager；本次已明確指定 frontend 使用 pnpm，後續不得混用 npm/pnpm/yarn。
@@ -82,7 +81,6 @@
 - Router 只處理 HTTP boundary；business rules 放 service；persistence/query 放 repository；schema/DTO 與 ORM model 不混用。
 - 資料結構變更必須使用 migration；不得以 startup `create_all()` 取代正式 migration。
 - Auth、settings、database session、security helpers 屬於 backend core 或 feature dependency，不得把 request-specific 狀態放入 global。
-- Backend 完成標準至少包含 app 可 import/啟動、相關測試可跑、migration/DB 設定一致；無法驗證時需記錄原因與風險。
 
 ## 驗證與交付
 - 前後端整合變更需明確列出 API contract、錯誤格式、狀態碼與前端對應行為。
@@ -91,9 +89,6 @@
 - 若測試入口不存在，必須依單點測試矩陣標記 skip 或 blocker；不得直接執行會卡住的預設命令。
 
 ## 規則更新紀錄
-- 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每個通用需求分類一個 worktree、各自 spec-flow、依 apply 階段分成需要優先度與不需優先度 lane；兩條 lane 平行處理，需要優先度 lane 內依數字優先度，不需優先度 lane 內同步/平行，並做 stage/final merge integration、實際內容 diff 型 skill immutable gate、project rules read-back gate 與 bounded server smoke gate。
+- 2026-05-10：依使用者目標固定採 multi-worktree 流程，啟用 splitter/runner/merge integrator，明確化每個通用需求分類一個 worktree、各自 spec-flow、依 apply 階段分成需要優先度與不需優先度 lane。
 - 2026-05-10：新增測試卡住防護規則：測試前必須有單點測試矩陣、frontend/backend/E2E gate、one-shot 非互動命令、timeout、`TEST_TIMEOUT` cleanup；worktree snapshot 不同步 dependency/cache/build/test artifacts。
-- 2026-05-10：更新本次明確決策為 run_id `20260510-094343-calendar`：frontend 使用 pnpm + React/Vite/TypeScript/Tailwind CSS v4，backend 使用 uv + FastAPI + PostgreSQL + Docker Compose，Auth 使用 DB server-side session，Asia/Taipei 為日期時間權威基準，驗收為 API + 前端 + smoke。
-- 2026-05-10：修正 multi-worktree 分類粒度規則：分類必須是通用需求能力分類，同類能力放同一分類，同一後端 domain 的 schema/API/service/tests 與同一前端流程的 UI/state/API service/tests 不得拆成互相等待的 worktree；合理上游依賴以 apply 階段處理，若 apply 缺同階段另一 worktree 尚未 merge 的程式碼，需回分類調整階段或合併而非 dependency hydrate。
-- 2026-05-10：新增 parallel dispatch 契約：分類需輸出 `parallelGroupId`、`eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk` 與 Stage Execution Graph；主流程依 eligible set 同輪平行派 runner；splitter 只處理目前 stage；runner 單工且不得 merge upstream；merge integrator 驗證 dispatch 與 contract gate 後輸出下一 stage baseline。
-- 2026-05-10：新增穩定性契約：Stage Execution Graph 必須提供 canonical `eligibleSetId`；主流程必須維護 dispatch ledger，記錄每批 propose/apply 的預期 worktree、Task、結果、錯誤與重試；中斷後只重試 failed/aborted worktree，不得重跑已完成且驗證對齊的 worktree。
+- 2026-05-10：依使用者要求提升極致開發效率與品質，將 multi-worktree 改為雙平面：`propose/spec planning plane` 全分類 spec-plan worktree 同輪平行產 OpenSpec artifacts；`apply execution plane` 才依 stage integration baseline、contractInputs、eligibleSetId 與 revalidation gate 分批 apply/fallback。禁止預建未來 apply worktree，但允許全量預建 spec-plan worktree。

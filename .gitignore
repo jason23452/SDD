@@ -4,6 +4,12 @@ node_modules/
 **/.venv/
 **/venv/
 **/env/
+.env
+**/.env
+**/.env.local
+**/.env.*.local
+!.env.example
+!**/.env.example
 
 # Build outputs
 **/dist/
@@ -14,8 +20,21 @@ node_modules/
 **/coverage/
 **/.pytest_cache/
 **/.ruff_cache/
+**/.pyright/
 **/__pycache__/
 **/*.py[cod]
+**/*.tsbuildinfo
 
 # OpenCode runtime recovery state
 .opencode/run/
+.opencode/run-artifacts/
+
+# Local runtime data, logs, tmp and database files
+**/*.log
+**/logs/
+**/tmp/
+**/.tmp/
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+**/test-results/
