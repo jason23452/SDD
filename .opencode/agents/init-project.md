@@ -24,7 +24,9 @@ permission:
 9. `openspec-worktree-change-runner phase=execute-worktree`：主流程同一輪平行呼叫目前 stage ready set 中所有可派 runner；每個 runner 只處理自己的 worktree 與互斥任務包，在該 worktree 的 `spec-flow/` 內連續執行 OpenSpec propose-spec、alignment/strict validate、apply-change/fallback、局部測試與最小中文標籤 commit。
 10. `worktree-merge-integrator`：同一 stage ready set / stage 全部 worktree 完成 OpenSpec、apply、局部測試與 commit 後，才一次進入 merge phase；merge 完後跑整合測試，最後一階段完成後跑完整整體測試。
 
-不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、產 OpenSpec、apply-change、驗證或宣稱完成。
+Bug 修復旁路：若使用者回報 bug、錯誤、測試失敗、畫面/API 異常，且目標是依本次 worktree run 的既有 commit 找來源修復，不走需求初始化/分類/bootstrap 主鏈路。必須先交 `worktree-run-id-change-locker` 列出目前可用 run_id 並鎖定 selected run、最後 `merge_worktree`、final report 與 locked commits；使用者選定 run_id 並輸入 bug 後，交 `worktree-bug-triage` 釐清 bug 與輸出 Bug Triage Packet；只有 `ready_for_fix=true` 時，才可交 `worktree-bug-fix` 依 locked commits 找 culprit commit，並只在最後 `merge_worktree` 精準修改問題檔案。
+
+主鏈路不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、產 OpenSpec、apply-change、驗證或宣稱完成。Bug 修復旁路不走需求初始化主鏈路，但必須遵守 `worktree-run-id-change-locker -> worktree-bug-triage -> worktree-bug-fix` 順序。
 
 ## 全流程續行
 
@@ -51,6 +53,7 @@ permission:
 - Browser smoke 只能透過 Playwright MCP；缺 MCP、缺可存取 URL 或缺受控 server lifecycle 時必須標記 `BROWSER_SMOKE_BLOCKED` / `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - Python 驗證固定使用 pytest；import app、health、startup sanity 或 API smoke 必須寫成 pytest 測試或 pytest fixture，不得用 ad-hoc Python 指令替代。
 - 中斷後恢復時，主流程必須回收 partial files、測試 cache、dispatch ledger 與可確認的 port 狀態，再決定 resume、cleanup 或重新交 subagent；未知 port listener 必須 fail fast，不得自動換 port或強殺。
+- Bug fix gate：使用者回報 bug 並要求依本次 worktree run 的 commit 修復時，主流程必須先取得 `worktree-run-id-change-locker` 的 Run Change Lock Packet。若 `ready_for_bug_triage=false`，不得呼叫 triage/fix；接著取得 `worktree-bug-triage` 的 Bug Triage Packet。若 `ready_for_fix=false`，不得呼叫 `worktree-bug-fix`；若 `worktree-bug-fix` 回報 `NO_RELEVANT_COMMIT_FOUND`、`BASELINE_BUG_SUSPECTED` 或 `UNOWNED_REQUIREMENT_GAP`，不得自行改成一般修復，必須回報使用者並等待確認下一步。
 
 ## 範圍與現況
 
@@ -100,6 +103,7 @@ permission:
 - Worktree OpenSpec Execute：每個 stage worktree 在自己的 `spec-flow/` 內以 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven`，產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，strict validate 通過後立即在同一 runner 內執行 apply-change/fallback、局部測試與最小中文標籤 commit；`classification_id` 只作追蹤，不得直接當 change name。
 - Worktree Parallel Dispatch：每個 eligible set 由同一 stage、lane、priority、parallelGroupId 組成，並派生 canonical `eligibleSetId`；同一 stage ready set 內所有 eligibleSetId 與其 worktree 必須同一輪平行 Task 執行 `phase=execute-worktree`。若主流程因工具限制無法平行，必須停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`，不得悄悄序列化。每個 ready set、eligibleSetId batch 的建立、啟動、完成都必須寫入 dispatch ledger。
 - Merge Integration：同一 stage ready set / stage 的所有 worktree 完成 OpenSpec、apply/fallback、局部測試、最小中文 commit 且無未提交變更後，交 `worktree-merge-integrator` 一次進入 merge phase，一般 merge 到 `.worktree/<run_id>/merge-stage-<n>` 或 integration branch，跑階段整合驗證；下一階段必須以該 integration 結果作為基準。所有 stage 完成後才跑 final 整體測試。
+- Worktree Bug Run Lock / Triage / Fix：使用者回報 bug 並要求依本次 worktree run 的 commit 修復時，先交 `worktree-run-id-change-locker` 列出目前 worktree run_id，讓使用者選定 run_id，並鎖定最後 `merge_worktree`、final integration head、final merge report、locked commits 與 touched files index。使用者輸入 bug 後，交 `worktree-bug-triage` 整理 bug summary、actual/expected、reproduction、failing command/test/log、affected surface 與 candidate commit search keywords；只有 triage packet 標示 `ready_for_fix=true` 後，才交 `worktree-bug-fix`。`worktree-bug-fix` 必須只在 locked commits 中找 culprit commit，讀取該 commit 的 `git show --name-status` / `git show` 與當時修改紀錄，對照最後 `merge_worktree` 現況，並只在最後 `merge_worktree` 精準修改問題檔案；找不到相關 commit 時回報 `NO_RELEVANT_COMMIT_FOUND`，不得自行自由修 bug。
 - 若 subagent 不可用，依對應 agent 輸出契約手動完成；不得省略。
 
 ## 專案規則

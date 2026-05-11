@@ -64,18 +64,19 @@ Final artifact 必填內容：
 - run_id、需求來源、final integration branch、final integration head、final merge worktree。
 - 所有 stage、eligibleSetId、parallelGroupId、classification 的 merge 摘要。
 - 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change。
-- commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result。
+- commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
 - 延後與排除項 map：所有未實作但出現在原需求或確認決策中的 deferred/excluded requirements 必須逐項列出，不能只寫在摘要。
 - Browser smoke、DB runtime、E2E 等 skipped/blocked 項目必須明確標示為 skipped/blocked，不得標為 passed。
 
 Commit map 欄位至少包含：
 
-| commit | message | classification ID | openspec change | requirement alignment | acceptance alignment | verification | status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
+| commit | message | classification ID | openspec change | source branch | source worktree | touched files | requirement alignment | acceptance alignment | verification | status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 Commit map 規則：
 
 - 每個非 merge commit 都必須出現在 commit map。
+- 每個非 merge commit 都必須記錄 touched files；若 final report 寫入時無法取得，必須用 `git show --name-status <commit>` 補齊，不得只記 message。
 - 每個 ownedRequirement 至少要對應一個 commit，或明確標記為 `deferred`、`excluded`、`not-applicable`。
 - 若 commit 無法對齊原始需求或已確認決策，停止並回報 `COMMIT_REQUIREMENT_ALIGNMENT_MISSING`。
 - 若 final artifact 缺失、不是唯一一份、或與 dispatch ledger / final head 不一致，停止並回報 `FINAL_MERGE_ARTIFACT_INVALID`。
