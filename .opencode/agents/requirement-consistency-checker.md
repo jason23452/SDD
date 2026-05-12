@@ -16,7 +16,7 @@ permission:
 - 已確認決策：`question` 回答、明確授權、明確選擇。
 - 待確認事項：使用者選擇延後/待確認/尚未授權內容。
 - 實踐草稿：需求整理、已確認方案、project rules 摘要、開發拆解、實作建議。
-- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
+- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、bootstrap commit 規劃、dependency snapshot 規劃、project-rules read-back 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
 - 前次需求線索；沒有則標示無。
 
 ## 判定
@@ -39,6 +39,12 @@ permission:
 - 草稿/流程採舊版全分類 spec-plan 雙平面、要求建立 `worktree/<run_id>/spec/<name>`、或要求 bootstrap 後一次建立所有 planning worktree => `不一致`。
 - 草稿/流程因上游尚未 merge 而預建未來 stage worktree，或允許 runner 自行 merge upstream integration => `不一致`。
 - 草稿/流程未規劃 Stage N worktree 只在 Stage N-1 integration 完成後建立/同步 => `不一致`。
+- 草稿/流程未規劃 `project-bootstrapper` 在最小啟動、依賴安裝、README/ignore 與 one-shot 驗證完成後建立中文 bootstrap commit，或未規劃 Stage 1 baseline 固定使用 bootstrap commit HEAD => `不一致`。
+- 草稿/流程允許缺 bootstrap commit、bootstrap branch 不乾淨或 bootstrap commit hash 未交接時建立需求 worktree => `不一致`。
+- 草稿/流程未規劃 dependency snapshot：bootstrap install/sync 後保留本機 dependency dir、`worktree-splitter` 在每個 execution worktree 建立後複製或依 lockfile/manifest 自動 install/sync 補齊、manifest 記錄來源/hash/copy/install/sync 結果，且 dependency dir 不得 stage/commit => `不一致`。
+- 草稿/流程仍要求「不得把 dependency snapshot 同步到每個 worktree」，或把 bulk snapshot 排除規則誤用成禁止 dependency snapshot 單獨複製/補齊 => `不一致`。
+- 草稿/流程未要求每個 worktree 每次 OpenSpec propose/spec/design/tasks/alignment/apply/fallback/local verification/commit 前 read-back worktree 內 `.opencode/project-rules.md`，或未規劃缺失/不一致時停止並回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` => `不一致`。
+- 草稿/流程未要求 `alignment-check.md`、runner final output / event artifact 記錄 project-rules path/hash/checkpoint alignment，或 merge/barrier 未檢查 project-rules read-back 與 dependency sync 結果 => `不一致`。
 - 同一 `parallelGroupId` 中有 high conflict touchSet 卻沒有隔離策略，或 contractInputs 未由 stage baseline/同分類內提供卻被安排同階段平行 apply => `不一致`。
 - 同一 eligible set 內有 `writeSet` 重疊或 hard conflict edge，卻沒有合併分類、contract-first stage、或 flow 處理 => `不一致`。
 - 草稿/流程讓單一 `openspec-worktree-change-runner` 處理多個 worktree，或同批有多個 eligible worktree 卻未由主流程平行呼叫多個 runner subagent => `不一致`。

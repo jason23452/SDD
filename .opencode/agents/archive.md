@@ -21,7 +21,7 @@ permission:
 
 ## 核心邊界
 
-- 唯一程式合併來源固定為 `.worktree/<run_id>/merge` 的目前 HEAD；不得改用主工作區、stage worktree、`integration/<run_id>` branch 或任一 `worktree/<run_id>/stage-*` branch 作為主要來源。
+- 唯一程式合併來源固定為 `.worktree/<run_id>/merge` 的目前 HEAD；不得改用主工作區、stage worktree、`integration/<run_id>` branch 或任一 `worktree/<run_id>/stage-*` branch 作為主要來源。若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，可先清理 stale worktree metadata 並用該 branch 重建同一路徑，重建後仍以 `.worktree/<run_id>/merge` 的目前 HEAD 作為唯一來源。
 - Archive 最終檔來源固定為 final maintained report：`.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md`。
 - Archive 最終檔必須寫入 target bootstrap branch 的 `.opencode/archives/archive_<run_id>.md`。
 - Archive 最終檔內容預設直接複製 final maintained report；不得拼湊或改寫成另一份摘要。若需要額外 metadata，只能寫在 final output，不得改 archive 檔內容，除非使用者明確同意。
@@ -40,10 +40,11 @@ permission:
    - `.opencode/run-artifacts/<run_id>/` 目錄。
    - final maintained report、dispatch ledger 或 commit body 中明確記錄的 `run_id`。
 2. 若使用者未提供 `run_id` 或有多個候選，必須用 `question` 讓使用者選定；不得自行猜測。若使用者明確要求全部 run，必須逐一處理且每個 run 都獨立完成 merge-back/archive/cleanup gate。
-3. 鎖定 merge worktree：`.worktree/<run_id>/merge` 必須存在且是 git worktree。
-4. 確認 merge worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
-5. 取得 source head：在 merge worktree 執行 `git rev-parse HEAD`。此 `source_head` 是唯一要合併回 bootstrap branch 的來源。
-6. 讀取 final maintained report：`.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md`。若不存在，停止回報 `FINAL_MAINTAINED_REPORT_MISSING`；不得改用 local-docs latest bug-fix report 代替。
+3. 執行 `git worktree prune`，清除已不存在的 stale worktree metadata。
+4. 鎖定或恢復 merge worktree：`.worktree/<run_id>/merge` 必須存在且是 git worktree。若路徑不存在但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，允許執行 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復；若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。若只有 `integration/<run_id>` branch 但無法恢復 merge worktree，不得直接把 branch 當 source。
+5. 確認 merge worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
+6. 取得 source head：在 merge worktree 執行 `git rev-parse HEAD`。此 `source_head` 是唯一要合併回 bootstrap branch 的來源。
+7. 讀取 final maintained report：`.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md`。若不存在，停止回報 `FINAL_MAINTAINED_REPORT_MISSING`；不得改用 local-docs latest bug-fix report 代替。
 
 ## Phase 2：鎖定 init-project bootstrap branch
 
@@ -117,6 +118,7 @@ permission:
 - `RUN_ID_NOT_SELECTED`：候選 run_id 多個或未提供，且使用者未選。
 - `RUN_ID_NOT_FOUND`：找不到該 run_id 的 worktree、branch、run artifacts 或 commit 線索。
 - `MERGE_WORKTREE_MISSING`：`.worktree/<run_id>/merge` 不存在或不是 git worktree。
+- `MERGE_WORKTREE_RESTORE_FAILED`：`.worktree/<run_id>/merge` 遺失且無法從 `integration/<run_id>` 安全恢復。
 - `MERGE_WORKTREE_DIRTY`：merge worktree 有未提交變更。
 - `FINAL_MAINTAINED_REPORT_MISSING`：final maintained report 不存在。
 - `BOOTSTRAP_BRANCH_MISSING`：找不到 init-project bootstrap branch 且使用者未提供。
@@ -148,6 +150,7 @@ permission:
 - selected run_id：...
 - target bootstrap branch：...
 - source merge worktree：.worktree/<run_id>/merge
+- source merge worktree restored：yes/no/not-needed
 - source head：...
 - final maintained report source：.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md
 - archive final file：.opencode/archives/archive_<run_id>.md
@@ -161,6 +164,6 @@ permission:
 - remaining run branches：無/...
 - final kept items：target bootstrap branch；archive final file
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
 - push：未執行
 ```

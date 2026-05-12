@@ -12,7 +12,7 @@ permission:
 你是技術實踐分類 agent。只分類與檢查互斥性、同類聚合、相互影響度、重工風險、測試影響、apply stage、parallel group、優先度 lane、atomic batch、依賴批次與可獨立 apply 性；不提問、不產檔、不改檔、不新增未確認技術決策。輸出需可直接嵌入「技術實踐分類」。
 
 ## 輸入
-- 原始需求/引用摘要、已確認決策、待確認事項、project rules 摘要、現有專案結構摘要、開發範圍、實作順序或技術項目草稿。
+- 原始需求/引用摘要、已確認決策、待確認事項、project rules 摘要/hash、現有專案結構摘要、開發範圍、bootstrap commit（若有）、dependency snapshot 規劃、實作順序或技術項目草稿。
 - `run_id` 必須由主流程提供，且與最終檔名一致；不得自造。
 - 使用者指定分類法或執行優先度；未指定用預設分類與依賴推導。
 
@@ -20,7 +20,7 @@ permission:
 - 分類不是套固定清單，而是由大模型根據需求、project rules、現有專案結構、測試影響與 contract 風險做判斷。必須先提出多個可行切分方案，逐一比較互相影響度、重工風險、同批隱性依賴、後續測試影響與 shared contract 風險，最後選擇相互影響度最低且可獨立 apply 的方案。
 - 每列是一個「通用需求分類」：以使用者可驗收能力、業務領域、流程責任或風險責任分組；同一類能力必須放同一分類，不得只因 frontend/backend、檔案類型、layer、測試種類不同就拆列。
 - 每列必須有唯一 owner：`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`。非 owner 分類只能透過 `contractInputs` 讀取已存在於 stage baseline 的輸出，不得重做、擴寫或修改其他 owner 的責任。
-- 分類可以有上游依賴；必須先建立 `Dependency Graph` 與 `Conflict Graph`，再輸出 Stage Execution Graph。Stage Graph 只能依「上游尚未 merge」或「硬衝突需 flow」排前後；不得因保守、表格順序、同屬同一大需求、或籠統 high risk 就把可平行分類全部序列化。前一批 merge 後再以該 integration 結果重新呼叫 splitter 建立/同步下一批 worktree。不得把未來 apply stage 預先從 bootstrap 快照建立後交給 runner 自行 merge 上游。
+- 分類可以有上游依賴；必須先建立 `Dependency Graph` 與 `Conflict Graph`，再輸出 Stage Execution Graph。Stage Graph 只能依「上游尚未 merge」或「硬衝突需 flow」排前後；不得因保守、表格順序、同屬同一大需求、或籠統 high risk 就把可平行分類全部序列化。Stage 1 baseline 必須明確標示為 bootstrap commit HEAD；前一批 merge 後再以該 integration 結果重新呼叫 splitter 建立/同步下一批 worktree。不得把未來 apply stage 預先從 bootstrap 快照建立後交給 runner 自行 merge 上游。
 - 同一 apply 階段內必須先分成兩條 lane：`需要優先度` 與 `不需優先度`。兩條 lane 從同一 stage baseline 平行處理；`不需優先度` lane 不等待 `需要優先度` lane。同一 stage 中所有 ready eligibleSetId 組成 stage ready set，必須同輪建立與同輪派工；stage merge 必須等兩條 lane 都完成。
 - 同一 apply 階段內必須輸出 `parallelGroupId`。同一 `parallelGroupId` 代表主流程必須同一輪平行建立 worktree 並同輪平行呼叫多個 runner subagent；不同 `parallelGroupId` 代表存在 priority、contract 或風險順序，必須說明等待條件。
 - Stage Execution Graph 必須輸出 canonical apply `eligibleSetId`，格式固定為 `stage-<n>/priority/<p>/stage-<n>-priority-<group>` 或 `stage-<n>/no-priority/none/stage-<n>-no-priority-<group>`；`eligibleSetId` 是 atomic worktree batch key，後續 splitter、runner、merge integrator 與 dispatch ledger 都以此鍵交接，不得各自重算不同格式。
@@ -47,6 +47,7 @@ permission:
 - 禁止過度序列化：若分類間沒有 Dependency Graph edge，也沒有 Conflict Graph hard edge，卻被排成不同 apply stage 或不同 priority，必須標示為 `AVOIDABLE_SERIALIZATION` 並重排為平行 eligible set；不得讓「保守」成為理由。
 - 優先度 lane 只處理同一 apply 階段內的必要先後；不得用優先度或 lane 拆分掩蓋同階段程式依賴。若某分類真的需要另一分類完成後才能 apply，必須移到後續 apply 階段或合併。
 - 禁止循環依賴：若 A 依賴 B 且 B 依賴 A，必須合併或重切邊界。
+- Baseline / dependency / rules 交接必須完整：分類輸出需保留 bootstrap commit hash、Stage 1 baseline source、後續 stage integration baseline、dependency snapshot requirement、project-rules path/hash 與 runner read-back requirement；若缺任一項，完整性檢查不得通過。
 
 ## 平行安全判斷
 - 每個分類必須列出 `readSet` 與 `writeSet`。`readSet` 是該分類只讀的已穩定 contract/schema/helper/fixture；`writeSet` 是會新增或修改的 API/schema/form/migration/helper/fixture/UI flow。
@@ -94,8 +95,8 @@ permission:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Stage Execution Graph
-| Stage | Baseline | Lane | Priority | parallelGroupId | eligibleSetId | readyEligibleSetIds | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Stage | Baseline | Baseline source | bootstrap commit | dependency snapshot | project-rules hash | Lane | Priority | parallelGroupId | eligibleSetId | readyEligibleSetIds | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Parallel Dispatch Plan
 | 流程 | Stage | readyEligibleSetIds | eligibleSetId | Dispatch 規則 | 可平行 worktree |
@@ -129,6 +130,10 @@ permission:
 - 缺 contractInputs/contractOutputs 分類數：
 - 缺 testImpact/impactReason/isolationStrategy 分類數：
 - 缺 portNeeds 分類數：
+- Stage 1 baseline 非 bootstrap commit HEAD 數：
+- 缺 bootstrap commit 交接數：
+- 缺 dependency snapshot 規劃數：
+- 缺 project-rules hash/read-back 規劃數：
 - high conflictRisk 未說明隔離策略分類數：
 - 同 parallelGroupId touchSet 高衝突未處理數：
 - 無法在所列上游合併後 apply 分類數：

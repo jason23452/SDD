@@ -34,6 +34,8 @@ permission:
 - 不重新分類需求、不重新跑完整 OpenSpec worktree 流程。
 - 不 merge、不 push、不 force push、不改寫歷史。
 - 不修改 `.opencode/skills/**/SKILL.md`。
+- 在 final merge_worktree 修改、驗證、commit 與更新 final maintained report 前，都必須 read-back 該 worktree 內 `.opencode/project-rules.md`；若缺失或本次修正/驗證與規則不一致，停止回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED`。
+- 若本次修正新增、移除或更新套件，或修改 dependency manifest/lockfile，必須自動使用既有 package manager install/sync，使 lockfile 與本機 dependency dir 一致；只提交 manifest/lockfile 與必要 source/test/config，不提交 dependency directory。
 
 ## Phase 1：列出並鎖定 run_id
 
@@ -49,7 +51,8 @@ permission:
 4. 選定 run_id 後鎖定 final merge target：
    - 優先使用 `.worktree/<run_id>/merge` 且它是 git worktree。
    - 若 final report 記錄 final merge worktree，確認該路徑存在且是 git worktree。
-   - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，停止回報 `MERGE_WORKTREE_MISSING`。
+   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍只在 final merge_worktree 修改。若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。
+   - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，且無法安全恢復，停止回報 `MERGE_WORKTREE_MISSING`。
 5. 確認 final merge_worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
 6. 讀取 final merge report commit map；若缺 final report 或 commit map，可由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但輸出需標示 `commit map source=git-log-derived`。
 7. 讀取每個 locked commit 的 touched files、message、source branch/source worktree、classification ID、OpenSpec change。若 final report 未記 touched files，用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案。
@@ -101,16 +104,17 @@ permission:
 5. 做最小修正，只處理本次 bug 或本次額外修改要求。
 6. 找到 culprit commit 時，優先改 Fix Target Set；如需改 touched files 以外檔案，記錄 scope expansion。
 7. `NEW_WORKTREE_FEATURE_CHANGE` 時，允許修改既有已 commit 檔案，允許新增檔案，但仍不得做無關重構或格式化。
-8. 執行最小必要驗證：優先跑使用者提供的 failing command/test；若沒有，依 affected surface 選最小 one-shot 測試。
-9. 測試或驗證失敗時，只修與本次 bug / 額外修改直接相關的內容；若需要大幅擴範圍，先問。
-10. 檢查 `git diff`，確認沒有無關變更。
-11. 建立中文修改 commit：
+8. 執行 Project Rules / Dependency Gate：讀取 final merge_worktree 內 `.opencode/project-rules.md`，確認本次修正、驗證命令與 final report 更新符合規則；若 dependency manifest/lockfile 有變更，依既有 package manager 執行 install/sync。
+9. 執行最小必要驗證：優先跑使用者提供的 failing command/test；若沒有，依 affected surface 選最小 one-shot 測試。
+10. 測試或驗證失敗時，只修與本次 bug / 額外修改直接相關的內容；若需要大幅擴範圍，先問。
+11. 檢查 `git diff`，確認沒有無關變更、沒有 dependency directory / cache / build output 被 stage。
+12. 建立中文修改 commit：
     - bug 修正用 `修正：<中文描述>`。
     - 新增功能/額外修改用 `實作：<中文描述>`，若更符合情境也可用 `修正：...`。
     - 測試補齊用 `測試：<中文描述>`。
     - 設定補齊用 `設定：<中文描述>`。
-12. 修改 commit body 必須包含 selected run_id、final merge_worktree、change mode、culprit commit（或 not found）、修改/新增檔案、驗證命令與結果。
-13. 取得修改 commit id 後，進 Phase 5。
+13. 修改 commit body 必須包含 selected run_id、final merge_worktree、change mode、culprit commit（或 not found）、修改/新增檔案、dependency sync 命令與結果（若適用）、project-rules read-back 結果、驗證命令與結果。
+14. 取得修改 commit id 後，進 Phase 5。
 
 ## Phase 5：更新 final maintained report 並 commit
 
@@ -134,9 +138,10 @@ permission:
    - 驗證命令與結果或未執行原因。
    - 本次修改 commit id。
    - 文件內容需讓未參與本次修復的維護者可理解：為什麼改、改在哪、如何驗證、後續維護時先看哪裡。
-6. 更新文件後建立文件 commit：`文件：更新最終整合維護紀錄`。
-7. 文件 commit body 必須包含 selected run_id、final maintained report path、本次修改 commit id。
-8. 最後確認 final merge_worktree status 乾淨，輸出修改 commit id 與文件 commit id。
+6. 更新文件前再次 read-back `.opencode/project-rules.md`，確認 final maintained report 更新符合規則。
+7. 更新文件後建立文件 commit：`文件：更新最終整合維護紀錄`。
+8. 文件 commit body 必須包含 selected run_id、final maintained report path、本次修改 commit id、project-rules read-back 結果。
+9. 最後確認 final merge_worktree status 乾淨，輸出修改 commit id 與文件 commit id。
 
 ## 修正範圍規則
 
@@ -146,10 +151,12 @@ permission:
 - 不得修改與本次 bug / 額外修改無關的格式、重構、文件或相鄰需求。
 - 不得修改 `.opencode/run-artifacts/**`、`.opencode/run/**` 作為產品修正內容。
 - final maintained report 固定寫入 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，並需要 commit。
+- 不得 stage/commit `node_modules/`、`.venv/`、cache、build output、runtime state、local DB、logs、secrets 或 test reports。
 
 ## 驗證規則
 
 - 測試命令必須 one-shot、非互動且有 timeout。
+- 測試前必須先完成 project-rules read-back 與 dependency sync gate。
 - frontend 只有在 `frontend/package.json` 與 script 存在時才跑對應 npm/pnpm/yarn command。
 - backend 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與 pytest 入口存在時才跑 pytest。
 - Python 驗證固定走 pytest，不用 ad-hoc `python -c` 或手寫 Python smoke。
@@ -162,6 +169,7 @@ permission:
 - `RUN_ID_NOT_SELECTED`：候選 run_id 多個或未提供，且使用者未選。
 - `RUN_ID_NOT_FOUND`：找不到該 run_id 的 worktree、branch、run artifacts 或 commit 線索。
 - `MERGE_WORKTREE_MISSING`：最後 merge_worktree 不存在或不是 git worktree。
+- `MERGE_WORKTREE_RESTORE_FAILED`：最後 merge_worktree 遺失且無法從 `integration/<run_id>` 安全恢復。
 - `MERGE_WORKTREE_DIRTY`：最後 merge_worktree 有未提交變更。
 - `RUN_COMMIT_MAP_MISSING`：沒有 final commit map，也無法由 integration branch 建立 commit 清單。
 - `RUN_SCOPE_AMBIGUOUS`：run_id 對應多個 final merge target 或 integration branch 且無法安全判斷。
@@ -169,6 +177,9 @@ permission:
 - `MULTIPLE_CULPRIT_COMMITS`：多個可能 commit 且使用者未選。
 - `BUGFIX_SCOPE_EXPANSION_REQUIRED`：必須大幅擴張本次 bug / 額外修改範圍但尚未取得確認。
 - `FINAL_MAINTAINED_REPORT_WRITE_FAILED`：final maintained report 無法寫入。
+- `PROJECT_RULES_MISSING`：final merge_worktree 內 `.opencode/project-rules.md` 不存在。
+- `PROJECT_RULES_ALIGNMENT_FAILED`：本次修正、驗證或 report 更新與 project rules 不一致。
+- `DEPENDENCY_SYNC_FAILED`：套件新增/變更後 install/sync 失敗。
 - `ERROR: skill rules are immutable and cannot be changed`：skill 檔有實際內容 diff。
 
 注意：找不到 relevant commit 不再是停止條件；必須改走 `NEW_WORKTREE_FEATURE_CHANGE`。
@@ -183,6 +194,8 @@ permission:
   - `run_id: <selected run_id>`
   - `final merge_worktree: <path>`
   - `changed files: ...`
+  - `dependency sync: <命令與結果或 not-applicable>`
+  - `project-rules read-back: <path/hash/result>`
   - `verification: <命令與結果或未執行原因>`
 - 找不到 culprit commit 時，修改 commit body 至少包含：
   - `change mode: NEW_WORKTREE_FEATURE_CHANGE`
@@ -191,6 +204,8 @@ permission:
   - `final merge_worktree: <path>`
   - `changed files: ...`
   - `added files: ...`
+  - `dependency sync: <命令與結果或 not-applicable>`
+  - `project-rules read-back: <path/hash/result>`
   - `verification: <命令與結果或未執行原因>`
 - 文件 commit subject 固定：`文件：更新最終整合維護紀錄`。
 - 文件 commit body 至少包含 selected run_id、final maintained report path、本次修改 commit id。
@@ -216,11 +231,13 @@ permission:
 - added files：...
 - scope expansion：無/已記錄/未確認而停止
 - verification：...
+- dependency sync：...
+- project-rules read-back：...
 - change commit：<hash> <subject>
 - final maintained report：.opencode/run-artifacts/<run_id>/final-merge-report.md
 - report commit：<hash> 文件：更新最終整合維護紀錄
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED`
 - merge：未執行
 - push：未執行
 ```

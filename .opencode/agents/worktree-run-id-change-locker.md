@@ -43,7 +43,8 @@ permission:
 3. 選定後確認 final merge target：
    - 優先使用 `.worktree/<run_id>/merge` 且它是 git worktree。
    - 若 final report 記錄 final merge worktree，確認該路徑存在且是 git worktree。
-   - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，回報 `MERGE_WORKTREE_MISSING`，不得進 bug fix。
+   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍以 final merge worktree 作為唯一修復目標。若恢復失敗，回報 `MERGE_WORKTREE_RESTORE_FAILED`，不得進 bug fix。
+   - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，且無法安全恢復，回報 `MERGE_WORKTREE_MISSING`，不得進 bug fix。
 4. 確認 final merge worktree status。若不乾淨，回報 `MERGE_WORKTREE_DIRTY`，不得進 bug fix。
 5. 讀取 final maintained report commit map；若缺 final report 或 commit map，嘗試由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但 packet 必須標示來源為 `git-log-derived`。
 6. 讀取每個 commit 的 touched files、message、source branch/source worktree、classification ID、OpenSpec change。若 final report 未記 touched files，使用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案。
@@ -54,6 +55,7 @@ permission:
 - `RUN_ID_NOT_SELECTED`：候選 run_id 多個或未提供，且使用者未選。
 - `RUN_ID_NOT_FOUND`：找不到該 run_id 的 worktree、branch、run artifacts 或 commit 線索。
 - `MERGE_WORKTREE_MISSING`：最後 `merge_worktree` 不存在或不是 git worktree。
+- `MERGE_WORKTREE_RESTORE_FAILED`：最後 `merge_worktree` 遺失且無法從 `integration/<run_id>` 安全恢復。
 - `MERGE_WORKTREE_DIRTY`：最後 `merge_worktree` 有未提交變更。
 - `RUN_COMMIT_MAP_MISSING`：沒有 final commit map，也無法由 integration branch 建立 commit 清單。
 - `RUN_SCOPE_AMBIGUOUS`：run_id 對應多個 final merge target 或 integration branch 且無法安全判斷。
@@ -63,7 +65,7 @@ permission:
 ```markdown
 ## Run Change Lock Packet
 - ready_for_bug_triage：true/false
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS`
 - selected run_id：...
 - run_id candidates：...
 - final merge_worktree：...
