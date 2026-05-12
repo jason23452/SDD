@@ -22,7 +22,7 @@ permission:
 
 ## 核心邊界
 
-- 本 agent 自己負責五段式流程：`run_id lock -> question 選 ACTIVE_WORKTREE_RUN/ARCHIVED_RUN_MODE -> bug triage/search -> culprit or new-change mode -> selected target fix/report`。
+- 本 agent 自己負責五段式流程：`run_id lock -> question 選 ACTIVE_WORKTREE_RUN/ARCHIVED_RUN_MODE -> 產生 Mode Selected Run Change Lock Packet -> bug triage/search -> culprit or new-change mode -> selected target fix/report`。
 - `worktree-run-id-change-locker.md` 與 `worktree-bug-triage.md` 是本流程的輔助契約；可參照其規則，但不要求主流程預先呼叫。
 - `ACTIVE_WORKTREE_RUN` 修改目標固定是選定 run_id 的最後 `.worktree/<run_id>/merge`，修復紀錄更新 `<final merge_worktree>/.opencode/run-artifacts/<run_id>/final-merge-report.md`。
 - `ARCHIVED_RUN_MODE` 修改目標固定是 archive 保留下來的 init/bootstrap branch，定位來源與維護紀錄固定是 `.opencode/archives/archive_<run_id>.md`；此模式不得要求恢復 `.worktree/<run_id>/merge`，也不得因 `.worktree` / `integration/<run_id>` 已刪除而失敗。
@@ -61,12 +61,13 @@ permission:
    - 確認 final merge_worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
    - 讀取 final merge report commit map；若缺 final report 或 commit map，可由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但輸出需標示 `commit map source=git-log-derived`。
 7. 若使用者選 `ARCHIVED_RUN_MODE`：
-   - 不恢復、不要求 `.worktree/<run_id>/merge` 或 `integration/<run_id>`；它們已被 archive 清除時屬正常狀態。
-   - 鎖定 `.opencode/archives/archive_<run_id>.md` 作為唯一 run scope 與維護文件；若不存在或缺 commit map / locator index，停止回報 `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING`。
-   - 從 archive 檔讀取 target bootstrap branch；若缺失或有多個候選，必須用 `question` 讓使用者指定 target bootstrap branch。切換前確認目前工作區與 target branch 安全且乾淨；若不乾淨，停止回報 `TARGET_BRANCH_DIRTY`。
-   - 讀取 archive file 的 commit map / `Bug Fix Locator Index`，`commit map source=archive-final-file`。
+    - 不恢復、不要求 `.worktree/<run_id>/merge` 或 `integration/<run_id>`；它們已被 archive 清除時屬正常狀態。
+    - 鎖定 `.opencode/archives/archive_<run_id>.md` 作為唯一 run scope 與維護文件；若不存在或缺 commit map / locator index，停止回報 `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING`。
+    - 從 archive 檔讀取 target bootstrap branch 與 archive file blob/hash；若缺失或有多個候選，必須用 `question` 讓使用者指定 target bootstrap branch。切換前確認目前工作區與 target branch 安全且乾淨；若不乾淨，停止回報 `TARGET_BRANCH_DIRTY`。
+    - 切換或確認 target bootstrap branch 後，必須 read-back 該 branch 上的 `.opencode/archives/archive_<run_id>.md`，確認檔案存在、blob/hash 或內容版本與鎖定 archive evidence 一致，且仍含相同 commit map / Bug Fix Locator Index；不一致時停止回報 `ARCHIVE_FILE_VERSION_MISMATCH`，不得在錯 branch 或舊 archive file 上更新。
+    - 讀取 archive file 的 commit map / `Bug Fix Locator Index`，`commit map source=archive-final-file`。
 8. 讀取每個 locked commit 的 touched files、message、source branch/source worktree、classification ID、OpenSpec change。若維護文件未記 touched files，用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案，除非後續維護區段需要記錄本次修復。
-9. 形成內部 Run Change Lock Packet；只有使用者已選模式、該模式 evidence 可用、且至少有 commit map / archive locator index / git-log-derived commit list 時，才可進 Phase 2。
+9. 形成內部 Mode Selected Run Change Lock Packet；只有使用者已選模式、該模式 evidence 可用、target fix target 已鎖定、且至少有 commit map / archive locator index / git-log-derived commit list 時，才可進 Phase 2。此 packet 必須標示 `ready_for_bug_triage=true`、`bugfix mode selected=true`、commit map source、locked commits、locked touched files index、maintenance file path；不得把 `worktree-run-id-change-locker` 的 Pre-Mode packet 直接交給 triage。
 
 ## Phase 2：釐清 bug 並建立 Bug Search Packet
 
@@ -132,7 +133,7 @@ permission:
 1. 固定維護同一份維護文件，不累積 timestamp report，不另建 `latest-bug-fix-report_<run_id>.md`。
 2. 文件路徑依模式決定：`ACTIVE_WORKTREE_RUN` 更新 `<final merge_worktree>/.opencode/run-artifacts/<run_id>/final-merge-report.md`；`ARCHIVED_RUN_MODE` 更新 `.opencode/archives/archive_<run_id>.md`。
 3. 每次 bug-fix 都在這份文件中追加或更新 `Latest Maintenance / Bug Fix` 區段，只保留最後一次 bug-fix 的維護內容；歷史 commit map / locator index 不得被刪除。
-4. 不得移除或覆寫既有 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項與 port cleanup map。若 active mode final merge report 不存在但已用 `git-log-derived` 鎖定 commit list，必須在固定路徑建立含 run scope、commit map source 與本次維護區段的 final merge report；archived mode 不得改回 local-docs latest report，也不得另建 archive 外的維護檔。
+4. 不得移除或覆寫既有 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項與 port cleanup map。若 active mode final merge report 不存在但已用 `git-log-derived` 鎖定 commit list，最多只能在固定路徑建立 maintenance-only report，且必須明確標記 `archive readiness: blocked`、`final merge report source: git-log-derived`、缺失欄位與 `FINAL_MAINTAINED_REPORT_INCOMPLETE`；此檔不得被 archive agent 視為完整 archive source。archived mode 不得改回 local-docs latest report，也不得另建 archive 外的維護檔。
 5. 維護區段必須包含：
    - selected run_id。
    - bugfix mode：`ACTIVE_WORKTREE_RUN` 或 `ARCHIVED_RUN_MODE`。
@@ -150,7 +151,8 @@ permission:
    - 技術實現摘要。
    - 驗證命令與結果或未執行原因。
    - 本次修改 commit id。
-   - archive file commit map / locator index 使用情況（archived mode 必填）。
+    - archive file commit map / locator index 使用情況（archived mode 必填）。
+    - archived mode 必須把本次修改 commit id 與文件 commit id 補入 archive file 的 Bug Fix Locator Index 或等價 maintenance locator 區段，包含 commit id、subject/body 摘要、標籤、changed files、bug summary、verification result、target bootstrap branch 與可搜尋關鍵字；不得只更新 Latest Maintenance 而不更新 locator。
    - 文件內容需讓未參與本次修復的維護者可理解：為什麼改、改在哪、如何驗證、後續維護時先看哪裡。
 6. 更新文件前再次 read-back `.opencode/project-rules.md`，確認維護文件更新符合規則。
 7. 更新文件後建立文件 commit：`文件：更新最終整合維護紀錄`。
@@ -165,7 +167,7 @@ permission:
 - 不得修改與本次 bug / 額外修改無關的格式、重構、文件或相鄰需求。
 - 不得修改 `.opencode/run-artifacts/**`、`.opencode/run/**` 作為產品修正內容；active mode 唯一例外是 final maintained report 維護 commit。
 - `ACTIVE_WORKTREE_RUN` 的 final maintained report 固定寫入 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，是 `.opencode/run-artifacts/**` 中唯一可 stage/commit 的 maintained report 例外。
-- `ARCHIVED_RUN_MODE` 的維護檔固定為 `.opencode/archives/archive_<run_id>.md`；此檔可更新 Latest Maintenance / Bug Fix 區段，並可補充本次修復 commit 到 locator index，但不得移除既有 commit map。
+- `ARCHIVED_RUN_MODE` 的維護檔固定為 `.opencode/archives/archive_<run_id>.md`；此檔必須更新 Latest Maintenance / Bug Fix 區段，並必須把本次修復 commit 與文件 commit 補充到 Bug Fix Locator Index 或等價 maintenance locator；不得移除既有 commit map。
 - 不得 stage/commit `node_modules/`、`.venv/`、cache、build output、runtime state、local DB、logs、secrets 或 test reports。
 
 ## 驗證規則
@@ -187,6 +189,7 @@ permission:
 - `ACTIVE_RUN_UNAVAILABLE`：使用者選 active mode，但 final merge worktree / final report / commit map evidence 不足。
 - `ARCHIVED_RUN_UNAVAILABLE`：使用者選 archived mode，但 archive final file / commit map / locator index evidence 不足。
 - `ARCHIVE_FILE_MISSING`：`.opencode/archives/archive_<run_id>.md` 不存在。
+- `ARCHIVE_FILE_VERSION_MISMATCH`：切到 target bootstrap branch 後 read-back 的 archive file 與鎖定 evidence 不一致，或缺原 commit map / locator index。
 - `TARGET_BRANCH_DIRTY`：archived mode 的 target bootstrap branch 工作區不乾淨。
 - `MERGE_WORKTREE_MISSING`：最後 merge_worktree 不存在或不是 git worktree。
 - `MERGE_WORKTREE_RESTORE_FAILED`：最後 merge_worktree 遺失且無法從 `integration/<run_id>` 安全恢復。
@@ -240,10 +243,12 @@ permission:
 ## Worktree Bug Fix 結果
 - selected run_id：...
 - bugfix mode：ACTIVE_WORKTREE_RUN / ARCHIVED_RUN_MODE
+- mode selected packet：ready_for_bug_triage=true / blocked
 - selected fix target：final merge_worktree / target bootstrap branch
 - target bootstrap branch：... / not-applicable
 - final merge_worktree：... / not-applicable
 - archive final file：.opencode/archives/archive_<run_id>.md / not-applicable
+- archive file read-back：matched/blocked/not-applicable
 - final integration head：...
 - commit map source：final-merge-report / archive-final-file / git-log-derived
 - bug summary：...
@@ -265,7 +270,7 @@ permission:
 - maintenance file：.opencode/run-artifacts/<run_id>/final-merge-report.md 或 .opencode/archives/archive_<run_id>.md
 - report commit：<hash> 文件：更新最終整合維護紀錄
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_VERSION_MISMATCH` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED`
 - merge：未執行
 - push：未執行
 ```

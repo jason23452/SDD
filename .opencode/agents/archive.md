@@ -24,7 +24,7 @@ permission:
 - 唯一程式合併來源固定為 `.worktree/<run_id>/merge` 的目前 HEAD；不得改用主工作區、stage worktree、`integration/<run_id>` branch 或任一 `worktree/<run_id>/stage-*` branch 作為主要來源。若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，可先清理 stale worktree metadata 並用該 branch 重建同一路徑，重建後仍以 `.worktree/<run_id>/merge` 的目前 HEAD 作為唯一來源。
 - Archive 最終檔來源固定為 final maintained report：`.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md`。
 - Archive 最終檔必須寫入 target bootstrap branch 的 `.opencode/archives/archive_<run_id>.md`。
-- Archive 最終檔內容以 final maintained report 為來源，必須保留完整 final merge 結果、commit map、需求/驗收對齊、延後/排除項與 port cleanup map，不得拼湊成另一份摘要。
+- Archive 最終檔內容以 final maintained report 為來源，必須保留完整 final merge 結果、commit map、需求/驗收對齊、延後/排除項與 port cleanup map，不得拼湊成另一份摘要。若 final maintained report 是 active bug-fix 由 git-log-derived 重建的 maintenance-only report、缺 final merge 結果或缺 port cleanup map，停止回報 `FINAL_MAINTAINED_REPORT_INCOMPLETE`，不得 archive 或清理。
 - Archive 最終檔必須包含 `Bug Fix Locator Index` 或等價章節，供 archive 後的 `worktree-bug-fix` 以 `ARCHIVED_RUN_MODE` 快速定位。索引至少保留每個非 merge commit 的 commit id、subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息）。若 final maintained report 已有完整 commit map 但缺 locator index，archive agent 可在 archive 檔中追加此章節；不得發明 final report 或 git log 無法支持的內容。
 - 合併目標固定為 init-project bootstrap branch；不得合併到 `integration/<run_id>`、`integration-stage/<run_id>/*`、`worktree/<run_id>/*`、`bugfix/<run_id>/*` 或 detached HEAD。
 - 清理前必須完成 archive 檔寫入、target branch merge-back、target branch 包含 source HEAD 驗證與使用者最後確認。
@@ -41,7 +41,7 @@ permission:
    - `.opencode/run-artifacts/<run_id>/` 目錄。
    - final maintained report、dispatch ledger 或 commit body 中明確記錄的 `run_id`。
 2. 若使用者未提供 `run_id` 或有多個候選，必須用 `question` 讓使用者選定；不得自行猜測。若使用者明確要求全部 run，必須逐一處理且每個 run 都獨立完成 merge-back/archive/cleanup gate。
-3. 執行 `git worktree prune`，清除已不存在的 stale worktree metadata。
+3. 先記錄 `git worktree list --porcelain` 的 before-prune 狀態；只有在候選 `run_id` 已選定且 before-prune 顯示 stale metadata 會阻礙恢復同一路徑時，才執行 `git worktree prune`。prune 後必須記錄 after-prune 狀態；若 selected run source 因 metadata 變化變得不可判定，停止回報 `WORKTREE_PRUNE_SCOPE_UNSAFE`。
 4. 鎖定或恢復 merge worktree：`.worktree/<run_id>/merge` 必須存在且是 git worktree。若路徑不存在但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，允許執行 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復；若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。若只有 `integration/<run_id>` branch 但無法恢復 merge worktree，不得直接把 branch 當 source。
 5. 確認 merge worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
 6. 取得 source head：在 merge worktree 執行 `git rev-parse HEAD`。此 `source_head` 是唯一要合併回 bootstrap branch 的來源。
@@ -83,16 +83,18 @@ permission:
 ## Phase 5：清理前最後確認
 
 1. 產生完整清理清單：
-   - `.worktree/<run_id>/` 下所有 registered worktree path。
-   - `worktree/<run_id>/*` branches。
-   - `integration-stage/<run_id>/*` branches。
-   - `integration/<run_id>` branch。
-   - `bugfix/<run_id>/*` branches。
+    - `.worktree/<run_id>/` 下所有 registered worktree path。
+    - `.worktree/<run_id>/` 下所有非 registered residual files/directories，需列出相對路徑、類型、是否 git ignored、大小或可用 hash；若無法完整列舉，停止回報 `CLEANUP_RESIDUALS_UNLISTED`。
+    - `worktree/<run_id>/*` branches。
+    - `integration-stage/<run_id>/*` branches。
+    - `integration/<run_id>` branch。
+    - `bugfix/<run_id>/*` branches。
 2. 顯示將保留的項目：
    - target bootstrap branch。
    - `.opencode/archives/archive_<run_id>.md`。
 3. 用 `question` 要求使用者最後確認清理；未確認時停止回報 `CLEANUP_NOT_CONFIRMED`。
 4. 再次確認 target branch 包含 `source_head` 且 archive 檔存在；否則停止，不得清理。
+5. 對每個即將刪除的 branch 執行 contained gate：`git merge-base --is-ancestor <branch> HEAD` 必須通過，或該 branch 必須明確等於已被 target HEAD 包含的 `source_head` 歷史。任何 `worktree/<run_id>/*`、`integration-stage/<run_id>/*`、`integration/<run_id>` 或 `bugfix/<run_id>/*` branch 未被 target HEAD 包含時，停止回報 `BRANCH_NOT_CONTAINED`；不得用使用者 cleanup 確認覆蓋此 gate。
 
 ## Phase 6：刪除 worktree 與 branches
 
@@ -102,8 +104,8 @@ permission:
    - 若 worktree status 不乾淨，停止回報 `WORKTREE_DIRTY_BEFORE_CLEANUP`。
    - 使用 `git worktree remove <path>` 移除；若因已不存在而失敗，後續執行 `git worktree prune`。
 3. 執行 `git worktree prune`。
-4. 若 `.worktree/<run_id>/` 仍存在且只剩非 git registry 殘留檔，在確認 path 精確符合 selected `run_id` 後刪除該目錄；不得刪 `.worktree/` 之外任何路徑。
-5. 刪除 selected `run_id` 相關 branches：
+4. 若 `.worktree/<run_id>/` 仍存在且只剩非 git registry 殘留檔，必須確認所有殘留項目已出現在 Phase 5 的清理清單且使用者已確認；若發現未列項目或無法列舉，停止回報 `CLEANUP_RESIDUALS_UNLISTED`。確認 path 精確符合 selected `run_id` 後才可刪除該目錄；不得刪 `.worktree/` 之外任何路徑。
+5. 刪除 selected `run_id` 相關 branches 前，逐一重跑 contained gate；未通過者不得刪除，並停止回報 `BRANCH_NOT_CONTAINED`：
    - `worktree/<run_id>/*`
    - `integration-stage/<run_id>/*`
    - `integration/<run_id>`
@@ -123,12 +125,16 @@ permission:
 - `MERGE_WORKTREE_RESTORE_FAILED`：`.worktree/<run_id>/merge` 遺失且無法從 `integration/<run_id>` 安全恢復。
 - `MERGE_WORKTREE_DIRTY`：merge worktree 有未提交變更。
 - `FINAL_MAINTAINED_REPORT_MISSING`：final maintained report 不存在。
+- `FINAL_MAINTAINED_REPORT_INCOMPLETE`：final maintained report 缺完整 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項或 port cleanup map，不能作為 archive source。
 - `BOOTSTRAP_BRANCH_MISSING`：找不到 init-project bootstrap branch 且使用者未提供。
 - `BOOTSTRAP_BRANCH_INVALID`：target branch 不存在、非法或屬於 selected run 的清理 namespace。
 - `TARGET_BRANCH_DIRTY`：target branch 工作區不乾淨。
 - `MERGE_CONFLICT`：merge source head 回 target branch 時發生衝突，需使用者決策。
 - `ARCHIVE_FILE_WRITE_FAILED`：archive final file 無法寫入或提交。
 - `ARCHIVE_LOCATOR_INDEX_MISSING`：archive final file 缺 commit map 或 bug-fix locator index，無法支援後續 archive mode bug-fix。
+- `WORKTREE_PRUNE_SCOPE_UNSAFE`：prune 前後 metadata 讓 selected source 無法安全判定。
+- `CLEANUP_RESIDUALS_UNLISTED`：`.worktree/<run_id>/` 仍有未列入確認清單的殘留檔或無法列舉。
+- `BRANCH_NOT_CONTAINED`：即將刪除的 selected run branch 尚未被 target HEAD 包含。
 - `CLEANUP_NOT_CONFIRMED`：使用者未確認清理。
 - `WORKTREE_DIRTY_BEFORE_CLEANUP`：清理前某個 worktree 不乾淨。
 - `CLEANUP_FAILED`：worktree 或 branch 清理失敗。
@@ -163,12 +169,14 @@ permission:
 - archive commit：<hash> / 未完成
 - target branch contains source head：yes/no
 - cleanup confirmed：yes/no
+- residual cleanup entries：...
+- branch contained gate：passed/blocked，未包含 branches：...
 - removed worktrees：...
 - removed branches：...
 - remaining run worktrees：無/...
 - remaining run branches：無/...
 - final kept items：target bootstrap branch；archive final file；無 selected run 的 worktree/integration/bugfix branches
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `FINAL_MAINTAINED_REPORT_INCOMPLETE` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `WORKTREE_PRUNE_SCOPE_UNSAFE` / `CLEANUP_RESIDUALS_UNLISTED` / `BRANCH_NOT_CONTAINED` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
 - push：未執行
 ```
