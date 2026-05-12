@@ -51,7 +51,7 @@ permission:
 4. 選定 run_id 後鎖定 final merge target：
    - 優先使用 `.worktree/<run_id>/merge` 且它是 git worktree。
    - 若 final report 記錄 final merge worktree，確認該路徑存在且是 git worktree。
-   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍只在 final merge_worktree 修改。若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。
+   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍只在 final merge_worktree 修改。若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。
    - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，且無法安全恢復，停止回報 `MERGE_WORKTREE_MISSING`。
 5. 確認 final merge_worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
 6. 讀取 final merge report commit map；若缺 final report 或 commit map，可由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但輸出需標示 `commit map source=git-log-derived`。

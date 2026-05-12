@@ -19,10 +19,10 @@ permission:
 
 ## 邊界
 
-- 只讀取 git/worktree/run artifacts 狀態。
-- 可執行 read-only git 指令，例如 `git worktree list`、`git branch --all`、`git log`、`git show --name-status`、`git status --porcelain`。
+- 以讀取 git/worktree/run artifacts 狀態為主；只有在 `.worktree/<run_id>/merge` 遺失且可由 `integration/<run_id>` 安全恢復時，允許執行最小 worktree metadata 維護與同一路徑恢復。
+- 可執行 read-only git 指令，例如 `git worktree list`、`git branch --all`、`git log`、`git show --name-status`、`git status --porcelain`；以及上述安全恢復所需的 `git worktree prune`、`git worktree add .worktree/<run_id>/merge integration/<run_id>`。
 - 可讀 `.worktree/<run_id>/**`、`.opencode/run-artifacts/<run_id>/**`、final maintained report、dispatch ledger 與各 worktree manifest。
-- 不建立/刪除 worktree，不切 branch，不 checkout，不 merge，不 reset，不 commit，不 push。
+- 除 final merge worktree 同一路徑安全恢復外，不建立/刪除 worktree，不切 branch，不 checkout，不 merge，不 reset，不 commit，不 push。
 - 不釐清 bug，不判斷 culprit commit，不修改檔案。
 
 ## run_id 來源
@@ -43,7 +43,7 @@ permission:
 3. 選定後確認 final merge target：
    - 優先使用 `.worktree/<run_id>/merge` 且它是 git worktree。
    - 若 final report 記錄 final merge worktree，確認該路徑存在且是 git worktree。
-   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍以 final merge worktree 作為唯一修復目標。若恢復失敗，回報 `MERGE_WORKTREE_RESTORE_FAILED`，不得進 bug fix。
+   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍以 final merge worktree 作為唯一修復目標。若恢復失敗，回報 `MERGE_WORKTREE_RESTORE_FAILED`，不得進 bug fix。
    - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，且無法安全恢復，回報 `MERGE_WORKTREE_MISSING`，不得進 bug fix。
 4. 確認 final merge worktree status。若不乾淨，回報 `MERGE_WORKTREE_DIRTY`，不得進 bug fix。
 5. 讀取 final maintained report commit map；若缺 final report 或 commit map，嘗試由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但 packet 必須標示來源為 `git-log-derived`。
