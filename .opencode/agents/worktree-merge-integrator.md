@@ -64,7 +64,7 @@ permission:
 
 Final artifact 必填內容：
 
-- run_id、需求來源、final integration branch、final integration head、final merge worktree。
+- run_id、需求來源、init-project bootstrap branch（若 planner/run artifacts 有記錄）、final integration branch、final integration head、final merge worktree。
 - 所有 stage、eligibleSetId、parallelGroupId、classification 的 merge 摘要。
 - 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change。
 - commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。

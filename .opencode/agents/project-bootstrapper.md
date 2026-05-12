@@ -28,6 +28,7 @@ permission:
 - 明確建立指令或主流程建立選擇；範圍為 `frontend`、`backend` 或兩者。
 - 已確認 stack、package manager、啟動方式、測試基準、不做需求功能範圍。
 - 已確認 downstream：預設完整鏈路 `read project rules -> development-detail-planner -> stage-ready-set worktree-splitter -> 每個 worktree 內 OpenSpec propose/spec + apply-change/fallback + 局部測試 + 最小中文 commit -> stage merge integration -> final integration` 與 commit 授權狀態，或使用者主動明確限制後的有限鏈路；若缺失，不得自行補成 `bootstrap only`。
+- Bootstrap branch gate 交接：若本次會建立或更新 `frontend/README.md`、`backend/README.md` 或最小啟動檔，主流程應提供 `bootstrap_branch_name`、原始 branch、目前 branch 與 gate 已完成狀態；若缺失，本 agent 必須在寫入任何 README/專案檔前自行執行 branch gate。
 - `.opencode/project-rules.md` 路徑與摘要；不存在則停止，要求 `project-start-rules-definer` 先判斷/建立。
 - 已確認專案規則、覆蓋紀錄、README 摘要。
 - 需要 frontend 讀 `.opencode/skills/frontend/*/SKILL.md`；需要 backend 讀 `.opencode/skills/backend/*/SKILL.md`。
@@ -35,6 +36,7 @@ permission:
 
 ## 建立前檢查
 
+- Bootstrap branch guard：在建立或更新 `frontend/README.md`、`backend/README.md`、package/pyproject/source/test/config 等任何最小啟動檔前，必須確認目前已位於使用者指定的新 bootstrap branch。若主流程已完成 gate，讀取並核對 `bootstrap_branch_name` 與目前 branch；若未提供 gate 結果，必須用 `question` 詢問使用者 branch 名稱，執行 `git check-ref-format --branch <branch>`、確認 `git branch --list <branch>` 不存在，且目前不在 detached HEAD、merge/rebase/cherry-pick/bisect 進行中，然後執行 `git switch -c <branch>`。若名稱非法、branch 已存在、使用者未回答或 git 狀態無法安全切換，停止並回報 `BOOTSTRAP_BRANCH_REQUIRED` / `BOOTSTRAP_BRANCH_INVALID` / `BOOTSTRAP_BRANCH_EXISTS` / `BOOTSTRAP_BRANCH_UNSAFE_STATE`；不得先寫 README 再補 branch。
 - 檢查目標資料夾、README、package/lockfile、pyproject、src/app、Docker/Compose、測試與啟動設定。
 - 已有可識別專案時不得覆蓋/重建/scaffold/替換 stack；只在使用者明確要求補最小啟動能力時補 install/dev/build/health/smoke/README 缺口。
 - 若輸入是現有專案需求功能，停止並回主流程走現有專案開發。
@@ -82,6 +84,7 @@ permission:
 - 範圍：frontend 建立/調整/不適用；backend 建立/調整/不適用
 - 主要變更：...；需求功能實作：未實作，僅最小啟動
 - README：frontend/README.md 已更新/不適用；backend/README.md 已更新/不適用
+- bootstrap branch：<branch name>；原始 branch：<branch name>；branch gate：completed/blocked
 - 依賴與啟動：frontend 命令/結果/URL；backend 命令/結果/URL；API base URL/啟動順序
 - 規則：.opencode/project-rules.md 已讀取/缺失；最新規則/覆蓋紀錄；skill 未修改/未找到/不適用
 - 驗證：命令與結果；未執行項目與原因
@@ -90,8 +93,9 @@ permission:
 
 ### 回主流程續行
 - 最小啟動：完成/部分完成/失敗
+- bootstrap branch：<branch name>；branch gate：completed/blocked；blocker：無/BOOTSTRAP_BRANCH_REQUIRED/BOOTSTRAP_BRANCH_INVALID/BOOTSTRAP_BRANCH_EXISTS/BOOTSTRAP_BRANCH_UNSAFE_STATE
 - 已授權 downstream：<原樣回填主流程傳入值；若缺失寫「預設完整 downstream：read project rules -> development-detail-planner -> stage-ready-set worktree-splitter -> 每個 worktree 內 OpenSpec propose/spec + apply-change/fallback + 局部測試 + 最小中文 commit -> stage merge integration -> final integration」；不得自行預設 bootstrap only>
 - commit 授權狀態：<原樣回填主流程傳入值；若缺失寫「完整 downstream 已授權中文細分 commit」；若使用者明確要求不要 commit，寫 no commit>
-- 交回資料：run_id、變更檔案、README 摘要、啟動命令、URL/port、驗證命令與結果、Playwright MCP smoke/skip/blocker、未完成項目、風險
+- 交回資料：run_id、bootstrap_branch_name、原始 branch、變更檔案、README 摘要、啟動命令、URL/port、驗證命令與結果、Playwright MCP smoke/skip/blocker、未完成項目、風險
 - 續行指令：主流程 read-back project rules 並產生/更新 development-detail-planner 後，依 Stage Execution Graph 計算目前 stage ready eligibleSetId 集合，同時建立 worktree，平行啟動 runner 在每個 worktree 內連續完成 OpenSpec propose/spec、apply/fallback、局部測試與最小中文 commit；同一 stage ready set 內所有可派 worktree 由主流程同一輪平行呼叫多個 runner subagent，dispatch ledger 追蹤 ready set、batch、錯誤與重試；所有 worktree 局部測試與 commit 完成後一次進入 merge integration，merge 後跑整合測試，最後跑整體測試；只有使用者主動明確限制為 bootstrap only 時，才可停止於此
 ```

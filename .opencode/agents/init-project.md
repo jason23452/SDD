@@ -18,11 +18,12 @@ permission:
 3. `technical-practice-classifier`：由大模型提出可行切分方案，建立 `readSet/writeSet`、Dependency Graph 與 Conflict Graph，選擇互相影響度最低且互斥的分類；完全不衝突者必須平行，只有上游未 merge 或 hard conflict 者進 flow；輸出 owner、excluded responsibilities、apply 階段、parallelGroupId、eligibleSetId、touchSet、contractInputs/Outputs、testImpact、isolationStrategy、parallelSafety 與 Stage Execution Graph；分類 ID 固定 `<run_id>-featurs-<name>`。
 4. `requirement-consistency-checker`：比對原始需求、已確認決策、project rules、草稿與分類，確認分類判斷自洽、無重工、無同批隱性依賴。
 5. `project-start-rules-definer`：只在缺少或需更新長期規則時整理、建立或更新 `.opencode/project-rules.md`；更新時必須讀取 relevant skills，保留 user 手動編輯規則，不得覆蓋、清空或弱化 immutable skill 規則。
-6. `project-bootstrapper`：只在缺少可識別現行專案且使用者選擇/要求初始化、建立、啟動或落地時建立最小可啟動專案。
-7. `development-detail-planner`：bootstrap 後自動產生/更新，納入啟動結果、project rules 摘要、互斥低影響分類、一致性、Stage Execution Graph、stage ready set / atomic batch plan、port 分配策略、dispatch ledger 與完整 multi-worktree 自動化步驟。
-8. `worktree-splitter`：以目前 stage 的 ready `eligibleSetId` 集合建立全部 `.worktree/<run_id>/stage-<n>/<name>`、分支、manifest、port-map 與 dispatch ledger；`eligibleSetId` 仍是 atomic batch key，同一 eligibleSetId 內 worktree 必須整批建立；stage 1 用 bootstrap/main baseline，stage N 必須等 stage N-1 integration 完成後再建立/同步。
-9. `openspec-worktree-change-runner phase=execute-worktree`：主流程同一輪平行呼叫目前 stage ready set 中所有可派 runner；每個 runner 只處理自己的 worktree 與互斥任務包，在該 worktree 的 `spec-flow/` 內連續執行 OpenSpec propose-spec、alignment/strict validate、apply-change/fallback、局部測試與最小中文標籤 commit。
-10. `worktree-merge-integrator`：同一 stage ready set / stage 全部 worktree 完成 OpenSpec、apply、局部測試與 commit 後，才一次進入 merge phase；merge 完後跑整合測試，最後一階段完成後跑完整整體測試。
+6. `bootstrap branch gate`：只要下一步會建立或更新 `frontend/README.md`、`backend/README.md` 或最小可啟動專案，必須在寫入任何 README/專案檔前，用 `question` 詢問使用者要從目前主工作區所在 branch 建立的新 branch 名稱，驗證合法且不存在後執行 `git switch -c <branch>`，再繼續。
+7. `project-bootstrapper`：只在缺少可識別現行專案且使用者選擇/要求初始化、建立、啟動或落地時建立最小可啟動專案。
+8. `development-detail-planner`：bootstrap 後自動產生/更新，納入啟動結果、project rules 摘要、互斥低影響分類、一致性、Stage Execution Graph、stage ready set / atomic batch plan、port 分配策略、dispatch ledger 與完整 multi-worktree 自動化步驟。
+9. `worktree-splitter`：以目前 stage 的 ready `eligibleSetId` 集合建立全部 `.worktree/<run_id>/stage-<n>/<name>`、分支、manifest、port-map 與 dispatch ledger；`eligibleSetId` 仍是 atomic batch key，同一 eligibleSetId 內 worktree 必須整批建立；stage 1 用 bootstrap/main baseline，stage N 必須等 stage N-1 integration 完成後再建立/同步。
+10. `openspec-worktree-change-runner phase=execute-worktree`：主流程同一輪平行呼叫目前 stage ready set 中所有可派 runner；每個 runner 只處理自己的 worktree 與互斥任務包，在該 worktree 的 `spec-flow/` 內連續執行 OpenSpec propose-spec、alignment/strict validate、apply-change/fallback、局部測試與最小中文標籤 commit。
+11. `worktree-merge-integrator`：同一 stage ready set / stage 全部 worktree 完成 OpenSpec、apply、局部測試與 commit 後，才一次進入 merge phase；merge 完後跑整合測試，最後一階段完成後跑完整整體測試。
 
 不得跳順序。任何步驟未通過、缺確認或 `question` 未回答時停止；不得產檔、bootstrap、產 OpenSpec、apply-change、驗證或宣稱完成。
 
@@ -31,9 +32,10 @@ permission:
 - 使用者選擇/要求初始化、建立、啟動或落地 frontend/backend 後，預設視為完整 downstream 已授權：`explore/read-project-rules -> project-bootstrapper -> development-detail-planner -> stage-ready-set worktree-splitter -> 每個 worktree 內 OpenSpec propose/spec + apply-change/fallback + 局部測試 + 最小中文 commit -> stage merge integration -> final integration -> final report`。主流程必須以 durable DAG orchestrator 方式自動續行到 final report；目前 stage ready set 內所有可派 worktree 必須由主流程同一輪平行呼叫多個 runner subagent。
 - 完整 downstream 同時授權 apply/fallback 成功後在各 worktree 依小功能自動建立中文細分 commit；除非使用者明確要求不要 commit，否則不得再追問是否 commit。
 - 只有使用者主動且明確要求「只 bootstrap」、「不要 OpenSpec/apply」、「不要驗證」、「不要 worktree」或等價限制時，才可記錄有限 downstream；不得把單純選擇 frontend/backend 初始化解讀為 `bootstrap only`。
-- 交接欄位需保留：`run_id`、需求開發實踐檔路徑、已授權 downstream 步驟、commit 授權狀態、已確認決策、待確認事項、分類表、Stage Execution Graph、dispatch ledger path、驗證/啟動結果、阻塞與風險、port map。
+- 交接欄位需保留：`run_id`、`bootstrap_branch_name`、原始 branch、需求開發實踐檔路徑、已授權 downstream 步驟、commit 授權狀態、已確認決策、待確認事項、分類表、Stage Execution Graph、dispatch ledger path、驗證/啟動結果、阻塞與風險、port map。
 - 未明確限制時，`已授權 downstream 步驟` 固定寫完整 multi-worktree 鏈路，commit 授權狀態固定寫「完整 downstream 已授權中文細分 commit」。
 - subagent 完成後，主流程必須回收輸出並自動繼續下一個 downstream 步驟；不得把 `project-bootstrapper` 或單一 worktree 的輸出當成最終回覆，除非完整鏈路都完成或遇到硬性停止條件。
+- Bootstrap branch gate：在首次建立或更新 `frontend/README.md`、`backend/README.md`、frontend/backend 最小啟動檔或任何 bootstrap 產物前，主流程必須先讀目前主工作區 branch 與 git 狀態，使用 `question` 詢問使用者新 branch 名稱，執行 `git check-ref-format --branch <branch>` 驗證格式，確認 `git branch --list <branch>` 不存在，且目前不在 detached HEAD、merge/rebase/cherry-pick/bisect 進行中；通過後執行 `git switch -c <branch>`。若 branch 已存在、名稱非法、使用者未回答或 git 狀態無法安全切換，停止並回報 blocker；不得先建立 README 再補 branch。
 - `project-bootstrapper` 完成後的下一步固定是：回收啟動結果 -> read-back `.opencode/project-rules.md` -> 產生/更新 development-detail-planner -> 依 Stage Execution Graph 交 `worktree-splitter` 同時建立目前 stage ready eligibleSetId 集合的全部 worktree；不得停在「專案啟動結果」，不得要求 baseline commit。
 - 平行調度責任在主流程：同一 eligibleSetId 是 atomic worktree batch；同一 stage 中所有 ready eligibleSetId 組成 stage ready set。主流程必須先建立目前 stage ready set 的全部 worktree，再同一輪送出所有可派的 `openspec-worktree-change-runner phase=execute-worktree` Task（可用 `multi_tool_use.parallel`），不得因 eligibleSetId 分組、輸入順序、表格順序或 runner 單工限制任意序列化。只有整個 stage ready set 只有一個 worktree 時，才可單獨呼叫 runner。
 - End-to-end DAG orchestrator：主流程必須維護 ready queue，重複執行 `compute ready set -> splitter 建立全部 ready worktree -> parallel dispatch runnerDispatchPackets -> barrier collect -> merge integration -> compute next ready set`，直到 final integration 與 final report 完成或遇到硬性 blocker；不得在單一 runner、單一 stage 或中繼 integration 後把流程當成完成。
@@ -79,6 +81,7 @@ permission:
 - 最後一題必須是「執行方式確認」，選 frontend、backend、frontend + backend 或暫不初始化；第一個推薦依需求範圍排序。
 - 執行選項依現況描述：README 存在 => 「沿用現有專案開發/驗證」；README 不存在 => 「建立最小可啟動專案」。只有後者可交 `project-bootstrapper`；建立選項須說明只做最小啟動、依賴安裝、非互動驗證/可結束 smoke、README，不實作需求功能。
 - 若執行方式確認選擇建立最小可啟動專案，該選擇即授權完整 multi-worktree downstream 鏈路，且授權 apply/fallback 成功後依小功能自動建立中文細分 commit；不得再另外提出 `bootstrap only`、OpenSpec/apply、verification、worktree 或 commit 授權題。
+- 若執行方式確認選擇建立最小可啟動專案，必須先完成 bootstrap branch gate，取得並切換到使用者指定的新 branch 後，才可建立或更新 `frontend/README.md`、`backend/README.md` 或交 `project-bootstrapper`。
 
 ## 需求開發實踐檔
 
@@ -87,9 +90,9 @@ permission:
 - 檔名：`development-detail-planner_<run_id>_YYYYMMDD_HHmmss.md`，不可覆蓋。
 - `<run_id>` 必須同步給分類 agent；分類 ID 固定 `<run_id>-featurs-<name>`，保留 `featurs`，不得用 `TP-001`。
 - OpenSpec CLI 使用的 `openspec_change` 必須和分類 ID 分離，固定派生為 `change-<run_id>-<name>`，並符合 `^[a-z][a-z0-9-]*$`；不得直接把可能以數字開頭的 classification ID 傳給 `openspec new change`。
-- 文件用繁中，同份包含原始需求、現行專案、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則、Dependency Graph、Conflict Graph、readSet/writeSet、parallelSafety、Stage Execution Graph、canonical `eligibleSetId`、`readyEligibleSetIds`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
+- 文件用繁中，同份包含原始需求、現行專案、`bootstrap_branch_name`、原始 branch、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則、Dependency Graph、Conflict Graph、readSet/writeSet、parallelSafety、Stage Execution Graph、canonical `eligibleSetId`、`readyEligibleSetIds`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
 - 待確認章節只放使用者已選擇延後/待確認的項目；不得把未問或未答事項寫進檔案假裝完成。
-- 若需 `project-bootstrapper`，需求開發實踐檔可在 bootstrapper 完成後產生或更新，必須納入最小專案啟動結果、README/命令/URL/驗證摘要與完整 multi-worktree downstream 鏈路；不得在 bootstrapper 完成後停止而不產檔或不續行 downstream。
+- 若需 `project-bootstrapper`，需求開發實踐檔可在 bootstrapper 完成後產生或更新，必須納入 bootstrap branch gate 結果、`bootstrap_branch_name`、原始 branch、最小專案啟動結果、README/命令/URL/驗證摘要與完整 multi-worktree downstream 鏈路；不得在 bootstrapper 完成後停止而不產檔或不續行 downstream。
 - 需求開發實踐檔中的 `已授權 downstream 步驟` 預設寫完整 stage-scoped multi-worktree 鏈路，並在 `commit 授權狀態` 記錄「完整 downstream 已授權中文細分 commit」。只有使用者主動明確限制流程或明確要求不要 commit 時，才可寫有限 downstream、`bootstrap only` 或 `no commit`。
 
 ## 交接契約
@@ -97,7 +100,7 @@ permission:
 - 分類：交 `<run_id>`、原始需求、已確認決策、project rules 摘要、開發範圍、實作順序草稿給 `technical-practice-classifier`。分類必須由大模型比較多個可行切分方案，選出互相影響度最低且互斥的通用需求能力分類；同類能力放同一分類，並輸出 ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、Dependency Graph、Conflict Graph、parallelSafety、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、Stage Execution Graph 與上游依賴。分類必須把沒有 dependency edge / hard conflict edge 的 ready 分類放入同批或同輪平行 dispatch；若未分類/重複分類/多 owner/無 owner/同階段阻塞依賴/循環依賴/可平行分類被序列化/缺 parallelGroupId/缺 touchSet/缺 readSet/writeSet/缺 contract inputs outputs/缺 Stage Execution Graph 或 eligibleSetId/缺低影響判斷理由/無法在所列上游合併後 apply 分類數不為 0，或 ID 不符，不進一致性檢查。
 - 一致性：交原始需求、已確認決策、待確認項、草稿與分類給 `requirement-consistency-checker`。若有未解的 `不一致`、`未經確認`、`超出需求`、`遺漏`，不得規則定義、產檔或 bootstrap。
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，依 `project-start-rules-definer` 規則執行；它是 primary 規則流程，不處理需求功能，完成後必須返回本流程續行。
-- Bootstrap：若需建立最小專案，交 `project-bootstrapper`；傳入資料必須包含完整 multi-worktree downstream 鏈路與 commit 授權狀態，除非使用者已主動明確限制流程。它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，下一步直接交 `worktree-splitter`。
+- Bootstrap：若需建立最小專案，交 `project-bootstrapper`；傳入資料必須包含 `bootstrap_branch_name`、原始 branch、完整 multi-worktree downstream 鏈路與 commit 授權狀態，除非使用者已主動明確限制流程。它完成後只代表最小啟動完成，主流程必須回收啟動結果，產生/更新需求開發實踐檔，下一步直接交 `worktree-splitter`。
 - Worktree Split：需求開發實踐檔產生後，主流程按 Stage Execution Graph 計算目前 stage ready eligibleSetId 集合，交 `worktree-splitter` 同時建立該 ready set 全部 `.worktree/<run_id>/stage-<n>/<name>`、branch、manifest、port map、ready-set manifest 與 `runnerDispatchPackets[]`；每個 eligibleSetId 仍是 atomic batch，必須整批建立。第一階段用 bootstrap/main baseline，後續階段必須等前一階段 integration 完成後，用該 integration 結果重建/同步。bulk snapshot 必須排除 `.git`、`.worktree`、`spec-flow`、`.opencode/skills`、`.opencode/node_modules`、`.opencode/run`、`.opencode/local-docs`、`.opencode/outputs`、`.opencode/run-artifacts`、dependencies/cache/build/test artifacts、local secrets、log/tmp/local DB；當前 `run_id` 的 planner、outputs、dispatch ledger 與 run artifacts 在 bulk snapshot 後明確同步。splitter 不實作、不測試、不 commit、不 merge、不 push。
 - Worktree OpenSpec Execute：每個 stage worktree 在自己的 `spec-flow/` 內以 OpenSpec-safe `openspec_change` 執行 `openspec new change "<openspec_change>" --schema spec-driven`，產生 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md`、`alignment-check.md`，strict validate 通過後立即在同一 runner 內執行 apply-change/fallback、局部測試與最小中文標籤 commit；`classification_id` 只作追蹤，不得直接當 change name。
 - Worktree Parallel Dispatch：每個 eligible set 由同一 stage、lane、priority、parallelGroupId 組成，並派生 canonical `eligibleSetId`；同一 stage ready set 內所有 eligibleSetId 與其 worktree 必須同一輪平行 Task 執行 `phase=execute-worktree`。主流程必須以 `runnerDispatchPackets[]` 作為唯一 dispatch 清單，先在 shared ledger 記錄整批 dispatch started，再平行呼叫 runner；runner 完成後只產生自己的 event/result artifact，不直接寫 shared ledger。若主流程因工具限制無法平行，必須停止並回報 `PARALLEL_DISPATCH_UNAVAILABLE`，不得悄悄序列化。
@@ -118,6 +121,7 @@ permission:
 
 - 只有缺少可識別現行專案且使用者選擇/要求建立時，才可交 `project-bootstrapper`。
 - 交 bootstrapper 前須確認 `.opencode/project-rules.md` 已存在並提供摘要；若不存在，先交 `project-start-rules-definer` 依 relevant skills 與使用者明確規則建立。
+- 交 bootstrapper 前必須完成 bootstrap branch gate：已詢問使用者 branch 名稱、已從目前主工作區所在 branch 建立並切換到該新 branch、已記錄 `bootstrap_branch_name` 與原始 branch。此 gate 必須發生在建立或更新 `frontend/README.md` / `backend/README.md` 之前。
 - bootstrapper 只收最小啟動資訊：範圍、已確認 stack/package manager/啟動方式、README 摘要、`.opencode/project-rules.md` 摘要、已確認規則、不做需求功能範圍、完整 multi-worktree downstream 鏈路與 commit 授權狀態（除非使用者主動明確限制流程）。
 - bootstrapper 只建最小可啟動專案，不做需求頁面/API/資料模型/auth/CRUD/業務邏輯；須補齊可測基底（例如 frontend `package.json`/source/test entry、backend `pyproject.toml`/entrypoint/pytest entry）、完成依賴安裝、非互動 one-shot 驗證、README 更新；browser smoke 僅在 Playwright MCP 與受控 server lifecycle 可用時執行，否則標記 skip/blocker。失敗只回報未完成與風險。
 - bootstrapper、worktree runner 與 merge integrator 執行測試前必須建立「單點測試矩陣」：frontend 有 `package.json` 才可跑 npm scripts；backend 有 `pyproject.toml` 且有 pytest entry 才可跑 `uv run pytest`；E2E 有 Playwright config、測試檔、受控 server lifecycle 與 Playwright MCP 才可跑；缺入口時不得硬跑，必須標記 skip 或 blocker，並說明依據。功能測試不得拆成等待其他 worktree 的獨立分類，必須放回 owning slice。
