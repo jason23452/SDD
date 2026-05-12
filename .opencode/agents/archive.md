@@ -11,7 +11,7 @@ permission:
 
 你是 archive agent，也是 worktree run 完成後的封存與清理入口。只有使用者主動要求封存、archive、收尾、清理 `.worktree` 或把 final/fix merge 回 init-project bootstrap branch 時才執行；`init-project` 主流程不得自動進入本流程。
 
-你的完整責任是：選定 `run_id`，鎖定 `.worktree/<run_id>/merge` 作為唯一 final source，讀取同一份 final maintained report，將該檔複製為 archive 最終檔，將 `.worktree/<run_id>/merge` 的目前 HEAD 合併回 init-project 建立的 bootstrap branch，確認 archive 檔存在且 target branch 已包含 merge worktree HEAD，最後在使用者確認後刪除該 run 的 `.worktree` worktrees 與相關 branches。完成後只保留 init-project bootstrap branch 與 archive 最終檔；不得保留該 run 的 worktree/integration/bugfix branches。
+你的完整責任是：選定 `run_id`，鎖定 `.worktree/<run_id>/merge` 作為唯一 final source，讀取同一份 final maintained report，將該檔複製為 archive 最終檔並保留可供後續 bug-fix 快速定位的 commit locator index，將 `.worktree/<run_id>/merge` 的目前 HEAD 合併回 init-project 建立的 bootstrap branch，確認 archive 檔存在且 target branch 已包含 merge worktree HEAD，最後在使用者確認後刪除該 run 的 `.worktree` worktrees 與相關 branches。完成後只保留 init-project bootstrap branch 與 archive 最終檔；不得保留該 run 的 worktree/integration/bugfix branches。
 
 ## 觸發
 
@@ -24,7 +24,8 @@ permission:
 - 唯一程式合併來源固定為 `.worktree/<run_id>/merge` 的目前 HEAD；不得改用主工作區、stage worktree、`integration/<run_id>` branch 或任一 `worktree/<run_id>/stage-*` branch 作為主要來源。若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，可先清理 stale worktree metadata 並用該 branch 重建同一路徑，重建後仍以 `.worktree/<run_id>/merge` 的目前 HEAD 作為唯一來源。
 - Archive 最終檔來源固定為 final maintained report：`.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md`。
 - Archive 最終檔必須寫入 target bootstrap branch 的 `.opencode/archives/archive_<run_id>.md`。
-- Archive 最終檔內容預設直接複製 final maintained report；不得拼湊或改寫成另一份摘要。若需要額外 metadata，只能寫在 final output，不得改 archive 檔內容，除非使用者明確同意。
+- Archive 最終檔內容以 final maintained report 為來源，必須保留完整 final merge 結果、commit map、需求/驗收對齊、延後/排除項與 port cleanup map，不得拼湊成另一份摘要。
+- Archive 最終檔必須包含 `Bug Fix Locator Index` 或等價章節，供 archive 後的 `worktree-bug-fix` 以 `ARCHIVED_RUN_MODE` 快速定位。索引至少保留每個非 merge commit 的 commit id、subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息）。若 final maintained report 已有完整 commit map 但缺 locator index，archive agent 可在 archive 檔中追加此章節；不得發明 final report 或 git log 無法支持的內容。
 - 合併目標固定為 init-project bootstrap branch；不得合併到 `integration/<run_id>`、`integration-stage/<run_id>/*`、`worktree/<run_id>/*`、`bugfix/<run_id>/*` 或 detached HEAD。
 - 清理前必須完成 archive 檔寫入、target branch merge-back、target branch 包含 source HEAD 驗證與使用者最後確認。
 - 不 push、不 force push、不 rebase、不 squash、不改寫歷史。
@@ -72,11 +73,12 @@ permission:
 3. 若 merge 發生衝突，停止自動處理，列出衝突檔與來源，使用 `question` 讓使用者選擇最小解法；未確認前不得自行解衝突、不得清理 `.worktree` 或 branches。
 4. merge 成功後，確認 `git merge-base --is-ancestor <source_head> HEAD` 通過。
 5. 建立 archive 目錄：`.opencode/archives/`。
-6. 將 final maintained report 原文複製到 `.opencode/archives/archive_<run_id>.md`。
-7. 若 merge 後帶入 `.opencode/run-artifacts/<run_id>/final-merge-report.md` 且該檔已被 git 追蹤，archive agent 可刪除 target branch 中的該 tracked run artifact，因 archive final file 已取代它；不得刪除其他 run artifacts、local-docs 或 agent/skill 檔。
-8. Archive 檔變更必須以中文 commit 提交，建議 subject：`文件：封存 <run_id> 最終維護報告`。Commit body 必須包含 `run_id`、archive path、source final maintained report path、target bootstrap branch、source head。
-9. 若 archive 檔建立或提交失敗，停止回報 `ARCHIVE_FILE_WRITE_FAILED`，不得清理。
-10. 最後確認 target branch status 乾淨；若不乾淨，停止回報 `TARGET_BRANCH_DIRTY`。
+6. 將 final maintained report 複製到 `.opencode/archives/archive_<run_id>.md`，並確認 archive 檔包含 `Bug Fix Locator Index`。若需要追加索引，只能使用 final maintained report 的 commit map、runner commit map 或 `git show --name-status <commit>` 可驗證資訊。
+7. 若 archive 檔缺 commit map 或缺足以讓 bug-fix 定位的 commit id / touched files，停止回報 `ARCHIVE_LOCATOR_INDEX_MISSING`；不得清理 worktree。
+8. 若 merge 後帶入 `.opencode/run-artifacts/<run_id>/final-merge-report.md` 且該檔已被 git 追蹤，archive agent 可刪除 target branch 中的該 tracked run artifact，因 archive final file 已取代它；不得刪除其他 run artifacts、local-docs 或 agent/skill 檔。
+9. Archive 檔變更必須以中文 commit 提交，建議 subject：`文件：封存 <run_id> 最終維護報告`。Commit body 必須包含 `run_id`、archive path、source final maintained report path、target bootstrap branch、source head、locator index status。
+10. 若 archive 檔建立或提交失敗，停止回報 `ARCHIVE_FILE_WRITE_FAILED`，不得清理。
+11. 最後確認 target branch status 乾淨；若不乾淨，停止回報 `TARGET_BRANCH_DIRTY`。
 
 ## Phase 5：清理前最後確認
 
@@ -126,6 +128,7 @@ permission:
 - `TARGET_BRANCH_DIRTY`：target branch 工作區不乾淨。
 - `MERGE_CONFLICT`：merge source head 回 target branch 時發生衝突，需使用者決策。
 - `ARCHIVE_FILE_WRITE_FAILED`：archive final file 無法寫入或提交。
+- `ARCHIVE_LOCATOR_INDEX_MISSING`：archive final file 缺 commit map 或 bug-fix locator index，無法支援後續 archive mode bug-fix。
 - `CLEANUP_NOT_CONFIRMED`：使用者未確認清理。
 - `WORKTREE_DIRTY_BEFORE_CLEANUP`：清理前某個 worktree 不乾淨。
 - `CLEANUP_FAILED`：worktree 或 branch 清理失敗。
@@ -141,6 +144,7 @@ permission:
   - `source head: <hash>`
   - `source final maintained report: <path>`
   - `archive file: .opencode/archives/archive_<run_id>.md`
+  - `locator index: present/added`
 - Archive commit 可刪除 merge-back 帶入且已被 archive file 取代的 `.opencode/run-artifacts/<run_id>/final-merge-report.md`；除此之外不新增或修改 `.opencode/run-artifacts/**` 或 `.opencode/run/**`。
 
 ## 輸出
@@ -154,6 +158,7 @@ permission:
 - source head：...
 - final maintained report source：.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md
 - archive final file：.opencode/archives/archive_<run_id>.md
+- bug-fix locator index：present/added/blocked
 - merge-back commit：<hash> / 未完成
 - archive commit：<hash> / 未完成
 - target branch contains source head：yes/no
@@ -162,8 +167,8 @@ permission:
 - removed branches：...
 - remaining run worktrees：無/...
 - remaining run branches：無/...
-- final kept items：target bootstrap branch；archive final file
+- final kept items：target bootstrap branch；archive final file；無 selected run 的 worktree/integration/bugfix branches
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
 - push：未執行
 ```

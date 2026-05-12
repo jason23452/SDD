@@ -76,7 +76,7 @@ git worktree add 只會帶出 tracked files；因此 stage/final merge worktree 
 
 - `.opencode/run-artifacts/<run_id>/final-merge-report.md`
 
-`final-merge-report.md` 必須同時包含 final merge 結果、commit map、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。此檔也是 archive 直接複製的最終來源。
+`final-merge-report.md` 必須同時包含 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。此檔也是 archive 直接複製的最終來源。
 
 Final artifact 必填內容：
 
@@ -84,6 +84,7 @@ Final artifact 必填內容：
 - 所有 stage、eligibleSetId、parallelGroupId、classification 的 merge 摘要。
 - 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change。
 - commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
+- Bug Fix Locator Index：由 commit map 派生，至少包含 commit id、commit subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息），供 archive 後 `ARCHIVED_RUN_MODE` 不依賴 `.worktree` 快速定位。
 - 延後與排除項 map：所有未實作但出現在原需求或確認決策中的 deferred/excluded requirements 必須逐項列出，不能只寫在摘要。
 - Browser smoke、DB runtime、E2E 等 skipped/blocked 項目必須明確標示為 skipped/blocked，不得標為 passed。
 - Latest Maintenance / Bug Fix 區段：final merge 時可標示 `none yet`；後續 `worktree-bug-fix` 更新時只改此區段或必要的 verification/commit reference，不得破壞既有 commit map。
@@ -191,7 +192,7 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 - 進入 final report 前，commit map 必須包含每個 runner 的 `規格：...` spec commit 與後續 `實作：`、`測試：`、`修正：`、`文件：` commits；spec commit 不得被省略或只記在 runner event。
 - `.opencode/run-artifacts/<run_id>/final-merge-report.md` 是 `.opencode/run-artifacts/**` 中唯一可 stage/commit 的 final maintained report 例外；runner events、dispatch ledger、manifest、port-map 與其他 runtime artifacts 不得 commit。
 - 不 push。
-- 最後一階段必須產生 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，並確認該檔含 commit map、需求/驗收對齊、deferred/excluded map 與 port cleanup map。
+- 最後一階段必須產生 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，並確認該檔含 commit map、Bug Fix Locator Index、需求/驗收對齊、deferred/excluded map 與 port cleanup map。
 - 最後檢查 merge worktree `git status --porcelain` 必須乾淨，或明確列出未提交原因。
 
 ## 輸出

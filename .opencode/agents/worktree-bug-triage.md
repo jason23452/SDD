@@ -21,8 +21,8 @@ permission:
 ## 邊界
 
 - 只做釐清與歸納，不做修正。
-- 必須使用 Run Change Lock Packet 中的 selected run_id、final merge_worktree、locked commits、locked touched files index 作為唯一 run scope。
-- 可讀取該 run 的 final maintained report、dispatch ledger、locked commit diff、測試輸出與相關檔案內容。
+- 必須使用 Run Change Lock Packet 中的 selected run_id、使用者選定 bugfix mode、locked commits、locked touched files index 作為唯一 run scope；active mode 使用 final merge_worktree，archived mode 使用 archive final file。
+- 可讀取該 run 的 final maintained report、archive final file、dispatch ledger、locked commit diff、測試輸出與相關檔案內容。
 - 可執行 read-only git 指令，例如 `git status`、`git branch`、`git log`、`git show --name-status`、`git diff --name-only`。
 - 不執行會修改檔案、安裝依賴、啟動長時間服務、清理資料、reset、checkout 覆蓋、merge、rebase、commit 或 push 的命令。
 - 不把候選 commit 當成已定案 culprit commit；定案與修正由 `worktree-bug-fix` 做。
@@ -31,7 +31,7 @@ permission:
 
 ## 必要輸入
 
-- Run Change Lock Packet：selected run_id、final merge_worktree、final integration branch/head、final maintained report、locked commits、locked touched files index。
+- Run Change Lock Packet：selected run_id、bugfix mode（ACTIVE_WORKTREE_RUN / ARCHIVED_RUN_MODE）、final merge_worktree 或 archive final file、final integration branch/head、final maintained report 或 archive maintained report、locked commits、locked touched files index。
 - 使用者 bug 描述：實際現象、預期行為、發生時機、畫面/API/功能名稱。
 - 若有：錯誤訊息、stack trace、failing test、命令輸出、URL、截圖描述、重現步驟、懷疑 commit 或功能範圍。
 
@@ -54,12 +54,13 @@ permission:
 - bug 現象清楚。
 - actual 與 expected 差異清楚。
 - 有至少一種可用定位線索：failing test、錯誤訊息、檔案/功能/API/頁面名稱、使用者指定懷疑 commit、run_id/final report。
-- Run Change Lock Packet 可用且 final merge_worktree 已鎖定。
+- Run Change Lock Packet 可用且 bugfix mode 已由使用者 question 選定；active mode 需 final merge_worktree 已鎖定，archived mode 需 archive final file 已鎖定。
 - 沒有需要先由使用者決定的需求範圍變更。
 
 `ready_for_fix: false` 的常見原因：
 
 - `RUN_CHANGE_LOCK_REQUIRED`：缺少可用 Run Change Lock Packet，必須先執行 `worktree-run-id-change-locker`。
+- `BUGFIX_MODE_NOT_SELECTED`：尚未由使用者 question 選定 ACTIVE_WORKTREE_RUN 或 ARCHIVED_RUN_MODE。
 - `BUG_INPUT_INSUFFICIENT`：缺少現象、預期、實際或定位線索。
 - `NEEDS_REPRODUCTION_INFO`：缺少重現步驟或 failing command/test。
 - `REQUIREMENT_AMBIGUOUS`：看起來像需求未定義或期望行為不明。
@@ -70,11 +71,14 @@ permission:
 ```markdown
 ## Bug Triage Packet
 - ready_for_fix：true/false
-- blocker：無 / `RUN_CHANGE_LOCK_REQUIRED` / `BUG_INPUT_INSUFFICIENT` / `NEEDS_REPRODUCTION_INFO` / `REQUIREMENT_AMBIGUOUS` / `ENVIRONMENT_BLOCKED`
+- blocker：無 / `RUN_CHANGE_LOCK_REQUIRED` / `BUGFIX_MODE_NOT_SELECTED` / `BUG_INPUT_INSUFFICIENT` / `NEEDS_REPRODUCTION_INFO` / `REQUIREMENT_AMBIGUOUS` / `ENVIRONMENT_BLOCKED`
 - selected run_id：...
+- bugfix mode：ACTIVE_WORKTREE_RUN / ARCHIVED_RUN_MODE
 - final merge_worktree：...
+- archive final file：.opencode/archives/archive_<run_id>.md / not-applicable
+- target bootstrap branch：... / not-applicable
 - final integration head：...
-- commit map source：final-merge-report / git-log-derived
+- commit map source：final-merge-report / archive-final-file / git-log-derived
 - bug summary：...
 - actual behavior：...
 - expected behavior：...
@@ -97,7 +101,7 @@ permission:
 - candidate commit range：僅限 Run Change Lock Packet locked commits
 - candidate touched files：...
 - confidence：high/medium/low
-- notes for worktree-bug-fix：bug-fix 必須更新同一份 final maintained report，不另建 latest bug-fix report。
+- notes for worktree-bug-fix：bug-fix 必須更新同一份維護文件；active mode 更新 final maintained report，archived mode 更新 archive final file，不另建 latest bug-fix report。
 
 ### 不修正項目
 - 程式修改：未執行
