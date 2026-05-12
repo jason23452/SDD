@@ -35,7 +35,7 @@ permission:
 - 不 merge、不 push、不 force push、不改寫歷史。
 - 不修改 `.opencode/skills/**/SKILL.md`。
 - 在 final merge_worktree 修改、驗證、commit 與更新 final maintained report 前，都必須 read-back 該 worktree 內 `.opencode/project-rules.md`；若缺失或本次修正/驗證與規則不一致，停止回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED`。
-- 若本次修正新增、移除或更新套件，或修改 dependency manifest/lockfile，必須自動使用既有 package manager install/sync，使 lockfile 與本機 dependency dir 一致；只提交 manifest/lockfile 與必要 source/test/config，不提交 dependency directory。
+- 若 final merge_worktree 缺 dependency dir，先從 bootstrap/source 或 final integration snapshot copy-first 補齊；只有 snapshot 缺失/hash 不一致/複製失敗，或本次修正新增、移除、更新套件或修改 dependency manifest/lockfile 時，才自動使用既有 package manager install/sync。只提交 manifest/lockfile 與必要 source/test/config，不提交 dependency directory。
 
 ## Phase 1：列出並鎖定 run_id
 
@@ -51,7 +51,7 @@ permission:
 4. 選定 run_id 後鎖定 final merge target：
    - 優先使用 `.worktree/<run_id>/merge` 且它是 git worktree。
    - 若 final report 記錄 final merge worktree，確認該路徑存在且是 git worktree。
-   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍只在 final merge_worktree 修改。若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。
+   - 若 `.worktree/<run_id>/merge` 遺失但 `integration/<run_id>` branch 存在，且該 branch 未被其他有效 worktree 使用，先執行 `git worktree prune` 清除 stale metadata，再用 `git worktree add .worktree/<run_id>/merge integration/<run_id>` 恢復同一路徑；恢復後仍只在 final merge_worktree 修改，且必須補齊 `.opencode/project-rules.md` 與必要 dependency snapshot context。若恢復失敗，停止回報 `MERGE_WORKTREE_RESTORE_FAILED`。
    - 若只有 `integration/<run_id>` branch 而沒有 final merge worktree，且無法安全恢復，停止回報 `MERGE_WORKTREE_MISSING`。
 5. 確認 final merge_worktree status 乾淨；若不乾淨，停止回報 `MERGE_WORKTREE_DIRTY`。
 6. 讀取 final merge report commit map；若缺 final report 或 commit map，可由 integration branch 的非 merge commits 與 `git show --name-status <commit>` 建立只讀候選清單，但輸出需標示 `commit map source=git-log-derived`。
@@ -104,7 +104,7 @@ permission:
 5. 做最小修正，只處理本次 bug 或本次額外修改要求。
 6. 找到 culprit commit 時，優先改 Fix Target Set；如需改 touched files 以外檔案，記錄 scope expansion。
 7. `NEW_WORKTREE_FEATURE_CHANGE` 時，允許修改既有已 commit 檔案，允許新增檔案，但仍不得做無關重構或格式化。
-8. 執行 Project Rules / Dependency Gate：讀取 final merge_worktree 內 `.opencode/project-rules.md`，確認本次修正、驗證命令與 final report 更新符合規則；若 dependency manifest/lockfile 有變更，依既有 package manager 執行 install/sync。
+8. 執行 Project Rules / Dependency Gate：讀取 final merge_worktree 內 `.opencode/project-rules.md`，確認本次修正、驗證命令與 final report 更新符合規則；若 dependency dir 缺失，先從 bootstrap/source 或 final integration snapshot 複製，只有 snapshot 缺失/hash 不一致/複製失敗、target readiness failed，或 dependency manifest/lockfile 有變更時，才依既有 package manager 執行 install/sync。
 9. 執行最小必要驗證：優先跑使用者提供的 failing command/test；若沒有，依 affected surface 選最小 one-shot 測試。
 10. 測試或驗證失敗時，只修與本次 bug / 額外修改直接相關的內容；若需要大幅擴範圍，先問。
 11. 檢查 `git diff`，確認沒有無關變更、沒有 dependency directory / cache / build output 被 stage。
@@ -149,8 +149,8 @@ permission:
 - 找到 culprit commit 時，可讀取相鄰檔案、測試與 types 了解上下文；若需修改非 touched files，必須記錄 scope expansion。
 - 找不到 culprit commit 時，允許修改既有已 commit 檔案，允許新增檔案。
 - 不得修改與本次 bug / 額外修改無關的格式、重構、文件或相鄰需求。
-- 不得修改 `.opencode/run-artifacts/**`、`.opencode/run/**` 作為產品修正內容。
-- final maintained report 固定寫入 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，並需要 commit。
+- 不得修改 `.opencode/run-artifacts/**`、`.opencode/run/**` 作為產品修正內容；唯一例外是下列 final maintained report 維護 commit。
+- final maintained report 固定寫入 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，是 `.opencode/run-artifacts/**` 中唯一可 stage/commit 的 maintained report 例外。
 - 不得 stage/commit `node_modules/`、`.venv/`、cache、build output、runtime state、local DB、logs、secrets 或 test reports。
 
 ## 驗證規則

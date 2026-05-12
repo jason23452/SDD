@@ -41,7 +41,7 @@ permission:
 - 草稿/流程未規劃 Stage N worktree 只在 Stage N-1 integration 完成後建立/同步 => `不一致`。
 - 草稿/流程未規劃 `project-bootstrapper` 在最小啟動、依賴安裝、README/ignore 與 one-shot 驗證完成後建立中文 bootstrap commit，或未規劃 Stage 1 baseline 固定使用 bootstrap commit HEAD => `不一致`。
 - 草稿/流程允許缺 bootstrap commit、bootstrap branch 不乾淨或 bootstrap commit hash 未交接時建立需求 worktree => `不一致`。
-- 草稿/流程未規劃 dependency snapshot：bootstrap install/sync 後保留本機 dependency dir、`worktree-splitter` 在每個 execution worktree 建立後複製或依 lockfile/manifest 自動 install/sync 補齊、manifest 記錄來源/hash/copy/install/sync 結果，且 dependency dir 不得 stage/commit => `不一致`。
+- 草稿/流程未規劃 dependency snapshot copy-first：bootstrap/source 端 install/sync 後保留本機 dependency dir 作為可複製來源，`worktree-splitter` 在每個 execution worktree `git worktree add` 完成後、runner dispatch 前優先複製 dependency snapshot；只有 source snapshot 缺失、lockfile/hash 不一致、複製失敗，或該 worktree 新增/更新套件時才 install/sync；manifest 記錄來源/hash/copy result/fallback install-sync result，且 dependency dir 不得 stage/commit => `不一致`。
 - 草稿/流程仍要求「不得把 dependency snapshot 同步到每個 worktree」，或把 bulk snapshot 排除規則誤用成禁止 dependency snapshot 單獨複製/補齊 => `不一致`。
 - 草稿/流程未要求每個 worktree 每次 OpenSpec propose/spec/design/tasks/alignment/apply/fallback/local verification/commit 前 read-back worktree 內 `.opencode/project-rules.md`，或未規劃缺失/不一致時停止並回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` => `不一致`。
 - 草稿/流程未要求 `alignment-check.md`、runner final output / event artifact 記錄 project-rules path/hash/checkpoint alignment，或 merge/barrier 未檢查 project-rules read-back 與 dependency sync 結果 => `不一致`。

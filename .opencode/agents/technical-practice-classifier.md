@@ -47,7 +47,7 @@ permission:
 - 禁止過度序列化：若分類間沒有 Dependency Graph edge，也沒有 Conflict Graph hard edge，卻被排成不同 apply stage 或不同 priority，必須標示為 `AVOIDABLE_SERIALIZATION` 並重排為平行 eligible set；不得讓「保守」成為理由。
 - 優先度 lane 只處理同一 apply 階段內的必要先後；不得用優先度或 lane 拆分掩蓋同階段程式依賴。若某分類真的需要另一分類完成後才能 apply，必須移到後續 apply 階段或合併。
 - 禁止循環依賴：若 A 依賴 B 且 B 依賴 A，必須合併或重切邊界。
-- Baseline / dependency / rules 交接必須完整：分類輸出需保留 bootstrap commit hash、Stage 1 baseline source、後續 stage integration baseline、dependency snapshot requirement、project-rules path/hash 與 runner read-back requirement；若缺任一項，完整性檢查不得通過。
+- Baseline / dependency / rules 交接必須完整：分類輸出需保留 bootstrap commit hash、Stage 1 baseline source、後續 stage integration baseline、copy-first dependency snapshot requirement（runner dispatch 前優先複製，只有 fallback 或新套件才 install/sync）、project-rules path/hash 與 runner read-back requirement；若缺任一項，完整性檢查不得通過。
 
 ## 平行安全判斷
 - 每個分類必須列出 `readSet` 與 `writeSet`。`readSet` 是該分類只讀的已穩定 contract/schema/helper/fixture；`writeSet` 是會新增或修改的 API/schema/form/migration/helper/fixture/UI flow。
@@ -95,7 +95,7 @@ permission:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Stage Execution Graph
-| Stage | Baseline | Baseline source | bootstrap commit | dependency snapshot | project-rules hash | Lane | Priority | parallelGroupId | eligibleSetId | readyEligibleSetIds | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
+| Stage | Baseline | Baseline source | bootstrap commit | dependency snapshot copy-first | project-rules hash | Lane | Priority | parallelGroupId | eligibleSetId | readyEligibleSetIds | Eligible 分類 | Dispatch 方式 | 等待條件 | Stage merge gate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Parallel Dispatch Plan

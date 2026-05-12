@@ -94,9 +94,9 @@ Project rules read-back 是每個 OpenSpec 執行點的硬性 gate：
 4. `alignment-check.md` 必須包含 `project-rules read-back` 區段，列出 project-rules path/hash、讀取時間、比對來源與結論。
 5. runner final output 與 runner event artifact 必須包含每個 checkpoint 的 project-rules read-back 摘要；barrier collect 會檢查此記錄。
 
-Dependency gate 是 local verification 與 commit 前的硬性 gate：
+Dependency gate 是 local verification 與 commit 前的硬性 gate；正常路徑應使用 splitter 已複製好的 dependency snapshot，不應在每個 worktree 重複 install：
 
-1. 進入 propose/apply 前，確認 splitter manifest 中的 dependency snapshot 可用；若 `frontend/package.json` 存在但 `frontend/node_modules/` 或等價 project-local dependency dir 缺失，依 lockfile/package manager 自動 install；若 `backend/pyproject.toml` 或 dependency file 存在但 `backend/.venv/` 或等價 local environment 缺失，執行 `uv sync` 或 README/project rules 指定命令。
+1. 進入 propose/apply 前，確認 splitter manifest 中的 dependency snapshot copy result 可用；若 `frontend/package.json` 存在但 `frontend/node_modules/` 或等價 project-local dependency dir 缺失，或 `backend/pyproject.toml`/dependency file 存在但 `backend/.venv/` 或等價 local environment 缺失，先檢查是否是 splitter copy 失敗或 snapshot 缺失。只有 snapshot 缺失、hash 不一致、copy failed、target readiness failed，或本 worktree 自己需要新增/更新套件時，才依 lockfile/package manager 自動 install/sync。
 2. 實作過程若新增、移除或更新套件，或修改 `package.json`、`pnpm-lock.yaml`、`yarn.lock`、`package-lock.json`、`pyproject.toml`、`uv.lock` 等 dependency manifest/lockfile，必須立即用該專案既有 package manager install/sync，使 lockfile 與本機 dependency dir 一致。
 3. Frontend package manager 判定：`pnpm-lock.yaml` -> pnpm、`yarn.lock` -> yarn、`package-lock.json` -> npm；若無 lockfile，依 project rules/README 或既有 scripts。
 4. Backend 優先使用 uv；新增套件優先使用既有專案指令（例如 `uv add <pkg>` 或先改 `pyproject.toml` 後 `uv sync`），不得用 ad-hoc site-packages 修改。
