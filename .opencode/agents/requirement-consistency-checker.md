@@ -45,6 +45,7 @@ permission:
 - 草稿/流程仍要求「不得把 dependency snapshot 同步到每個 worktree」，或把 bulk snapshot 排除規則誤用成禁止 dependency snapshot 單獨複製/補齊 => `不一致`。
 - 草稿/流程未要求每個 worktree 每次 OpenSpec propose/spec/design/tasks/alignment/apply/fallback/local verification/commit 前 read-back worktree 內 `.opencode/project-rules.md`，或未規劃缺失/不一致時停止並回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` => `不一致`。
 - 草稿/流程未要求 `alignment-check.md`、runner final output / event artifact 記錄 project-rules path/hash/checkpoint alignment，或 merge/barrier 未檢查 project-rules read-back 與 dependency sync 結果 => `不一致`。
+- 草稿/流程未要求 OpenSpec `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md` 與 `alignment-check.md` 在 strict validate 與 alignment 通過後建立獨立 `規格：...` commit，或未要求 runner event / dispatch ledger 記錄 `commits.specCommit`，或允許缺 specCommit 進入 apply / barrier / merge => `不一致`。
 - 同一 `parallelGroupId` 中有 high conflict touchSet 卻沒有隔離策略，或 contractInputs 未由 stage baseline/同分類內提供卻被安排同階段平行 apply => `不一致`。
 - 同一 eligible set 內有 `writeSet` 重疊或 hard conflict edge，卻沒有合併分類、contract-first stage、或 flow 處理 => `不一致`。
 - 草稿/流程讓單一 `openspec-worktree-change-runner` 處理多個 worktree，或同批有多個 eligible worktree 卻未由主流程平行呼叫多個 runner subagent => `不一致`。
@@ -53,7 +54,7 @@ permission:
 - 草稿/流程未要求所有同 batch worktree 完成局部/單位測試與 commit 後才進入 merge phase，或未規劃 merge 後整合測試與 final 整體測試 => `不一致`。
 - 草稿/流程未規劃 worktree port 自動分配、port-map/manifest/dispatch ledger 交接，或允許 runner 自行選 port/中途換 port => `不一致`。
 - 草稿/流程要求使用 `/opsx-*` commands、讀 OpenSpec 初始化帶入的原始 skills，或在主工作區執行 OpenSpec propose/apply => `不一致`。
-- 草稿/流程未規劃 dispatch ledger，或未定義中斷後只重試 failed/aborted worktree、不得重跑已完成 worktree 的 resume gate => `不一致`。
+- 草稿/流程未規劃 `schemaVersion=dispatch-ledger/v1` 的 dispatch ledger、必要欄位（run_id/stages/eligibleSets/expectedWorktrees/runnerEventPaths/status/timestamps/commits/verification/error/retryCount）、狀態流轉、runner event schema，或未定義中斷後只重試 failed/aborted worktree、不得重跑已完成 worktree 的 resume gate => `不一致`。
 - 草稿/流程一次建立未來多個 apply stage 的 worktree，或要求 runner 自行 merge upstream/stage integration 補基準，而不是在上一 stage integration 後重新呼叫 splitter 建立/同步下一 stage => `不一致`。同一 apply stage 內多個 ready eligibleSetId 同輪建立不屬於此錯誤。
 - 合理工程步驟若未宣稱已確認，可列 `一致` 並標示為實作推導。
 - 原需求與後續確認衝突時，以後續明確確認為準並列覆蓋原因。
