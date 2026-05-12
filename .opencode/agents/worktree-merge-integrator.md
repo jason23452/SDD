@@ -52,15 +52,17 @@ permission:
 - 建議基準：本 apply 階段 splitter 記錄的基準 commit；第一階段通常為主工作區目前 HEAD，後續階段必須為上一階段 integration 結果。
 - 建立命令：`git worktree add -b <integration-branch> <merge-path> <base>`。
 
-## 唯一 Final Merge Artifact 與 Commit Map
+## 唯一 Final Maintained Report 與 Commit Map
 
 最後一階段完成後，必須在 run artifacts 目錄產生且只產生一份最終可讀整合檔。Stage integration 可以有中繼紀錄，但不得取代 final artifact。
+
+這份檔案同時是後續 `worktree-bug-fix` 維護與 `archive` 封存的唯一 final maintained report。不得另外要求 `latest-bug-fix-report_<run_id>.md` 作為 archive 必要來源；bug-fix 若發生，只能在同一份 final report 追加或更新維護區段，並保留原有 final merge、commit map、需求/驗收對齊、延後/排除項與 port cleanup map。
 
 固定輸出：
 
 - `.opencode/run-artifacts/<run_id>/final-merge-report.md`
 
-`final-merge-report.md` 必須同時包含 final merge 結果、commit map、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。
+`final-merge-report.md` 必須同時包含 final merge 結果、commit map、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。此檔也是 archive 直接複製的最終來源。
 
 Final artifact 必填內容：
 
@@ -70,6 +72,7 @@ Final artifact 必填內容：
 - commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
 - 延後與排除項 map：所有未實作但出現在原需求或確認決策中的 deferred/excluded requirements 必須逐項列出，不能只寫在摘要。
 - Browser smoke、DB runtime、E2E 等 skipped/blocked 項目必須明確標示為 skipped/blocked，不得標為 passed。
+- Latest Maintenance / Bug Fix 區段：final merge 時可標示 `none yet`；後續 `worktree-bug-fix` 更新時只改此區段或必要的 verification/commit reference，不得破壞既有 commit map。
 
 Commit map 欄位至少包含：
 

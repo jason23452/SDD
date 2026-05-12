@@ -22,7 +22,7 @@ permission:
 
 - 只做釐清與歸納，不做修正。
 - 必須使用 Run Change Lock Packet 中的 selected run_id、final merge_worktree、locked commits、locked touched files index 作為唯一 run scope。
-- 可讀取該 run 的 final merge report、dispatch ledger、locked commit diff、測試輸出與相關檔案內容。
+- 可讀取該 run 的 final maintained report、dispatch ledger、locked commit diff、測試輸出與相關檔案內容。
 - 可執行 read-only git 指令，例如 `git status`、`git branch`、`git log`、`git show --name-status`、`git diff --name-only`。
 - 不執行會修改檔案、安裝依賴、啟動長時間服務、清理資料、reset、checkout 覆蓋、merge、rebase、commit 或 push 的命令。
 - 不把候選 commit 當成已定案 culprit commit；定案與修正由 `worktree-bug-fix` 做。
@@ -31,7 +31,7 @@ permission:
 
 ## 必要輸入
 
-- Run Change Lock Packet：selected run_id、final merge_worktree、final integration branch/head、final merge report、locked commits、locked touched files index。
+- Run Change Lock Packet：selected run_id、final merge_worktree、final integration branch/head、final maintained report、locked commits、locked touched files index。
 - 使用者 bug 描述：實際現象、預期行為、發生時機、畫面/API/功能名稱。
 - 若有：錯誤訊息、stack trace、failing test、命令輸出、URL、截圖描述、重現步驟、懷疑 commit 或功能範圍。
 
@@ -82,7 +82,7 @@ permission:
 - failing command/test/log：...
 - affected surface：frontend/backend/fullstack/docs/config/unknown
 - affected feature/API/page/file hints：...
-- final merge report：...
+- final maintained report：...
 - locked commit count：...
 - candidate commit search keywords：...
 - Bug Search Packet：
@@ -97,7 +97,7 @@ permission:
 - candidate commit range：僅限 Run Change Lock Packet locked commits
 - candidate touched files：...
 - confidence：high/medium/low
-- notes for worktree-bug-fix：...
+- notes for worktree-bug-fix：bug-fix 必須更新同一份 final maintained report，不另建 latest bug-fix report。
 
 ### 不修正項目
 - 程式修改：未執行
