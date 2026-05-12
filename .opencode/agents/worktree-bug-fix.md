@@ -1,6 +1,6 @@
 ---
 description: 使用者主動呼叫的 worktree bug 修復入口；先選 run_id，再於最後 merge_worktree 精準修正並更新 latest report
-mode: subagent
+mode: primary
 permission:
   edit: allow
   write: allow
