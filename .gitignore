@@ -28,6 +28,7 @@ node_modules/
 # OpenCode runtime recovery state
 .opencode/run/
 .opencode/run-artifacts/
+.worktree/
 
 # Local runtime data, logs, tmp and database files
 **/*.log
