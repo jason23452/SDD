@@ -18,6 +18,7 @@ permission:
 - `.worktree/<run_id>/port-map.json`。
 - development-detail-planner 路徑。
 - 各 apply-stage worktree 結果：path、branch、classification ID、openspec change、commit hash、最小中文標籤 commit 清單、局部驗證結果、parallelGroupId、eligibleSetId、ownerCapability、ownedRequirements、excludedResponsibilities、touchSet、contractInputs、contractOutputs、testImpact、isolationStrategy、conflictRisk、spec revalidation 結果。
+- 各 runner event/result artifact：`<worktree>/.opencode/run-artifacts/<run_id>/runner-events/<classification_id>.json` 或 runner final output 中的等價 structured result。
 - apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、分類依賴順序與本次要 merge 的階段範圍。
 - Stage Execution Graph、readyEligibleSetIds、dispatch ledger 與本階段 dispatch 結果，證明同一 stage ready set 已由主流程平行處理完成。
 - 已確認決策、不做範圍、驗證門檻。
@@ -26,19 +27,21 @@ permission:
 
 1. 確認 `.opencode/project-rules.md` 允許 multi-worktree merge integration。
 2. 確認 `.worktree/<run_id>/port-map.json` 存在。
-3. 執行 `git worktree prune`，清理不存在的 worktree metadata。
-4. 對每個來源 worktree 執行：
+3. 讀取本 stage 的 ready-set manifest、`runnerDispatchPackets[]`、dispatch ledger 與每個 runner event/result artifact；若 runner event/result artifact 缺失且 final output 無等價 structured result，停止並回報 `RUNNER_RESULT_MISSING`。
+4. 執行 `git worktree prune`，清理不存在的 worktree metadata。
+5. 對每個來源 worktree 執行：
    - `git status --porcelain` 必須乾淨，或只剩明確允許且已說明的未追蹤檔；若有未 commit 需求變更，停止。
    - `git log -1` 應包含該 worktree 的完成 commit；若缺 commit 且 commit 授權為完整 downstream，停止。
-   - runner final output 必須列出最小中文標籤 commits，且每個 commit body 含 run_id、classification ID、OpenSpec change、task/tag/verification。
+   - runner final output 或 runner event/result artifact 必須列出最小中文標籤 commits，且每個 commit body 含 run_id、classification ID、OpenSpec change、task/tag/verification。
    - skill gate：檢查 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills`。只有實際內容 diff 才停止並回報 `ERROR: skill rules are immutable and cannot be changed`；純 stat/line-ending 或其他非 skill 檔的 `needs update` 不得當 blocker。
    - `spec-flow/openspec/changes/<openspec_change>/alignment-check.md` 必須通過。
-   - stage worktree manifest 或 runner final output 必須顯示 OpenSpec alignment、apply/fallback、局部測試、最小中文 commit 已完成。若來源不是目前 stage worktree branch，停止並回報 `MERGE_SOURCE_NOT_STAGE_WORKTREE`。
+   - stage worktree manifest、runner event/result artifact 或 runner final output 必須顯示 OpenSpec alignment、apply/fallback、局部測試、最小中文 commit 已完成。若來源不是目前 stage worktree branch，停止並回報 `MERGE_SOURCE_NOT_STAGE_WORKTREE`。
    - `spec-flow/openspec/changes/<openspec_change>/tasks.md` 必須全部完成，或明確說明為 OpenSpec apply all_done。
-5. 若任一來源 worktree 未完成、局部測試未通過、缺最小中文 commit 或 status 不乾淨，不得 merge。若未完成原因是 `CLASSIFICATION_STAGE_INVALID`、`OWNERSHIP_CONFLICT` 或同階段 missing code/schema/helper，停止並要求回到分類階段調整或合併；若原因是 `STAGE_BASELINE_MISSING_UPSTREAM`，停止並要求主流程先完成上游階段 merge 後重建該階段 worktree。
-6. 確認同一 stage ready set 中所有 eligibleSetId 與 worktree 均已完成，且 dispatch ledger 顯示同一輪平行建立、同一輪平行派工、沒有漏派、沒有未解 failed/aborted 項目；若結果顯示主流程把同一 ready set 任意序列化、先跑部分 worktree、漏派，或拆成「全 tasks 產完後才統一 apply」，停止並回報 `PARALLEL_DISPATCH_VIOLATION`。
-7. 讀取 port map 或 manifest 中的 `eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。若 high conflict touchSet 在分類階段未標示隔離策略，或實際 merge 需要把未穩定 contract 從一個同階段 worktree 提供給另一個同階段 worktree，停止並回報 `CLASSIFICATION_STAGE_INVALID`。
-8. 若 dispatch ledger 缺失、不可解析、與來源 worktree manifest/port-map 不一致，停止並回報 `DISPATCH_LEDGER_INVALID`；不得憑人工順序直接 merge。
+6. 若任一來源 worktree 未完成、局部測試未通過、缺最小中文 commit 或 status 不乾淨，不得 merge。若未完成原因是 `CLASSIFICATION_STAGE_INVALID`、`OWNERSHIP_CONFLICT` 或同階段 missing code/schema/helper，停止並要求回到分類階段調整或合併；若原因是 `STAGE_BASELINE_MISSING_UPSTREAM`，停止並要求主流程先完成上游階段 merge 後重建該階段 worktree。
+7. 確認同一 stage ready set 中所有 eligibleSetId 與 worktree 均已完成，且 dispatch ledger + ready-set manifest + runner event/result artifacts 顯示同一輪平行建立、同一輪平行派工、沒有漏派、沒有未解 failed/aborted/missing-result 項目；若結果顯示主流程把同一 ready set 任意序列化、先跑部分 worktree、漏派，或拆成「全 tasks 產完後才統一 apply」，停止並回報 `PARALLEL_DISPATCH_VIOLATION`。
+8. 讀取 port map 或 manifest 中的 `eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。若 high conflict touchSet 在分類階段未標示隔離策略，或實際 merge 需要把未穩定 contract 從一個同階段 worktree 提供給另一個同階段 worktree，停止並回報 `CLASSIFICATION_STAGE_INVALID`。
+9. 若 dispatch ledger 缺失、不可解析、與來源 worktree manifest/port-map/runner event artifacts 不一致，停止並回報 `DISPATCH_LEDGER_INVALID`；不得憑人工順序直接 merge。
+10. Barrier 通過後，merge integrator 或主流程才可單點更新 shared dispatch ledger 的 runner completed / failed / merged 狀態；runner 不得直接寫 shared ledger。
 
 ## 建立 Merge Worktree
 
@@ -192,6 +195,12 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 ### Worktree Local Verification Gate
 | worktree | classification ID | commits | local verification | status |
 | --- | --- | --- | --- | --- |
+
+### Barrier Collect
+- ready-set manifest：...
+- runner event/result artifacts：完整/缺失，路徑：...
+- shared dispatch ledger：已由 barrier 單點彙整/未更新，原因：...
+- parallel dispatch check：passed/failed
 
 ### Integration Verification
 | 命令 | 結果 |

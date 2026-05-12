@@ -82,6 +82,8 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 
 `<worktree>/.opencode/run-artifacts/<run_id>/` 是 runner 的上下文資料，不是產品或 OpenSpec 交付物；不得 stage、commit 或 merge 這些檔案。
 
+Runner 必須使用 splitter 或主流程提供的 `runner_event_path` 寫入自己的狀態與最終結果，例如 `<worktree>/.opencode/run-artifacts/<run_id>/runner-events/<classification_id>.json`。此檔只屬於本 worktree、本 classification，不得由其他 runner 共寫；若無法寫入，必須在 final output 內輸出等價 structured result 並標示 `RUNNER_EVENT_WRITE_FAILED`。runner 不得直接修改 shared `.opencode/run-artifacts/<run_id>/dispatch-ledger.json`，避免平行寫入競爭；shared ledger 由主流程或 merge/barrier integrator 彙整。
+
 ## Ownership、Port 與 Ledger Gate
 
 進入 propose、apply、local verification、commit 前都必須檢查：
@@ -92,7 +94,7 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 - 若需要同 stage 另一 worktree 尚未 merge 的程式碼、schema、helper、fixture 或 API contract，停止回報 `CLASSIFICATION_STAGE_INVALID`。
 - `contractInputs` 必須已存在於目前 stage baseline 或同分類內可提供；不得等待同 batch 其他 worktree。
 - 必須讀取 port-map，所有 dev/build/test/smoke 只能使用分配給本 worktree 的 ports；不得自行選 port、中途換 port、或因 port 佔用自動改 port。port-map 缺失或與輸入不一致時回報 `PORT_MAP_INVALID`。
-- dispatch ledger 必須包含本 stage ready set、所屬 eligibleSetId batch 的全部 worktree 與本 worktree entry；若缺失或顯示 ready set / eligibleSetId 漏派，回報 `DISPATCH_LEDGER_INVALID` 或 `PARALLEL_DISPATCH_VIOLATION`。
+- dispatch ledger 必須包含本 stage ready set、所屬 eligibleSetId batch 的全部 worktree 與本 worktree entry；若缺失或顯示 ready set / eligibleSetId 漏派，回報 `DISPATCH_LEDGER_INVALID` 或 `PARALLEL_DISPATCH_VIOLATION`。runner 只能讀取 shared ledger 與寫入自己的 `runner_event_path`，不得更新 shared ledger。
 
 ## Execute Worktree 端到端流程
 
@@ -104,7 +106,7 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 4. 本 worktree 的 OpenSpec artifacts 通過後，立即執行「Apply 內建流程」；不得等待同 batch 其他 worktree tasks 生成完成。
 5. Apply/fallback 過程中依 OpenSpec tasks 最小單位實作；每個最小可驗收單位完成後執行對應局部驗證並建立中文標籤 commit。
 6. 全部 tasks 完成後執行本 worktree local verification matrix；若有修正，以最小 `修正：...` commit 提交，不得 amend。
-7. 最後確認 worktree status 乾淨，更新 dispatch ledger 為 `completed`，回報 commits、局部測試與未執行原因。
+7. 最後確認 worktree status 乾淨，寫入 `runner_event_path` 為 `completed`，回報 commits、局部測試、未執行原因與 runner event artifact；不得直接更新 shared dispatch ledger。
 
 不得把 execute-worktree 拆成主流程兩次 dispatch 的 `propose-spec` 與 `apply-change`。`propose-spec` 或 `apply-change` 單獨 phase 只能用於同一 worktree 的明確重試/除錯，且仍須遵守 ownership、port、ledger 與 commit 規則。
 
@@ -240,6 +242,7 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 - branch：...
 - spec-flow：...
 - change：...
+- runner event artifact：...
 - commit 授權狀態：完整 downstream 已授權中文細分 commit/no commit
 
 | worktree | branch | change | 分類 ID | parallelGroupId | eligibleSetId | owner | touchSet | contract | spec 對齊 | apply 模式 | tasks | commits | 局部驗證 | 狀態 |
@@ -262,6 +265,11 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 - 最小中文標籤 commits：...
 - commit body 是否含 run_id/classification/change/task/tag/verification：是/否
 - 未提交變更：無/有，原因：...
+
+### Runner Event
+- runner event path：...
+- runner event write：passed/failed，原因：...
+- shared dispatch ledger：read-only；未直接寫入
 
 ### 停止/風險
 - ...
