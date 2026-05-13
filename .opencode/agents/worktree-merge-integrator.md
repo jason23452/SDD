@@ -55,6 +55,8 @@ permission:
 
 `barrier-preflight/v1` 是本 agent 的 P1 token/速度優化摘要，不新增 gate、不取代 runner event、dispatch ledger、git status 或驗證結果。若存在且可驗證，merge integrator 可優先讀取它來避免重複讀取大量 runner event；若缺失或不一致，必須回到「前置 Gate」完整檢查。
 
+可用 `node .opencode/scripts/build-barrier-preflight.js <run_id> --stage <n> --wave <id>` 產生 barrier 摘要，並用 `node .opencode/scripts/artifact-scope-check.js <run_id> --scope wave --stage <n> --wave <id> --strict` 做 wave-scoped schema check；任一檢查 failed/blocked/stale/missing 時不得 merge，必須回完整 barrier collect。
+
 merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-preflight/v1`、`schema-validation/v1`、`port-registry/v1`、`verification-summary/v1` 或 runner event index 的 schemaVersion、source hash、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 任一不一致，必須執行前置 Gate 的完整讀取與交叉核對。passed summary 只能減少重複讀取與輸出長度，不能跳過 clean status、specCommit、local verification、project-rules read-back、dependency sync、parallel dispatch 與 branch namespace gate。
 
 Merge speed path：若 `run-preflight-packet/v1`、`verification-matrix/v1`、`package-decision-record/v1`、`experience-contract/v1`、`openspec-change-index/v1`、`runner-event/v1`、`verification-summary/v1` 與 `barrier-preflight/v1` 的 schemaVersion、source hashes、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 均一致，merge/barrier 預設只讀摘要與 refs。只有 missing/stale/blocked/failed/hash mismatch、衝突或使用者要求完整診斷時，才回讀完整 runner outputs、OpenSpec artifacts、test logs 或 planner。
@@ -198,6 +200,8 @@ Port cleanup map 欄位至少包含：
 merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-validation.json`，schemaVersion 固定 `schema-validation/v1`，彙整 dispatch ledger、runner events、barrier preflight、port registry 與 final report index（若有）的 schema 檢查結果。此檔只作摘要；任一項為 failed/stale/missing 時，必須回到原始 artifact 重新驗證並回報對應 blocker，不得用 summary 覆蓋實際檢查。
 
 Schema validation scope policy：runner 只需驗證自己的 runner event、verification summary、OpenSpec index、apply-readiness checklist 與 commit metadata summary；barrier 只驗證目前 ready wave refs；final 才驗證整個 run artifact set。不得在每個 runner 或每個 stage 無條件掃描整個 `.opencode/run-artifacts/<run_id>`。
+
+scope validation 優先用 `artifact-scope-check.js`：runner scope 驗證單一 classification，wave scope 驗證目前 barrier-preflight，final scope 才驗證整個 run artifact set。`check-verification-matrix.js <run_id>` 只檢查 matrix 可讀與欄位完整，不代表任何測試已通過。
 
 最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
 

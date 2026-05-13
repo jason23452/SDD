@@ -75,6 +75,8 @@ git worktree add 只會帶出 `<stage-base>` 的 tracked files；因此必須把
 
 Snapshot speed path：splitter 必須優先建立或讀取 `.opencode/run-artifacts/<run_id>/snapshot-manifest.json`（schemaVersion=`snapshot-manifest/v1`），記錄 root snapshot plan、included/excluded paths、source hashes、copied/unchanged/skipped files、dependency snapshot refs 與 fallbackAction。同一 ready wave 只計算一次 snapshot plan；每個 worktree 依 manifest 增量同步，source hash 未變的檔案不得重複 copy。若 manifest missing/stale/blocked/hash mismatch，才回完整 bulk snapshot gate。
 
+若 manifest 缺失，splitter 可先執行 `node .opencode/scripts/build-snapshot-manifest.js <run_id> --stage <n> --wave <id>` 產生 deterministic plan，再依 plan 同步；若輸出 blocked、hash 不符或無法涵蓋 required context，必須回完整 snapshot gate。
+
 Bulk snapshot 來源與內容：
 - 來源固定是目前 SDD repository root，不是只複製 frontend/backend 子資料夾。
 - 複製 root 下可用開發內容：`frontend/`、`backend/`、`.opencode/agents/`、`.opencode/plugins/`、`.opencode/project-rules.md`、root config、需求來源檔、lockfile、dependency manifest、README、Compose、`.env.example`。
@@ -106,6 +108,7 @@ Run-specific context 顯式同步：
 - install/sync 必須 one-shot 且有 timeout；失敗時該 worktree 或 batch 標記 failed，輸出 `DEPENDENCY_SNAPSHOT_FAILED`，不得 dispatch runner。
 - dependency dirs、cache、build output 仍屬 generated local state，不得 stage/commit，不得寫入 shared run artifacts 以外的交付內容。
 - 每個 worktree manifest 必須記錄：dependency snapshot manifest path、frontend/backend dependency source path、target path、manifest/lockfile hash、copy result、readiness check result、fallback install/sync command、result、timestamp。
+- port-map/registry 可由 `node .opencode/scripts/build-port-map.js <run_id> --stage <n> --wave <id>` 初始化 deterministic 摘要；實際 port lifecycle 與未知 listener gate 仍以 splitter/runner/merge 的完整檢查為準，不得因 registry 存在而自動換 port或忽略佔用。
 
 ## Manifest 與 port map
 

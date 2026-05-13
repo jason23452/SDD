@@ -187,6 +187,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 8. 直到所有 `applyRequires` artifact 狀態為 done，最後在 `spec-flow/` 執行 `openspec status --change "<openspec_change>"` 與 `openspec validate "<openspec_change>" --type change --strict`。
 9. 產出 `spec-flow/openspec/changes/<openspec_change>/alignment-check.md`，逐項比對本分類 proposal/specs/design/tasks 與原需求、已確認決策、不做範圍、分類表、Stage Execution Graph、project rules read-back 與依賴；此檔是 gate，不取代 OpenSpec artifacts。
 10. 產出或更新 `.opencode/run-artifacts/<run_id>/apply-readiness-checklist/<classification_id>.json`（schemaVersion=`apply-readiness-checklist/v1`），記錄 applyRequires done、strict validate、alignment、project rules hash、dependency/package/experience gates、task count 與 blockers。此 checklist 只加速 apply/barrier，不得取代 validate 或 alignment。
+   - 可用 `node .opencode/scripts/build-openspec-template.js <run_id> <classification_id>` 建立 OpenSpec template contract，並用 `node .opencode/scripts/check-apply-readiness.js <worktree> <run_id> <classification_id>` 快速檢查 checklist；檢查失敗時必須回讀完整 OpenSpec artifacts、strict validate 與 alignment-check。
 11. Alignment 通過且 strict validate 通過後，必須依「規格 Commit 規則」建立 `規格：...` commit。此 commit 是本 runner 的第一個必要交付 commit，必須在 runner event output 的 `commits.specCommit` 記錄 hash；若無法 commit，停止回報 `SPEC_COMMIT_REQUIRED` / `SPEC_COMMIT_FAILED`。
 12. Propose phase 成功時，回報 change path、artifacts、alignment 結論、strict validate 結果、apply-readiness checklist、規格 commit 與下一步 apply gate。
 
@@ -255,6 +256,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 - 測試補齊、修正測試、文件更新、設定更新要獨立 commit；local test 失敗後的修復使用 `修正：...` 新 commit，不 amend。
 - commit 後必須重新執行 `git status --porcelain`。若仍有未提交變更，必須判斷是否為必要檔案、OpenSpec artifacts、bootstrap 基底快照或不相關/禁止檔案；必要檔案需追加新中文 commit，不相關或禁止檔案需回報 blocker。
 - commit 後必須寫入或更新 `.opencode/run-artifacts/<run_id>/commit-metadata-summary/<classification_id>.json`（schemaVersion=`commit-metadata-summary/v1`），記錄 commit、subject/body digest、classification ID、OpenSpec change、task/tag、touched files、verification-summary refs、package/experience refs 與 source HEAD。此 summary 只供 barrier/final report 加速；missing/stale 時 merge 可用 `git show` 重建。
+- 可用 `node .opencode/scripts/build-commit-metadata-summary.js <run_id> <classification_id>` 產生 commit metadata summary；summary 只作索引，若與 runner event、OpenSpec change 或 source HEAD 不一致，merge/final 必須以 `git show --name-status` 重建。
 - `.opencode/skills/**/SKILL.md` 若有實際內容 diff，必須停止並回報 `ERROR: skill rules are immutable and cannot be changed`；不得 stage、commit、刪除或修改 skill 檔。
 
 ## 驗證

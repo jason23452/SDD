@@ -8,6 +8,13 @@ const path = require("node:path")
 const ROOT = process.cwd()
 const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schema-check.js")
 const AGENT_CHECKER = path.join(ROOT, ".opencode", "scripts", "agent-contract-check.js")
+const BUILD_PREFLIGHT = path.join(ROOT, ".opencode", "scripts", "build-run-preflight-packet.js")
+const BUILD_MATRIX = path.join(ROOT, ".opencode", "scripts", "build-verification-matrix.js")
+const BUILD_CONTEXT = path.join(ROOT, ".opencode", "scripts", "build-context-slices.js")
+const BUILD_SNAPSHOT = path.join(ROOT, ".opencode", "scripts", "build-snapshot-manifest.js")
+const BUILD_PORT_MAP = path.join(ROOT, ".opencode", "scripts", "build-port-map.js")
+const BUILD_OPENSPEC_TEMPLATE = path.join(ROOT, ".opencode", "scripts", "build-openspec-template.js")
+const BUILD_COMMIT_METADATA = path.join(ROOT, ".opencode", "scripts", "build-commit-metadata-summary.js")
 
 const results = []
 
@@ -173,6 +180,40 @@ try {
     detailRefs: [],
     fallbackAction: "rebuild commit metadata from git show",
   })
+  writeJson(path.join(validDir, "port-registry.json"), {
+    schemaVersion: "port-registry/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "recompute deterministic port map from planner",
+  })
+  writeJson(path.join(validDir, "openspec-template-contract.json"), {
+    schemaVersion: "openspec-template-contract/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full OpenSpec proposal/design/tasks/specs artifacts",
+  })
+  writeJson(path.join(validDir, "apply-readiness-checklist.json"), {
+    schemaVersion: "apply-readiness-checklist/v1",
+    run_id: runId,
+    classificationId: "class-1",
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full OpenSpec artifacts and alignment-check",
+  })
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [
@@ -196,6 +237,15 @@ try {
   runCase("agent checker strict", [AGENT_CHECKER, "--strict"], 0)
   runCase("artifact checker valid fixtures", [ARTIFACT_CHECKER, validDir, "--strict"], 0)
   runCase("artifact checker rejects alias branch", [ARTIFACT_CHECKER, invalidDir], 1)
+  const planner = path.join(tempRoot, "planner.md")
+  writeFileSync(planner, "# planner\n", "utf8")
+  runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
+  runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
+  runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
+  runCase("build snapshot dry-run", [BUILD_SNAPSHOT, runId, "--stage", "1", "--wave", "wave-1", "--check"], 0)
+  runCase("build port map dry-run", [BUILD_PORT_MAP, runId, "--stage", "1", "--wave", "wave-1", "--check"], 0)
+  runCase("build openspec template dry-run", [BUILD_OPENSPEC_TEMPLATE, runId, "class-1", "--check"], 0)
+  runCase("build commit metadata dry-run", [BUILD_COMMIT_METADATA, runId, "class-1", "--check"], 0)
 } finally {
   rmSync(tempRoot, { recursive: true, force: true })
 }

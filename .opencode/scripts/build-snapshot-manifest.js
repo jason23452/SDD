@@ -5,7 +5,23 @@ const { ROOT, artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, sh
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-snapshot-manifest.js <run_id> --stage <n> --wave <id> [--check]")
 const runId = positional[0]
-const files = walkFiles(ROOT).filter((file) => !rel(file).startsWith(".opencode/run-artifacts/"))
+const excludedPrefixes = [
+  ".opencode/run-artifacts/",
+  ".opencode/skills/",
+  ".opencode/local-docs/",
+  ".opencode/outputs/",
+  ".opencode/run/",
+  "spec-flow/",
+]
+const excludedNames = new Set([".env", ".env.local", "credentials.json", "secrets.json"])
+const files = walkFiles(ROOT).filter((file) => {
+  const relative = rel(file)
+  const name = path.basename(relative)
+  if (excludedNames.has(name)) return false
+  if (/\.env\..*\.local$/.test(name)) return false
+  if (/\.(log|tmp|temp|sqlite|sqlite3|db)$/.test(name)) return false
+  return !excludedPrefixes.some((prefix) => relative.startsWith(prefix))
+})
 const entries = files.map((file) => ({ path: rel(file), sha256: sha256File(file), action: "include" }))
 const out = path.join(artifactDir(runId), "snapshot-manifest.json")
 const manifest = commonArtifact("snapshot-manifest/v1", runId, "passed", "rebuild full snapshot from source worktree", {
