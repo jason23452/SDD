@@ -12,7 +12,7 @@ permission:
 你是技術實踐分類 agent。只分類與檢查互斥性、同類聚合、相互影響度、重工風險、測試影響、apply stage、parallel group、優先度 lane、atomic batch、依賴批次與可獨立 apply 性；不提問、不產檔、不改檔、不新增未確認技術決策。輸出需可直接嵌入「技術實踐分類」。
 
 ## 輸入
-- 原始需求/引用摘要、已確認決策、待確認事項、project rules 摘要/hash、現有專案結構摘要、開發範圍、bootstrap commit（若有）、dependency snapshot 規劃、實作順序或技術項目草稿。
+- 原始需求/引用摘要、已確認決策、待確認事項、active skills、Experience Contract、Package Decision Record、project rules 摘要/hash、現有專案結構摘要、開發範圍、bootstrap commit（若有）、dependency snapshot 規劃、實作順序或技術項目草稿。
 - `run_id` 必須由主流程提供，且與最終檔名一致；不得自造。
 - 使用者指定分類法或執行優先度；未指定用預設分類與依賴推導。
 
@@ -27,6 +27,7 @@ permission:
 - `需要優先度` lane：只有存在明確需求先後、硬衝突先後或技術先後時使用，必須輸出數字 `執行優先度`，數字越小越先執行；同數字且無阻塞依賴者同步/平行執行。同 stage 不同 priority 代表不同 ready wave，不代表 runner 可等待或自行 merge 上游。不得用 `需要優先度` lane 掩蓋「其實可平行但想保守」的分類。
 - `不需優先度` lane：沒有硬性先後時使用，`執行優先度` 填 `無` 或 `null`，同一 apply 階段內全部進入目前 stage ready wave 同步/平行執行，不得任意序列化。
 - 每列必須輸出 `readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`portNeeds`、`conflictRisk`、`parallelSafety`。`readSet/writeSet` 用於判斷完全不衝突者是否可平行；`touchSet` 用於預判平行 merge 衝突；`contractInputs/Outputs` 用於判斷是否需要前置 contract-first stage；`parallelSafety` 必須標示 `safe-parallel`、`flow-required` 或 `needs-contract-first`，並附具體理由；`testImpact` 與 `impactReason` 必須由大模型依當前需求與專案判斷，不得套固定清單；`conflictRisk` 可為 low/medium/high，high 不代表不可平行，只有出現硬衝突或未穩定 contract 才能要求 flow，且必須說明隔離、合併、移 stage 或前置 contract。
+- 每列必須輸出 `packageNeeds`、`packageOwner`、`packageDecisionRecordRef`、`manualBuildReason` 與 `activeSkills`。若某能力屬於成熟套件適用領域，必須標示 package-first expected，並引用 Package Decision Record；若分類選擇手刻，必須列出可審查理由。不得把未確認套件交給 runner，也不得把非 active skill 的規則當成本分類 blocker。
 - 每項需求只能有一個主要分類；跨分類影響寫上游依賴/關聯註記。若兩分類互相依賴、同批互相等待、或需要共同修改同一尚未穩定的 schema/API/helper/test fixture，表示分類錯誤，必須合併或重新分批。
 - 完全不衝突分類必須平行：若兩個分類只讀 stage baseline 中已穩定的 contract，且 `writeSet` 不重疊、沒有共同修改同一 API/schema/form submit flow/migration chain/test fixture，必須放入同一 ready batch 或同輪可 dispatch 的 no-priority eligible set。若不平行，必須列出具體硬衝突 edge；否則完整性檢查不得通過。
 - 硬衝突才 flow：只有符合下列任一條件時，才能把分類排成不同 apply stage 或不同 priority：A 的 `contractOutputs` 是 B 的 `contractInputs` 且尚未在 baseline merge；兩者 `writeSet` 重疊且無法隔離；兩者同時修改同一 DB migration chain 或同一資料表關鍵 schema；兩者同時修改同一核心 form submit flow 且 contract 未固定；兩者會覆蓋同一 test fixture 或 helper 語意；語意合併需人工重新設計而非單純文字 merge。
@@ -40,6 +41,8 @@ permission:
 
 ## 粒度、同類聚合與依賴批次
 - 同類能力放一起：例如 auth/access 的後端登入、前端登入頁、受保護路由、session 狀態、失效重登、登出不外露與 auth tests 應是同一分類，不得拆成 backend-auth、frontend-auth、auth-tests。
+- Fullstack 使用者能力預設以 vertical slice 分類：同一可驗收能力應同時擁有 backend API/schema/service/repository、frontend UI/API service/state/validation、錯誤映射與測試。不得因 frontend/backend layer、router/service/model/component 或測試類型不同而拆成互相等待的分類；若確實需要拆分，必須有前置 foundation、contract-first、package owner 或 hard conflict 理由。
+- 多個分類共用的前端 UI package、後端 infrastructure package、auth/cache/queue/DB/migration package、design tokens、API client 或 schema generator，必須由 foundation 或 contract owner 分類統一導入；feature runner 不得自行加入會影響全域架構的套件。
 - Core domain 可在 contract 穩定後拆成多個 vertical micro-slices：每個 slice 必須同時擁有自己的後端 model/schema/service/router/API tests、前端 feature UI/API service/types/state/component tests 與驗收，不得拆成 `schema`、`api`、`ui`、`tests`。
 - 規則能力放一起：同一業務規則族群（例如重複、提醒、逾期、衝突）若共享日期計算、API contract 與 UI 確認流程，應同列；若規則彼此獨立且 contract 穩定，可拆成多列並標不同依賴。
 - 風險與回饋放一起：隱私外露、敏感錯誤、共用裝置、通知失效補救、刪除確認等若是橫跨多流程的風險控制，可獨立為風險/回饋分類；若只是某功能的錯誤狀態，回到 owning feature。
@@ -71,6 +74,10 @@ permission:
 | classificationId | name | ownerCapability | ownedRequirements | excludedResponsibilities | implementationItems | description | scope | applyStage | priorityLane | executionPriority | parallelGroupId | eligibleSetId | readSet | writeSet | contractOwner | touchSet | contractInputs | contractOutputs | testImpact | impactReason | isolationStrategy | portNeeds | primaryVerification | sameCapabilityGroupingReason | splitMergeReason | upstreamDependencies | conflictRisk | parallelSafety | suggestedOpenSpecChange |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | <run_id>-featurs-auth-access | auth-access | auth/access | ... | ... | ... | ... | both | 1 | 不需優先度 | null | group-auth | stage-1/no-priority/none/stage-1-no-priority-group-auth | bootstrap health/config | backend:auth,frontend:auth | auth contract owner | backend:auth,frontend:auth | ... | ... | ... | ... | ... | frontend/backend/db | ... | ... | ... | 無 | medium | safe-parallel | change-<run_id>-auth-access |
+
+### Package / Skill Ownership Matrix
+| classificationId | activeSkills | capability | package-first expected | packageNeeds | packageOwner | packageDecisionRecordRef | selectedPackages | manualBuildReason | globalImpact | verification |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Dependency Graph
 | fromClassification | toClassification | edgeType | contract/source | reason | hardBlocker |
@@ -134,6 +141,12 @@ permission:
 - 缺 contractInputs/contractOutputs 分類數：
 - 缺 testImpact/impactReason/isolationStrategy 分類數：
 - 缺 portNeeds 分類數：
+- 缺 activeSkills 分類數：
+- 缺 packageNeeds/packageOwner/packageDecisionRecordRef 分類數：
+- package-first 能力手刻但缺 manualBuildReason 數：
+- 使用未確認套件分類數：
+- 非 active skill 規則被當成 blocker 數：
+- 同一 fullstack 使用者能力被拆成互相等待分類數：
 - Stage 1 baseline 非 bootstrap commit HEAD 數：
 - 缺 bootstrap commit 交接數：
 - 缺 dependency snapshot 規劃數：

@@ -30,8 +30,8 @@ permission:
 - repository root。
 - development-detail-planner 路徑。路徑可以是絕對路徑或 repository root 相對路徑；splitter 必須解析成可讀的絕對來源路徑。
 - 目前 apply stage、`readyWaveId`、ready `eligibleSetId` 集合與 stage/wave baseline；Stage 1 第一個 wave baseline 必須是 bootstrap commit HEAD，同 stage 後續 priority wave baseline 必須是上一個 wave integration head，後續階段必須是上一階段 integration branch/commit。輸入可是一個 eligibleSetId，也可是不需優先度 lane 全部 ready eligibleSetId 加上需要優先度 lane 當前最小未完成 priority 的 ready eligibleSetId。
-- 技術實踐分類表每列包含：classification ID、name、scope、implementationItems、上游依賴、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyWaveId、touchSet、contractInputs、contractOutputs、conflictRisk、primaryVerification、sameCapabilityGroupingReason、splitMergeReason。
-- ownership/mutual exclusion matrix、testImpact、impactReason、isolationStrategy、portNeeds；若缺失，splitter 只能輸出 blocker，不得自行補分類判斷。
+- 技術實踐分類表每列包含：classification ID、name、scope、implementationItems、上游依賴、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyWaveId、touchSet、contractInputs、contractOutputs、conflictRisk、packageNeeds、packageOwner、packageDecisionRecordRef、manualBuildReason、activeSkills、primaryVerification、sameCapabilityGroupingReason、splitMergeReason。
+- ownership/mutual exclusion matrix、testImpact、impactReason、isolationStrategy、portNeeds、Experience Contract、Package Decision Record；若缺失，splitter 只能輸出 blocker，不得自行補分類判斷或套件決策。
 - Stage Execution Graph、canonical `readyWaveId`、canonical eligibleSetId、readyEligibleSetIds 與 parallel dispatch plan；若缺失，splitter 只能輸出 blocker，不得自行推測 dispatch group。
 - 已確認決策、待確認事項、bootstrap 結果、bootstrap commit hash、dependency snapshot manifest path/hash、project rules 摘要/hash。
 
@@ -158,6 +158,11 @@ Manifest 至少包含：
 - `contractInputs`
 - `contractOutputs`
 - `conflictRisk`
+- `packageNeeds`
+- `packageOwner`
+- `packageDecisionRecordRef`
+- `manualBuildReason`
+- `activeSkills`
 - `dispatchLedgerPath`
 - `dispatch_ledger_path`
 - `ownerCapability`
@@ -183,7 +188,7 @@ Manifest 至少包含：
 
 Runner dispatch packet 規則：
 - splitter 必須為每個建立成功的 worktree 產生一個 `runnerDispatchPackets[]` entry，供主流程直接同輪平行呼叫 `openspec-worktree-change-runner phase=execute-worktree`；主流程不得再依表格順序逐一重組後序列化。
-- 每個 packet 至少包含 `run_id`、`classification_id`、`apply_stage`、`ready_wave_id`、`execution_lane`、`execution_priority`、`parallelGroupId`、`eligibleSetId`、`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`conflictRisk`、`upstream_dependencies`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、`dispatch_ledger_path`、`runner_event_path`、`development_detail_planner_path`、`planner_path_in_worktree`、`project_rules_path`、`project_rules_path_in_worktree`、`project_rules_hash`、`run_artifacts_in_worktree`、`copied_files`、`dependency_snapshot_manifest`、`dependency_snapshot`、`bootstrap_commit`、`ports`、`fallback_authorized`、`commit_authorized`、`contextRefs[]`、`contextSlice`。
+- 每個 packet 至少包含 `run_id`、`classification_id`、`apply_stage`、`ready_wave_id`、`execution_lane`、`execution_priority`、`parallelGroupId`、`eligibleSetId`、`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`conflictRisk`、`packageNeeds`、`packageOwner`、`packageDecisionRecordRef`、`manualBuildReason`、`activeSkills`、`upstream_dependencies`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、`dispatch_ledger_path`、`runner_event_path`、`development_detail_planner_path`、`planner_path_in_worktree`、`project_rules_path`、`project_rules_path_in_worktree`、`project_rules_hash`、`run_artifacts_in_worktree`、`copied_files`、`dependency_snapshot_manifest`、`dependency_snapshot`、`bootstrap_commit`、`ports`、`fallback_authorized`、`commit_authorized`、`contextRefs[]`、`contextSlice`。
 - packet 不得包含完整 planner、完整 project rules、完整 Stage Graph 或完整 consistency report 文字；只能包含必要 slice 與 refs。runner 需要全文時依 refs 讀取，refs 不一致時停止或 fallback 完整解析。
 - `contextRefs[]` entry 固定最小欄位為 `kind`、`path`、`schemaVersion`（若有）、`sha256` 或 HEAD、`requiredFor`、`fallbackAction`；`contextSlice` 只放本 classification/stage/wave/branch/ports/contract/testImpact 必要欄位。缺必要欄位時不得把大型全文塞回 packet 作替代；必須修正 refs 或標示 fallback 讀完整來源。
 - 若 classifier 提供 `classification-compact/v1`，splitter 可用它建立 runner packet，但必須確認欄位完整性與 hash；compact 缺 owner/readSet/writeSet/contract/touchSet/parallelSafety/Stage Graph 任一必要欄位時，停止或回完整分類輸出。

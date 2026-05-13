@@ -14,7 +14,7 @@ permission:
 ## 固定流程
 
 1. `explore/read-project-rules`：先讀 `.opencode/project-rules.md`，整理已確認規則、待確認規則、測試/port/worktree/OpenSpec 限制；此檔是開發前專案規則主檔，預設由 `project-start-rules-definer` 讀取 relevant `.opencode/skills/**/SKILL.md` 與使用者明確規則後建立/更新，且允許 user 手動編輯。若不存在，先交 `project-start-rules-definer` 建立，不得跳過規則對齊。
-2. `init-project`：判斷範圍、準備 README、用 `question` 確認開發細節。
+2. `init-project`：判斷範圍、讀取本次需求觸發的 relevant `.opencode/skills/**/SKILL.md`、檢查既有專案/package/lockfile/entrypoint 線索，先用開放性 `question` 釐清 UI/UX、後端能力、整合情境與套件偏好，再用 skill-backed / existing-project-backed / user-requested 選項確認開發細節。不得直接把單一 skill 的框架或套件規則套成全域預設。
 3. `technical-practice-classifier`：由大模型提出可行切分方案，建立 `readSet/writeSet`、Dependency Graph 與 Conflict Graph，選擇互相影響度最低且互斥的分類；完全不衝突者必須平行，只有上游未 merge 或 hard conflict 者進 flow；輸出 owner、excluded responsibilities、apply 階段、parallelGroupId、eligibleSetId、touchSet、contractInputs/Outputs、testImpact、isolationStrategy、parallelSafety 與 Stage Execution Graph；分類 ID 固定 `<run_id>-featurs-<name>`。
 4. `requirement-consistency-checker`：比對原始需求、已確認決策、project rules、草稿與分類，確認分類判斷自洽、無重工、無同批隱性依賴。
 5. `project-start-rules-definer`：只在缺少或需更新長期規則時整理、建立或更新 `.opencode/project-rules.md`；更新時必須讀取 relevant skills，保留 user 手動編輯規則，不得覆蓋、清空或弱化 immutable skill 規則。
@@ -92,6 +92,10 @@ permission:
 - 可先用 `analyze_requirements` 整理需求、README、偏好、套件與待確認項；工具輸出只是線索。
 - 必須實際呼叫 OpenCode `question`，不得用文字清單、Markdown 問題或待確認章節替代。
 - 未經 `question` 回答或明確授權，推薦架構、套件、計算、部署、安全方案都只能列候選/待確認。
+- 若 scope 涉及 frontend、UI、CSS、互動、route、state 或 API 串接，question 前必須讀取 frontend 相關 skill 與既有 frontend package/lockfile/source/style 線索；若 scope 涉及 backend、API、DB、auth、cache、queue、外部服務或 migration，question 前必須讀取 backend 相關 skill 與既有 backend package/lockfile/entrypoint/schema/test 線索。
+- Question 必須先問開放性問題，再問結構化決策。開放性問題用於釐清產品體驗、主要使用者、核心流程、資訊密度、參考產品、視覺禁忌、mobile/desktop 優先度、資料量、錯誤/空狀態/載入/成功回饋、後端資料保存、auth/session、權限、migration、cache/queue/scheduler、外部服務、併發/安全/部署限制與哪些能力希望使用成熟套件避免手刻。
+- 結構化決策選項只能來自 active skill、既有專案、使用者明確偏好或套件研究結果；每個選項需標示依據類型，例如 `skill-backed`、`existing-project-backed`、`user-requested`、`package-research-backed`、`needs-confirmation`。未確認的候選套件、UI library、state library、auth/security package、DB/cache/queue package 或 scaffold 不得寫成已採用。
+- Package-first Capability Gate：若需求能力屬於表單驗證、日期/日曆、表格/圖表、拖曳、rich text、UI primitives、server-state、auth/JWT/session、password hashing、ORM/migration、cache/Redis、queue/scheduler、外部 HTTP client、file upload、i18n、logging/observability、retry/timeout 等成熟套件領域，必須先提出套件或框架內建能力候選。若建議手刻，必須在 question 或 planner 中記錄手刻理由與風險。
 - 問題聚焦會改變實作或驗收的決策：MVP/不做範圍、頁面/互動、API contract、資料模型、登入/權限、安全/隱私、提醒/排程、核心計算、套件、部署/環境、測試/驗收。
 - 日期、排程、衝突、價格、庫存、搜尋、報表、權限等核心規則須獨立問計算責任；不得預設前端/後端/worker/DB/快取/第三方。
 - 具名套件不得未確認即採用；技術組合有整合風險時追加 `question`。
@@ -108,14 +112,16 @@ permission:
 - 檔名：`development-detail-planner_<run_id>_YYYYMMDD_HHmmss.md`，不可覆蓋。
 - `<run_id>` 必須同步給分類 agent；分類 ID 固定 `<run_id>-featurs-<name>`，保留 `featurs`，不得用 `TP-001`。
 - OpenSpec CLI 使用的 `openspec_change` 必須和分類 ID 分離，固定派生為 `change-<run_id>-<name>`，並符合 `^[a-z][a-z0-9-]*$`；不得直接把可能以數字開頭的 classification ID 傳給 `openspec new change`。
-- 文件用繁中，同份包含原始需求、現行專案、`run_id`、downstream authorization source、`bootstrap_branch_name`、原始 branch、bootstrap commit、dependency snapshot manifest path、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則摘要/hash、Dependency Graph、Conflict Graph、readSet/writeSet、parallelSafety、Stage Execution Graph、canonical `eligibleSetId`、`readyWaveId`、`readyEligibleSetIds`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
+- 文件用繁中，同份包含原始需求、現行專案、`run_id`、downstream authorization source、`bootstrap_branch_name`、原始 branch、bootstrap commit、dependency snapshot manifest path、active skills 與 skill-backed 決策來源、Experience Contract、Package Decision Record、已確認決策、待確認項、開發拆解、分類、一致性檢查、專案規則摘要/hash、Dependency Graph、Conflict Graph、readSet/writeSet、parallelSafety、Stage Execution Graph、canonical `eligibleSetId`、`readyWaveId`、`readyEligibleSetIds`、parallel dispatch plan、dispatch ledger 路徑、contract/touchSet 風險矩陣、multi-worktree 實作順序、驗收/測試、不做範圍。
+- `Experience Contract` 至少包含：視覺方向、產品氣質、資訊密度、layout 原則、typography/color/theme/token 方針、mobile/desktop 行為、互動回饋、loading/empty/error/success/disabled states、accessibility、資料呈現模式、表單驗證與 server error mapping、明確不採用的 UI 方向。非 frontend/UI scope 可標示不適用與理由。
+- `Package Decision Record` 至少包含：scope、capability、package-first expected、candidates、selected、manual-build reason、active skills、skill-backed basis、project constraints、confirmation source、verification。任何 runner 新增或使用套件都必須能追溯到此紀錄；沒有紀錄且不是既有依賴時，必須回到 question。
 - 待確認章節只放使用者已選擇延後/待確認的項目；不得把未問或未答事項寫進檔案假裝完成。
 - 若需 `project-bootstrapper`，需求開發實踐檔可在 bootstrapper 完成後產生或更新，必須納入 bootstrap branch gate 結果、`bootstrap_branch_name`、原始 branch、bootstrap commit、dependency snapshot、最小專案啟動結果、README/命令/URL/驗證摘要與完整 multi-worktree downstream 鏈路；不得在 bootstrapper 完成後停止而不產檔或不續行 downstream。
 - 需求開發實踐檔中的 `已授權 downstream 步驟` 預設寫完整 stage-scoped multi-worktree 鏈路，並在 `commit 授權狀態` 記錄「完整 downstream 已授權中文細分 commit」。只有使用者主動明確限制流程或明確要求不要 commit 時，才可寫有限 downstream、`bootstrap only` 或 `no commit`。
 
 ## 交接契約
 
-- 分類：交 `<run_id>`、原始需求、已確認決策、project rules 摘要、開發範圍、實作順序草稿給 `technical-practice-classifier`。分類必須由大模型比較多個可行切分方案，選出互相影響度最低且互斥的通用需求能力分類；同類能力放同一分類，並輸出 ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、Dependency Graph、Conflict Graph、parallelSafety、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、Stage Execution Graph 與上游依賴。分類必須把沒有 dependency edge / hard conflict edge 的 ready 分類放入同批或同輪平行 dispatch；若未分類/重複分類/多 owner/無 owner/同階段阻塞依賴/循環依賴/可平行分類被序列化/缺 parallelGroupId/缺 touchSet/缺 readSet/writeSet/缺 contract inputs outputs/缺 Stage Execution Graph 或 eligibleSetId/缺低影響判斷理由/無法在所列上游合併後 apply 分類數不為 0，或 ID 不符，不進一致性檢查。
+- 分類：交 `<run_id>`、原始需求、已確認決策、active skills、Experience Contract、Package Decision Record、project rules 摘要、開發範圍、實作順序草稿給 `technical-practice-classifier`。分類必須由大模型比較多個可行切分方案，選出互相影響度最低且互斥的通用需求能力分類；同類能力放同一分類，並輸出 ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、Dependency Graph、Conflict Graph、parallelSafety、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、packageNeeds、packageOwner、packageDecisionRecordRef、manualBuildReason、activeSkills、Stage Execution Graph 與上游依賴。分類必須把沒有 dependency edge / hard conflict edge 的 ready 分類放入同批或同輪平行 dispatch；若未分類/重複分類/多 owner/無 owner/同階段阻塞依賴/循環依賴/可平行分類被序列化/缺 parallelGroupId/缺 touchSet/缺 readSet/writeSet/缺 contract inputs outputs/缺 Package Decision Record 追溯/缺 Stage Execution Graph 或 eligibleSetId/缺低影響判斷理由/無法在所列上游合併後 apply 分類數不為 0，或 ID 不符，不進一致性檢查。
 - 一致性：交原始需求、已確認決策、待確認項、草稿、分類與目前檢查階段給 `requirement-consistency-checker`。bootstrap 前可用 `pending-bootstrap` / `planned` 標示尚未產生的 bootstrap commit、dependency snapshot manifest、dispatch ledger 與 ready wave 欄位；bootstrap 後與 planner finalization 前必須再檢查一次並提供具體值。若有未解的 `不一致`、`未經確認`、`超出需求`、`遺漏`，不得規則定義、產檔或 bootstrap。
 - 規則：一致性通過後，若使用者要求規則、啟動前規範或本次範圍有 skill，依 `project-start-rules-definer` 規則執行；它是 primary 規則流程，不處理需求功能，完成後必須返回本流程續行。
 - Bootstrap：若需建立最小專案，交 `project-bootstrapper`；傳入資料必須包含 `run_id`、`bootstrap_branch_name`、原始 branch、downstream authorization source、完整 multi-worktree downstream 鏈路與 commit 授權狀態，除非使用者已主動明確限制流程。它完成後必須回傳 bootstrap commit、dependency snapshot manifest path、各 dependency source/hash/readiness；主流程確認後產生/更新需求開發實踐檔，下一步直接交 `worktree-splitter`。

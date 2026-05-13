@@ -16,7 +16,7 @@ permission:
 - 已確認決策：`question` 回答、明確授權、明確選擇。
 - 待確認事項：使用者選擇延後/待確認/尚未授權內容。
 - 實踐草稿：需求整理、已確認方案、project rules 摘要、開發拆解、實作建議。
-- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyWaveId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、bootstrap commit 規劃、dependency snapshot manifest 規劃、project-rules read-back 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
+- 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、active skills、Experience Contract、Package Decision Record、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyWaveId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、packageNeeds、packageOwner、packageDecisionRecordRef、manualBuildReason、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、bootstrap commit 規劃、dependency snapshot manifest 規劃、project-rules read-back 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
 - 檢查階段：`pre-bootstrap-planning` / `post-bootstrap-planning` / `pre-splitter-final`。pre-bootstrap 階段允許 bootstrap commit、dependency snapshot manifest、dispatch ledger 寫成 `pending-bootstrap` 或 `planned`，但必須有明確 owner、產生時機與後續驗證 gate；post-bootstrap 與 pre-splitter-final 階段必須提供具體 hash/path/schema，不能只寫 pending。
 - 前次需求線索；沒有則標示無。
 
@@ -32,6 +32,15 @@ permission:
 - 分類缺唯一 ownerCapability、ownedRequirements 或 excludedResponsibilities，或同一需求/API/schema/helper/test responsibility 有多個 owner/無 owner => `不一致`。
 - 分類有同階段阻塞依賴、循環依賴、或上游依賴未在草稿/流程中安排先 merge 再作為下一階段基準 => `不一致`。
 - 分類未分成 `需要優先度` 與 `不需優先度` lane，或草稿/流程讓兩條 lane 互相等待而非平行處理 => `不一致`。
+- 草稿或分類有 frontend/backend/fullstack package 或 scaffold 決策，但未讀取/列出本次需求觸發的 active skills、既有專案依據或使用者確認來源 => `不一致`。
+- 草稿把未觸發 skill 的框架、套件、架構、Tailwind、React、FastAPI 或驗證規則當成全域 blocker，而不是依 active skill 契約判斷 => `不一致`。
+- Package Decision Record 缺 scope、capability、package-first expected、candidates、selected、manual-build reason、active skills、skill-backed basis、project constraints、confirmation source 或 verification，且本次涉及套件/scaffold/成熟能力選型 => `不一致`。
+- 前端或後端成熟能力屬於 package-first 領域，卻直接手刻且沒有手刻理由、風險、使用者確認或 active skill/project constraint 依據 => `未經確認`。
+- 新增或採用 frontend/backend package、UI library、state library、auth/security package、ORM/migration/cache/queue/HTTP client package，但沒有 Package Decision Record、既有專案依據或 `question` 確認 => `未經確認`。
+- 套件決策違反 active skill 底線，例如混用套件管理工具、繞過正式 backend entrypoint、用 app startup `create_all()` 取代 migration、未依 active styling skill 設定樣式、或忽略 active skill 要求的驗證 => `不一致`。
+- frontend/fullstack 草稿缺 Experience Contract，或 UI feature 缺 loading/empty/error/success/disabled、responsive、accessibility、server error mapping、主要互動回饋與 visual/browser 驗證狀態 => `不一致`。
+- 同一 fullstack 使用者能力被拆成 frontend/backend/test 等同階段互相等待分類，而非 vertical slice 或明確 foundation/contract-first stage => `不一致`。
+- 多個分類共用的 package、design token、API client、auth/cache/queue/DB/migration infrastructure 沒有唯一 packageOwner 或 foundation owner，卻允許 runner 自行導入 => `不一致`。
 - `需要優先度` lane 有明確執行優先度但草稿/流程未按優先度執行，或 `不需優先度` lane 被任意序列化而非同步/平行執行 => `不一致`。
 - 分類缺 `parallelGroupId`、`eligibleSetId`、`readyWaveId`、`readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`parallelSafety`，或 Stage Execution Graph 未列出 `stage + lane + priority + parallelGroupId` eligible set、canonical `eligibleSetId`、stage ready wave / `readyWaveId` / `readyEligibleSetIds`、dispatch 方式、等待條件、wave merge gate 與 stage completed gate => `不一致`。
 - 兩個分類沒有 Dependency Graph edge、沒有 Conflict Graph hard edge，且只讀已 merge/stable contract，卻被排到不同 apply stage、不同 priority、互相等待，或漏出目前 stage ready wave，而不是同批或同輪平行 dispatch => `不一致`。

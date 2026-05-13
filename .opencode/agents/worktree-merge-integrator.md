@@ -17,7 +17,7 @@ permission:
 - repository root。
 - `.worktree/<run_id>/port-map.json`。
 - development-detail-planner 路徑。
-- 各 apply-stage worktree 結果：path、branch、classification ID、openspec change、commit hash、最小中文標籤 commit 清單、局部驗證結果、parallelGroupId、eligibleSetId、ownerCapability、ownedRequirements、excludedResponsibilities、touchSet、contractInputs、contractOutputs、testImpact、isolationStrategy、conflictRisk、spec revalidation 結果。
+- 各 apply-stage worktree 結果：path、branch、classification ID、openspec change、commit hash、最小中文標籤 commit 清單、局部驗證結果、parallelGroupId、eligibleSetId、ownerCapability、ownedRequirements、excludedResponsibilities、touchSet、contractInputs、contractOutputs、testImpact、isolationStrategy、conflictRisk、activeSkills、Experience Contract 對齊、Package Decision Record 對齊、packageNeeds/packageOwner/manualBuildReason、spec revalidation 結果。
 - 各 runner event/result artifact：`<worktree>/.opencode/run-artifacts/<run_id>/runner-events/<classification_id>.json` 或 runner final output 中的等價 structured result。
 - 各 runner 的 project-rules read-back / alignment 記錄與 dependency snapshot copy / fallback install-sync 結果。
 - apply 階段、readyWaveId、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、分類依賴順序與本次要 merge 的階段範圍。
@@ -35,6 +35,7 @@ permission:
    - `git log -1` 應包含該 worktree 的完成 commit；若缺 commit 且 commit 授權為完整 downstream，停止。
    - runner final output 或 runner event/result artifact 必須符合 `runner-event/v1` 欄位並列出 `commits.specCommit` 與最小中文標籤 commits；`specCommit` 必須是 `規格：...` commit，且包含該 worktree 的 `proposal.md`、`design.md`、`tasks.md`、`specs/**/spec.md` 與 `alignment-check.md`。每個 commit body 必須含 run_id、classification ID、OpenSpec change、task/tag/verification。
    - runner final output 或 runner event/result artifact 必須列出每個 OpenSpec checkpoint 的 project-rules read-back path/hash/alignment 結果；缺失或 failed 時停止並回報 `PROJECT_RULES_READBACK_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED`。
+   - runner final output 或 runner event/result artifact 必須列出 active skills、Experience Contract 與 Package Decision Record 對齊結果。若成熟能力手刻但缺 manual-build reason、使用未確認套件、套件 owner 與分類不一致、或把非 active skill 當成 blocker/通過依據，停止並回報 `PACKAGE_DECISION_INVALID`。
     - runner final output 或 runner event/result artifact 必須列出 dependency snapshot copy result 與 fallback install/sync 結果；若 frontend/backend 可測入口需要依賴但記錄缺失、copy failed 且未 fallback，或 sync failed，停止並回報 `DEPENDENCY_SYNC_MISSING` / `DEPENDENCY_SYNC_FAILED`。
    - skill gate：檢查 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills`。只有實際內容 diff 才停止並回報 `ERROR: skill rules are immutable and cannot be changed`；純 stat/line-ending 或其他非 skill 檔的 `needs update` 不得當 blocker。
    - `spec-flow/openspec/changes/<openspec_change>/alignment-check.md` 必須通過，且包含 project-rules read-back path/hash 與 alignment 結果。
@@ -43,9 +44,12 @@ permission:
 6. 若任一來源 worktree 未完成、局部測試未通過、缺最小中文 commit 或 status 不乾淨，不得 merge。若未完成原因是 `CLASSIFICATION_STAGE_INVALID`、`OWNERSHIP_CONFLICT` 或同階段 missing code/schema/helper，停止並要求回到分類階段調整或合併；若原因是 `STAGE_BASELINE_MISSING_UPSTREAM`，停止並要求主流程先完成上游階段 merge 後重建該階段 worktree。
 7. 確認同一 stage ready wave 中所有 eligibleSetId 與 worktree 均已完成，且 dispatch ledger + ready-set manifest + runner event/result artifacts 顯示同一輪平行建立、同一輪平行派工、project-rules read-back 通過、dependency sync 通過、`specCommit` 存在、沒有漏派、沒有未解 failed/aborted/missing-result 項目；若結果顯示主流程把同一 ready wave 任意序列化、先跑部分 worktree、漏派，或拆成「全 tasks 產完後才統一 apply」，停止並回報 `PARALLEL_DISPATCH_VIOLATION`。
 8. 讀取 port map 或 manifest 中的 `eligibleSetId`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`。若 high conflict touchSet 在分類階段未標示隔離策略，或實際 merge 需要把未穩定 contract 從一個同階段 worktree 提供給另一個同階段 worktree，停止並回報 `CLASSIFICATION_STAGE_INVALID`。
-9. 若 dispatch ledger 缺失、不可解析、與來源 worktree manifest/port-map/runner event artifacts 不一致，停止並回報 `DISPATCH_LEDGER_INVALID`；不得憑人工順序直接 merge。
-10. Barrier 開始時，merge integrator 或主流程必須把本 stage ready wave 狀態更新為 `barrier_started`；所有 runner event 驗證通過後更新為 `barrier_passed`，並把每個 expected worktree 的 `commits`、`verification.local`、`timestamps.runnerCompletedAt/barrierCheckedAt` 回填 shared ledger。
-11. 進入 merge 前必須把本 stage ready wave 狀態更新為 `merge_started`；merge 與整合驗證完成後更新為 `merge_completed` / `integration_passed`。若 merge、整合驗證或 port cleanup 失敗，必須寫入 `failed` 或 `blocked` 與 `error.code/error.message`，不得宣稱 final completed。runner 不得直接寫 shared ledger。
+9. Fullstack / UX integration gate：若本 ready wave 或 final merge 涉及 frontend/fullstack，必須確認 Experience Contract 在來源 worktree 中一致執行，包含視覺方向、資訊密度、responsive、accessibility、loading/empty/error/success/disabled states、server error mapping 與 browser/visual verification 狀態。若 browser/visual 缺 MCP 或受控 lifecycle，只能標 skipped/blocked，不得寫 passed。
+10. Package integration gate：確認 Package Decision Record 中的 selected packages、manual-build reason、packageOwner 與實際 manifest/lockfile/commits 一致；前端、後端或 fullstack 套件新增必須有 question/PDR 來源與驗證結果。全域套件、auth/cache/queue/DB/migration/API client/design token 若由非 owner worktree 導入，停止回報 `PACKAGE_DECISION_INVALID`。
+11. Fullstack contract gate：同一使用者能力若跨前後端，必須確認 backend API/schema/error/auth/session 與 frontend API service/state/form validation/error mapping 已整合，且相關 tests 或 verification summary 沒有把 skipped/blocked 寫成 passed。
+12. 若 dispatch ledger 缺失、不可解析、與來源 worktree manifest/port-map/runner event artifacts 不一致，停止並回報 `DISPATCH_LEDGER_INVALID`；不得憑人工順序直接 merge。
+13. Barrier 開始時，merge integrator 或主流程必須把本 stage ready wave 狀態更新為 `barrier_started`；所有 runner event 驗證通過後更新為 `barrier_passed`，並把每個 expected worktree 的 `commits`、`verification.local`、`timestamps.runnerCompletedAt/barrierCheckedAt` 回填 shared ledger。
+14. 進入 merge 前必須把本 stage ready wave 狀態更新為 `merge_started`；merge 與整合驗證完成後更新為 `merge_completed` / `integration_passed`。若 merge、整合驗證或 port cleanup 失敗，必須寫入 `failed` 或 `blocked` 與 `error.code/error.message`，不得宣稱 final completed。runner 不得直接寫 shared ledger。
 
 ## Barrier Preflight Summary
 
@@ -121,6 +125,7 @@ Final artifact 必填內容：
 - commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
 - Bug Fix Locator Index：由 commit map 派生，至少包含 commit id、commit subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息），供 archive 後 `ARCHIVED_RUN_MODE` 不依賴 `.worktree` 快速定位。
 - 延後與排除項 map：所有未實作但出現在原需求或確認決策中的 deferred/excluded requirements 必須逐項列出，不能只寫在摘要。
+- Experience / Package acceptance summary：若 run 涉及 frontend/backend/fullstack package 或 UI/UX，final report 必須列出 active skills、Experience Contract 對齊結果、Package Decision Record 採用/不採用結果、manual-build reason、套件驗證命令與 fullstack contract 驗收結果。
 - Browser smoke、DB runtime、E2E 等 skipped/blocked 項目必須明確標示為 skipped/blocked，不得標為 passed。
 - Latest Maintenance / Bug Fix 區段：final merge 時可標示 `none yet`；後續 `worktree-bug-fix` 更新時只改此區段或必要的 verification/commit reference，不得破壞既有 commit map。
 
@@ -220,6 +225,8 @@ merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-vali
 - backend sync/pytest/migration/DB config；Python 驗證固定走 pytest，不用 ad-hoc Python 指令。
 - Docker Compose config 或 DB 啟動（若需求要求）。
 - fullstack/E2E smoke；browser smoke 只能用 Playwright MCP。
+- fullstack contract 驗證：確認 frontend API service、form validation、server error mapping、auth/session 狀態與 backend response/error schema 一致。
+- Experience Contract 驗證：frontend/fullstack 時確認主要 route 或流程在 mobile/desktop、loading/empty/error/success/disabled、focus-visible/accessibility 與視覺一致性上未違反 active skill；未能驗證時標 skipped/blocked。
 
 Server smoke 必須 bounded 且不得使用 PowerShell：
 - 禁止產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
@@ -291,6 +298,8 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 - final merge artifact：.opencode/run-artifacts/<run_id>/final-merge-report.md（最後一階段必填）
 - commit map：已產生/未產生，原因：...
 - port cleanup：completed/blocked，原因：...
+- experience acceptance：passed/skipped/blocked，原因：...
+- package decision acceptance：passed/blocked，原因：...
 - 後續建議：主流程用上一列基準呼叫 `worktree-splitter mode=apply-stage` 建立下一 ready wave 或下一 stage execution worktree；不得要求 runner merge upstream integration
 - compact output：enabled；status：completed/blocked/failed；blockers：無/列表；commits：merge/integration/final report；verification：stage/final commands + summary refs；contextRefs：dispatch ledger/runner events/barrier-preflight；artifactRefs：barrier-preflight/schema-validation/verification-summary/final-report-index；nextAction：next wave/next stage/final/archive 或 blocker fix；fallbackUsed：none/full runner events/full OpenSpec artifacts/full logs；完整表格僅在 blocked/failed 或使用者要求時輸出
 ```
