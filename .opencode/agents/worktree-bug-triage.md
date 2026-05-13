@@ -46,7 +46,7 @@ permission:
 6. 建立 Bug Search Packet，整理 failing test、stack trace、API route、component/page/hook/store/schema/model/service、錯誤訊息、UI 文案、使用者提到的功能名稱、expected vs actual 差異與使用者指定 suspect commit。
 7. 依 Bug Search Packet 在 locked touched files index 與 locked commits 內產生候選 commit 搜尋關鍵字：檔案路徑、測試名稱、API route、component 名稱、schema/model、function、錯誤訊息、classification ID、OpenSpec change。
 8. 可列出 locked run scope 內的候選 commit 範圍，但不得宣稱已找到唯一 culprit commit，除非使用者明確已指定；即使指定，也要標為「使用者指定候選」。
-9. 輸出 Bug Triage Packet，明確標示 `ready_for_fix`。
+9. 輸出 Bug Triage Packet 與等價 `bug-search-packet/v1` 結構，明確標示 `ready_for_fix`。本 agent 權限為 write deny，不直接寫檔；`worktree-bug-fix` 可將此 structured packet 保存到 `.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json`。
 
 ## ready_for_fix 判斷
 
@@ -104,6 +104,13 @@ permission:
 - candidate touched files：...
 - confidence：high/medium/low
 - notes for worktree-bug-fix：bug-fix 必須更新同一份維護文件；active mode 更新 final maintained report，archived mode 更新 archive final file，不另建 latest bug-fix report。
+
+### Bug Search Packet JSON
+- schemaVersion：`bug-search-packet/v1`
+- suggested path：`.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json`（由 `worktree-bug-fix` 寫入，triage agent 不寫檔）
+- source：Mode Selected Run Change Lock Packet + 使用者 bug 輸入
+- readyForFix：true/false
+- keywords/fileHints/apiHints/testHints/errorText/expectedActualKeywords：...
 
 ### 不修正項目
 - 程式修改：未執行

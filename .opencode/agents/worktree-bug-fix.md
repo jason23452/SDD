@@ -83,10 +83,11 @@ permission:
    - component / page / hook / store / schema / model / service 名稱。
    - 錯誤訊息 / UI 文案 / console log。
    - 使用者提到的功能名稱。
-   - expected vs actual 差異。
-   - 使用者指定 suspect commit（若有）。
-   - candidate commit search keywords。
-6. 若釐清不完整，停止回報 `BUG_TRIAGE_NOT_READY`；不得進入修正。
+    - expected vs actual 差異。
+    - 使用者指定 suspect commit（若有）。
+    - candidate commit search keywords。
+6. 將 Bug Search Packet 以 `bug-search-packet/v1` 保存到 `.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json`，或在 active mode 目標缺少可寫 run-artifacts 時於 final output 內提供等價 structured packet 並標示 `BUG_SEARCH_PACKET_WRITE_SKIPPED`。此檔只保存 triage 結果與來源 hash，不取代 bug 資訊充足性 gate。
+7. 若釐清不完整，停止回報 `BUG_TRIAGE_NOT_READY`；不得進入修正。
 
 ## Phase 3：自動比對 culprit commit 並建立 Fix Target Set
 
@@ -99,13 +100,14 @@ permission:
 4. 若單一 high confidence commit 明顯領先，直接選定為 culprit commit，不再詢問使用者。
 5. 若多個中高信心 commit 分數接近，必須用 `question` 讓使用者選 culprit commit 或允許合併修正範圍。
 6. 若沒有任何 relevant commit，設定 `change mode=NEW_WORKTREE_FEATURE_CHANGE`，不得停止；視為該 selected run_id / selected fix target 的新增功能或額外修改要求。
-7. 若找到 culprit commit，建立 Fix Target Set，排序規則：
-   - bug stack/test 直接指到的檔案。
-   - culprit commit touched files 中與功能/API/component/schema 命中的檔案。
-   - culprit diff hunks 涉及的 function/component/route。
-   - 必要測試檔。
-   - 其他相關但需確認的檔案。
-8. 若 `change mode=NEW_WORKTREE_FEATURE_CHANGE`，建立 New Change Target Set，依 bug/修改需求與 selected fix target 現況判斷需修改既有檔案或新增檔案。
+7. 將 culprit 比對結果以 `culprit-score/v1` 保存到 `.opencode/run-artifacts/<run_id>/bugfix/culprit-score.json`，包含 lockedCommitSource、每個候選 commit、matchedFiles、matchedKeywords、confidence、reason、selectedCulprit、requiresUserChoice 與 blockers。此檔只能加速後續重試；不得把 locked commits 以外的 commit 加入 score。
+8. 若找到 culprit commit，建立 Fix Target Set，排序規則：
+    - bug stack/test 直接指到的檔案。
+    - culprit commit touched files 中與功能/API/component/schema 命中的檔案。
+    - culprit diff hunks 涉及的 function/component/route。
+    - 必要測試檔。
+    - 其他相關但需確認的檔案。
+9. 若 `change mode=NEW_WORKTREE_FEATURE_CHANGE`，建立 New Change Target Set，依 bug/修改需求與 selected fix target 現況判斷需修改既有檔案或新增檔案。
 
 ## Phase 4：只在使用者選定模式的目標精準修正
 
@@ -198,6 +200,7 @@ permission:
 - `RUN_COMMIT_MAP_MISSING`：沒有 final commit map、archive locator index，也無法由 integration branch 建立 commit 清單。
 - `RUN_SCOPE_AMBIGUOUS`：run_id 對應多個 final merge target 或 integration branch 且無法安全判斷。
 - `BUG_TRIAGE_NOT_READY`：bug 資訊不足。
+- `BUG_SEARCH_PACKET_WRITE_SKIPPED`：Bug Search Packet 無法寫入 artifact，但 final output 已提供等價 structured packet。
 - `MULTIPLE_CULPRIT_COMMITS`：多個可能 commit 且使用者未選。
 - `BUGFIX_SCOPE_EXPANSION_REQUIRED`：必須大幅擴張本次 bug / 額外修改範圍但尚未取得確認。
 - `FINAL_MAINTAINED_REPORT_WRITE_FAILED`：selected maintenance file 無法寫入。
@@ -261,6 +264,8 @@ permission:
 - culprit commit：<hash> <subject> / not found
 - culprit confidence：high/medium/low/not-applicable
 - culprit evidence：...
+- bug search packet：.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json / output-only
+- culprit score：.opencode/run-artifacts/<run_id>/bugfix/culprit-score.json / output-only
 - fix target set：...
 - modified files：...
 - added files：...

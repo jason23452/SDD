@@ -47,6 +47,30 @@ permission:
 10. Barrier 開始時，merge integrator 或主流程必須把本 stage ready wave 狀態更新為 `barrier_started`；所有 runner event 驗證通過後更新為 `barrier_passed`，並把每個 expected worktree 的 `commits`、`verification.local`、`timestamps.runnerCompletedAt/barrierCheckedAt` 回填 shared ledger。
 11. 進入 merge 前必須把本 stage ready wave 狀態更新為 `merge_started`；merge 與整合驗證完成後更新為 `merge_completed` / `integration_passed`。若 merge、整合驗證或 port cleanup 失敗，必須寫入 `failed` 或 `blocked` 與 `error.code/error.message`，不得宣稱 final completed。runner 不得直接寫 shared ledger。
 
+## Barrier Preflight Summary
+
+`barrier-preflight/v1` 是本 agent 的 P1 token/速度優化摘要，不新增 gate、不取代 runner event、dispatch ledger、git status 或驗證結果。若存在且可驗證，merge integrator 可優先讀取它來避免重複讀取大量 runner event；若缺失或不一致，必須回到「前置 Gate」完整檢查。
+
+固定路徑：`.opencode/run-artifacts/<run_id>/barrier-preflight/stage-<n>-wave-<k>.json`。
+
+必填欄位：
+- `schemaVersion: barrier-preflight/v1`
+- `run_id`、`stage`、`readyWaveId`、`readyEligibleSetIds[]`
+- `sourceRefs.dispatchLedger`、`sourceRefs.readySetManifest`、`sourceRefs.runnerEvents[]`
+- `sourceHashes` 或等價 hash/HEAD，用於確認摘要仍對應目前 artifact
+- `expectedWorktreeCount`、`completedWorktreeCount`
+- `branchNamespaceGate`，必須為 `passed` 且全部符合 `worktree/<run_id>/*`
+- `runnerEventSchemaGate`、`projectRulesReadBackGate`、`dependencySyncGate`、`specCommitGate`、`tasksGate`、`verificationGate`、`worktreeCleanGate`
+- `commitsByWorktree[]`、`verificationByWorktree[]`、`detailRefs[]`
+- `status: passed/blocked/failed`
+- `blockers[]`
+
+寫入規則：
+- barrier collect 完整通過後必須寫入或更新此摘要。
+- 摘要只能記錄已驗證結果，不得把未知欄位寫成 passed。
+- 任一來源 hash、runner event path、worktree HEAD、branch、readyWaveId 或 expectedWorktreeCount 與 dispatch ledger 不一致時，停止回報 `BARRIER_PREFLIGHT_STALE` 並重新執行完整 barrier collect。
+- 此摘要不得 stage/commit；final report 可引用其路徑與結果摘要。
+
 ## 建立 Merge Worktree
 
 - merge worktree path：階段整合可用 `.worktree/<run_id>/merge-stage-<n>`；最終整合使用 `.worktree/<run_id>/merge`。
@@ -114,6 +138,7 @@ Port 來源必須讀取：
 - `.worktree/<run_id>/stage-<n>/port-map.json`
 - 每個來源 worktree 的 `.opencode/run-artifacts/<run_id>/port-map.json`
 - integration merge 使用的 integration port 設定
+- `.opencode/run-artifacts/<run_id>/port-registry.json`（若存在），作為 port lifecycle 摘要；若與 port-map 不一致，以 port-map 為配置來源並回報 `PORT_REGISTRY_STALE`。
 
 Port cleanup 範圍至少包含：
 
@@ -135,6 +160,7 @@ Cleanup 狀態只能使用：
 Port cleanup 規則：
 
 - 若 runner / merge integrator 啟動 runtime server、preview server、API server、DB container 或任何使用 port 的程序，必須保存 PID、handle 或 compose project name，並在 merge 後用受控 lifecycle 關閉。
+- runner 不直接寫 shared port registry；runner event 只回報 port 使用。merge/barrier integrator 單點更新 `port-registry/v1`，記錄 assigned port、owner、startedByRun、pid/handle/composeProject、cleanupState、lastVerifiedAt 與 blocker。registry 只能加速 cleanup map 產生，不得取代未知 listener fail-fast 規則。
 - 若只是執行 `docker compose config` 或未啟動 runtime，必須在 cleanup map 記錄 `not_started`。
 - 若 port 被未知 listener 佔用，必須 fail fast 並回報 `unknown_listener`；不得自動換 port、不得強殺、不得宣稱 cleanup 完成。
 - 若沒有跨平台受控 lifecycle helper，不得啟動 runtime server 來做 smoke；browser smoke 仍只能透過 Playwright MCP。
@@ -145,6 +171,10 @@ Port cleanup map 欄位至少包含：
 
 | source | port name | port | started by run | cleanup action | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
+
+## Schema Validation Summary
+
+merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-validation.json`，schemaVersion 固定 `schema-validation/v1`，彙整 dispatch ledger、runner events、barrier preflight、port registry 與 final report index（若有）的 schema 檢查結果。此檔只作摘要；任一項為 failed/stale/missing 時，必須回到原始 artifact 重新驗證並回報對應 blocker，不得用 summary 覆蓋實際檢查。
 
 ## Merge 規則
 
@@ -221,6 +251,7 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 ### Barrier Collect
 - ready-set manifest：...
 - runner event/result artifacts：完整/缺失，路徑：...
+- barrier preflight：passed/blocked/missing/stale，path：...
 - shared dispatch ledger：schemaVersion=dispatch-ledger/v1；barrier_started/barrier_passed/merge_started/merge_completed/integration_passed 已由 barrier 單點彙整/未更新，原因：...
 - parallel dispatch check：passed/failed
 
