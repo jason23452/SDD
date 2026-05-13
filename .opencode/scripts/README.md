@@ -36,12 +36,21 @@ Use these after planner/classification decisions exist to reduce repeated long-c
 ```bash
 node .opencode/scripts/build-run-preflight-packet.js <run_id> --planner <path>
 node .opencode/scripts/build-verification-matrix.js <run_id> --planner <path>
+node .opencode/scripts/build-package-decision-record.js <run_id> --planner <path>
+node .opencode/scripts/build-experience-contract.js <run_id> --planner <path>
+node .opencode/scripts/build-project-rules-lock.js <run_id>
+node .opencode/scripts/build-skill-lock.js <run_id>
+node .opencode/scripts/build-dependency-readiness.js <run_id>
+node .opencode/scripts/build-planner-index.js <run_id> --planner <path>
 node .opencode/scripts/build-context-slices.js <run_id> --ready-wave <id>
 node .opencode/scripts/build-snapshot-manifest.js <run_id> --stage <n> --wave <id>
 node .opencode/scripts/build-port-map.js <run_id> --stage <n> --wave <id>
+node .opencode/scripts/build-dispatch-ledger-skeleton.js <run_id> --planner <path> --stage <n>
+node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id>
 node .opencode/scripts/build-openspec-template.js <run_id> <classification_id>
 node .opencode/scripts/build-barrier-preflight.js <run_id> --stage <n> --wave <id>
 node .opencode/scripts/build-commit-metadata-summary.js <run_id> <classification_id>
+node .opencode/scripts/build-final-report-index.js <run_id> --report <path>
 ```
 
 Every builder accepts `--check` to print the intended output without writing files.
@@ -52,6 +61,9 @@ Use scoped checks to avoid validating the whole run artifact tree in every runne
 
 ```bash
 node .opencode/scripts/check-verification-matrix.js <run_id>
+node .opencode/scripts/check-artifact-freshness.js .opencode/run-artifacts/<run_id> --strict
+node .opencode/scripts/check-dispatch-ledger-readiness.js <run_id>
+node .opencode/scripts/check-runner-event-completeness.js <run_id> <classification_id>
 node .opencode/scripts/check-apply-readiness.js <worktree> <run_id> <classification_id>
 node .opencode/scripts/artifact-scope-check.js <run_id> --scope runner --classification <id> --strict
 node .opencode/scripts/artifact-scope-check.js <run_id> --scope wave --stage <n> --wave <id> --strict

@@ -63,6 +63,8 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 
 Runner speed path：若 `run-preflight-packet/v1`、`context-slice/v1`、`verification-matrix/v1`、`package-decision-record/v1` 與 `experience-contract/v1` 存在且 schemaVersion、run_id、source hash、HEAD、readyWaveId、eligibleSetId、classificationId 與目前 worktree 一致，runner 必須優先使用這些 compact artifacts。只有 missing/stale/blocked/failed/hash mismatch 或 slice 缺 gate 必填欄位時，才回讀完整 development-detail-planner、project rules、Stage Graph 或 classification output。
 
+Runner 可先用 `node .opencode/scripts/check-artifact-freshness.js <artifact-or-dir> --strict` 驗證 compact artifact source hash；也可用 `node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id>` 建立 runner event 骨架，完成後用 `node .opencode/scripts/check-runner-event-completeness.js <run_id> <classification_id>` 檢查欄位完整。skeleton 不代表 runner completed，缺 specCommit/local verification 時 barrier 不得通過。
+
 runner prompt context 只應包含本 worktree 的 `contextRefs[]`、`contextSlice` 與必要使用者需求摘要。若 prompt 直接貼入大型全文，runner 仍必須以 worktree 內 artifact path/hash 為準，避免使用過期上下文。`contextSlice` 不足以完成 ownership、dependency、project-rules、OpenSpec alignment 或 verification gate 時，runner 必須讀取完整來源或停止回報既有 blocker，不得用 slice 猜測。
 
 若存在 `planner-index/v1`，runner 可先讀本 classification / readyWaveId 相關 section refs；若 section hash 不符、缺 required section 或 alignment 需要完整脈絡，必須回讀完整 development-detail-planner。runner 不得只憑 planner index 產生 OpenSpec artifacts。

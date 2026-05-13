@@ -15,6 +15,18 @@ const BUILD_SNAPSHOT = path.join(ROOT, ".opencode", "scripts", "build-snapshot-m
 const BUILD_PORT_MAP = path.join(ROOT, ".opencode", "scripts", "build-port-map.js")
 const BUILD_OPENSPEC_TEMPLATE = path.join(ROOT, ".opencode", "scripts", "build-openspec-template.js")
 const BUILD_COMMIT_METADATA = path.join(ROOT, ".opencode", "scripts", "build-commit-metadata-summary.js")
+const BUILD_PACKAGE_DECISION = path.join(ROOT, ".opencode", "scripts", "build-package-decision-record.js")
+const BUILD_EXPERIENCE = path.join(ROOT, ".opencode", "scripts", "build-experience-contract.js")
+const BUILD_PROJECT_RULES_LOCK = path.join(ROOT, ".opencode", "scripts", "build-project-rules-lock.js")
+const BUILD_SKILL_LOCK = path.join(ROOT, ".opencode", "scripts", "build-skill-lock.js")
+const BUILD_DEPENDENCY = path.join(ROOT, ".opencode", "scripts", "build-dependency-readiness.js")
+const BUILD_PLANNER_INDEX = path.join(ROOT, ".opencode", "scripts", "build-planner-index.js")
+const CHECK_FRESHNESS = path.join(ROOT, ".opencode", "scripts", "check-artifact-freshness.js")
+const BUILD_DISPATCH_LEDGER = path.join(ROOT, ".opencode", "scripts", "build-dispatch-ledger-skeleton.js")
+const CHECK_DISPATCH_LEDGER = path.join(ROOT, ".opencode", "scripts", "check-dispatch-ledger-readiness.js")
+const BUILD_RUNNER_EVENT = path.join(ROOT, ".opencode", "scripts", "build-runner-event-skeleton.js")
+const CHECK_RUNNER_EVENT = path.join(ROOT, ".opencode", "scripts", "check-runner-event-completeness.js")
+const BUILD_FINAL_INDEX = path.join(ROOT, ".opencode", "scripts", "build-final-report-index.js")
 
 const results = []
 
@@ -214,6 +226,50 @@ try {
     detailRefs: [],
     fallbackAction: "read full OpenSpec artifacts and alignment-check",
   })
+  writeJson(path.join(validDir, "package-decision-record.json"), {
+    schemaVersion: "package-decision-record/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner package decision section",
+  })
+  writeJson(path.join(validDir, "experience-contract.json"), {
+    schemaVersion: "experience-contract/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner experience contract section",
+  })
+  writeJson(path.join(validDir, "planner-index.json"), {
+    schemaVersion: "planner-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full development-detail-planner",
+  })
+  writeJson(path.join(validDir, "final-report-index.json"), {
+    schemaVersion: "final-report-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full final maintained report and git history",
+  })
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [
@@ -239,6 +295,8 @@ try {
   runCase("artifact checker rejects alias branch", [ARTIFACT_CHECKER, invalidDir], 1)
   const planner = path.join(tempRoot, "planner.md")
   writeFileSync(planner, "# planner\n", "utf8")
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), validDispatchLedger(runId))
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), validRunnerEvent(runId))
   runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
@@ -246,7 +304,20 @@ try {
   runCase("build port map dry-run", [BUILD_PORT_MAP, runId, "--stage", "1", "--wave", "wave-1", "--check"], 0)
   runCase("build openspec template dry-run", [BUILD_OPENSPEC_TEMPLATE, runId, "class-1", "--check"], 0)
   runCase("build commit metadata dry-run", [BUILD_COMMIT_METADATA, runId, "class-1", "--check"], 0)
+  runCase("build package decision dry-run", [BUILD_PACKAGE_DECISION, runId, "--planner", planner, "--check"], 0)
+  runCase("build experience dry-run", [BUILD_EXPERIENCE, runId, "--planner", planner, "--check"], 0)
+  runCase("build project rules lock dry-run", [BUILD_PROJECT_RULES_LOCK, runId, "--check"], 0)
+  runCase("build skill lock dry-run", [BUILD_SKILL_LOCK, runId, "--check"], 0)
+  runCase("build dependency dry-run", [BUILD_DEPENDENCY, runId, "--check"], 0)
+  runCase("build planner index dry-run", [BUILD_PLANNER_INDEX, runId, "--planner", planner, "--check"], 0)
+  runCase("freshness valid fixtures", [CHECK_FRESHNESS, validDir, "--strict"], 0)
+  runCase("build dispatch ledger dry-run", [BUILD_DISPATCH_LEDGER, runId, "--planner", planner, "--check"], 0)
+  runCase("check dispatch ledger", [CHECK_DISPATCH_LEDGER, runId], 0)
+  runCase("build runner event dry-run", [BUILD_RUNNER_EVENT, runId, "class-1", "--check"], 0)
+  runCase("check runner event", [CHECK_RUNNER_EVENT, runId, "class-1"], 0)
+  runCase("build final report index dry-run", [BUILD_FINAL_INDEX, runId, "--check"], 0)
 } finally {
+  rmSync(path.join(ROOT, ".opencode", "run-artifacts", "run-test"), { recursive: true, force: true })
   rmSync(tempRoot, { recursive: true, force: true })
 }
 

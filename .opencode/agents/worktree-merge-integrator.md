@@ -205,6 +205,8 @@ scope validation 優先用 `artifact-scope-check.js`：runner scope 驗證單一
 
 最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
 
+final report index 可用 `node .opencode/scripts/build-final-report-index.js <run_id> --report <path>` 產生，並用 `node .opencode/scripts/check-artifact-freshness.js .opencode/run-artifacts/<run_id>/final-report-index.json --strict` 確認來源 hash；stale 時不得進入 archive/bugfix shortcut。
+
 ## Merge 規則
 
 - 依 apply 階段、readyWaveId、優先度 lane、執行優先度、parallelGroupId、eligibleSetId 與分類整合順序 merge，不能用隨機順序；同一 ready wave 內所有 eligibleSetId 都完成後才可 wave merge，lane 間沒有依賴者可按 Stage Execution Graph 的穩定順序 merge。Git 實作上可逐一 merge branch，但必須視為同一 merge phase，不能 merge 一個 worktree 就跑一次整合測試或讓下一個 worktree 依賴剛 merge 的結果。完成 wave/stage 整合與整合測試後，若同 stage 還有下一 priority wave，主流程必須用該 integration 結果重新呼叫 `worktree-splitter` 建立/同步下一 ready wave；若 stage completed，才建立下一 apply stage worktree。
