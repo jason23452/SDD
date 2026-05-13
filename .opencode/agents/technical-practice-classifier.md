@@ -35,6 +35,7 @@ permission:
 - 判定順序：使用者可驗收能力/業務分類 -> 產生多個可行切分方案 -> 同類能力聚合 -> 定義唯一 owner -> 建立 readSet/writeSet/contractOwner -> 建立 Dependency Graph -> 建立 Conflict Graph -> 判斷 contract-first stage 是否需要 -> 將「依賴已滿足且無硬衝突」分類最大化放入平行 eligible set -> 只有硬衝突或上游未滿足者排 flow -> 比較互相影響度/重工/測試影響/contract 風險 -> 選擇最低影響方案 -> apply 階段 -> parallelGroupId/eligibleSetId atomic batch -> readyWaveId / stage ready wave -> 主要驗收責任 -> touchSet/contractInputs/contractOutputs/testImpact/parallelSafety -> 拆分、合併或移 stage。
 - ID 固定 `<run_id>-featurs-<name>`；保留 `featurs`，不得用 `features`、`TP-001` 或純流水號；`<name>` 用可讀小寫英數與 hyphen，重名時改更具體。
 - Execution worktree branch namespace 固定為 `worktree/<run_id>/*`，分類輸出、Stage Execution Graph 與 dispatch plan 不得建議 `work/<run_id>/*`、`worktrees/<run_id>/*` 或其他 alias；若草稿或既有 artifact 出現 alias，必須在完整性檢查標示不通過。
+- 輸出應支援 compact handoff：完整分類表、Dependency Graph、Conflict Graph、Stage Execution Graph 仍必須存在於 agent 輸出或後續 planner artifact，但給 splitter/runner 的交接應可切成每個 readyWaveId / eligibleSetId / classification 的必要 slice。不得為了省 token 省略 alternatives 比較、owner、readSet/writeSet、contract、parallelSafety 或完整性檢查。
 
 ## 粒度、同類聚合與依賴批次
 - 同類能力放一起：例如 auth/access 的後端登入、前端登入頁、受保護路由、session 狀態、失效重登、登出不外露與 auth tests 應是同一分類，不得拆成 backend-auth、frontend-auth、auth-tests。

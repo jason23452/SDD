@@ -69,6 +69,7 @@ permission:
     - 讀取 archive file 的 commit map / `Bug Fix Locator Index`，`commit map source=archive-final-file`。
 8. 讀取每個 locked commit 的 touched files、message、source branch/source worktree、classification ID、OpenSpec change。若維護文件未記 touched files，用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案，除非後續維護區段需要記錄本次修復。
 9. 形成內部 Mode Selected Run Change Lock Packet；只有使用者已選模式、該模式 evidence 可用、target fix target 已鎖定、且至少有 commit map / archive locator index / git-log-derived commit list 時，才可進 Phase 2。此 packet 必須標示 `ready_for_bug_triage=true`、`bugfix mode selected=true`、commit map source、locked commits、locked touched files index、maintenance file path；不得把 `worktree-run-id-change-locker` 的 Pre-Mode packet 直接交給 triage。
+10. 將 Mode Selected Run Change Lock Packet 以 `run-lock-packet/v1` 保存到 `.opencode/run-artifacts/<run_id>/bugfix/run-lock-packet.json`，或在 archived mode 無可寫 run-artifacts 時於 final output 內提供等價 structured packet。此 packet 只加速後續 triage/fix retry；若 mode、target branch、archive file hash、final head、branch namespace gate 或 locked commits 與目前 evidence 不一致，必須重新執行 Phase 1。
 
 ## Phase 2：釐清 bug 並建立 Bug Search Packet
 
@@ -115,6 +116,7 @@ permission:
 2. 再次確認 selected fix target git status 乾淨；active 模式不乾淨回報 `MERGE_WORKTREE_DIRTY`，archived 模式不乾淨回報 `TARGET_BRANCH_DIRTY`。
 3. 若找到 culprit commit，讀取 culprit commit diff、當時 touched files 與 selected fix target 中目前對應檔案版本；對照 commit 當時修改紀錄與目前狀態，精準定位問題檔案。
 4. `ARCHIVED_RUN_MODE` 必須優先依 archive file 的 `Bug Fix Locator Index` / commit map 定位；archive 檔案中的 commit id、commit 描述與 touched files 是小範圍修改的主要索引來源。
+   - 若存在 `final-report-index/v1` 或 archive-derived locator index 且 hash/head 與 maintenance file 一致，可優先用 index 定位 touched files 與 keywords；若 stale/missing/blocked，回讀完整 maintenance file。
 5. 若 `change mode=NEW_WORKTREE_FEATURE_CHANGE`，讀取 New Change Target Set 中的既有檔案，並按需求新增必要檔案。
 6. 做最小修正，只處理本次 bug 或本次額外修改要求。
 7. 找到 culprit commit 時，優先改 Fix Target Set；如需改 touched files 以外檔案，記錄 scope expansion。

@@ -51,6 +51,8 @@ permission:
 
 `barrier-preflight/v1` 是本 agent 的 P1 token/速度優化摘要，不新增 gate、不取代 runner event、dispatch ledger、git status 或驗證結果。若存在且可驗證，merge integrator 可優先讀取它來避免重複讀取大量 runner event；若缺失或不一致，必須回到「前置 Gate」完整檢查。
 
+merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-preflight/v1`、`schema-validation/v1`、`port-registry/v1`、`verification-summary/v1` 或 runner event index 的 schemaVersion、source hash、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 任一不一致，必須執行前置 Gate 的完整讀取與交叉核對。passed summary 只能減少重複讀取與輸出長度，不能跳過 clean status、specCommit、local verification、project-rules read-back、dependency sync、parallel dispatch 與 branch namespace gate。
+
 固定路徑：`.opencode/run-artifacts/<run_id>/barrier-preflight/stage-<n>-wave-<k>.json`。
 
 必填欄位：
@@ -176,6 +178,8 @@ Port cleanup map 欄位至少包含：
 
 merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-validation.json`，schemaVersion 固定 `schema-validation/v1`，彙整 dispatch ledger、runner events、barrier preflight、port registry 與 final report index（若有）的 schema 檢查結果。此檔只作摘要；任一項為 failed/stale/missing 時，必須回到原始 artifact 重新驗證並回報對應 blocker，不得用 summary 覆蓋實際檢查。
 
+最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
+
 ## Merge 規則
 
 - 依 apply 階段、readyWaveId、優先度 lane、執行優先度、parallelGroupId、eligibleSetId 與分類整合順序 merge，不能用隨機順序；同一 ready wave 內所有 eligibleSetId 都完成後才可 wave merge，lane 間沒有依賴者可按 Stage Execution Graph 的穩定順序 merge。Git 實作上可逐一 merge branch，但必須視為同一 merge phase，不能 merge 一個 worktree 就跑一次整合測試或讓下一個 worktree 依賴剛 merge 的結果。完成 wave/stage 整合與整合測試後，若同 stage 還有下一 priority wave，主流程必須用該 integration 結果重新呼叫 `worktree-splitter` 建立/同步下一 ready wave；若 stage completed，才建立下一 apply stage worktree。
@@ -200,6 +204,8 @@ merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-vali
 所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。Backend 固定使用 `uv run pytest -q --maxfail=1` 或既有 pytest script；import app、health、startup sanity、API smoke 必須寫成 pytest 測試或 pytest fixture。逾時時必須回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或宣稱完成。
 
 整合驗證前必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
+
+整合驗證可寫入 `verification-summary/v1`，完整 log 以 logRef 保存；輸出與 final report 引用摘要即可。若驗證失敗、逾時、blocked 或 summary 與命令結果不一致，必須回到原始命令輸出與 logRef，不得把摘要當通過證據。
 
 常見驗證：
 - frontend install/typecheck/build/test。

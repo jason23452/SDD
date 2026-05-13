@@ -32,6 +32,7 @@ permission:
 - 不 push、不 force push、不 rebase、不 squash、不改寫歷史。
 - 不刪 target bootstrap branch，不刪目前所在 branch，不刪不屬於 selected `run_id` 的 branch。
 - 不修改 `.opencode/skills/**/SKILL.md`。
+- Archive 採 summary-first 以減少 token：若 `.opencode/run-artifacts/<run_id>/final-report-index.json` 存在且 schemaVersion=`final-report-index/v1`、source final report hash、final integration head、run_id 與 archive source 一致，可用於快速檢查 commit map / Bug Fix Locator Index / touched files；若 missing/stale/blocked 或與 final maintained report 不一致，必須回讀完整 final maintained report。index 不得取代 archive final file，不得取代 source head contained gate、cleanup confirmation 或 branch contained gate。
 
 ## Phase 1：選定 run_id 與鎖定來源
 
@@ -95,6 +96,7 @@ permission:
    - Windows 上特別檢查 loaded module 是否指向 `.worktree/<run_id>/.../node_modules/@tailwindcss/oxide-*/tailwindcss-oxide*.node`，因 VS Code / CSS tooling 可能載入 native module 並阻止刪除。
    - 若偵測到 process/file-lock，必須把 PID、process name 與 matched path/command line 加入清理確認清單；未列出或無法判定時，停止回報 `CLEANUP_PROCESS_LOCKS_UNLISTED`。
    - 將檢查結果保存為 `.opencode/run-artifacts/<run_id>/cleanup-preflight-locks.json`，schemaVersion=`cleanup-locks/v1`，內容只包含 selected run path 的 matched process、matched module/path、requiresUserConfirmationToStop、scanTimestamp 與 blockers。此檔只加速 cleanup confirmation，不取代使用者確認與 path 精準比對。
+   - 可另寫 `.opencode/run-artifacts/<run_id>/cleanup-plan.json`，schemaVersion=`cleanup-plan/v1`，保存完整 cleanup candidate list、contained gate refs、residual refs 與 confirmation text hash；final output 只需列摘要。若 plan missing/stale/blocked 或 source_head/target branch 不一致，必須重新產生完整清理清單。
 3. 顯示將保留的項目：
    - target bootstrap branch。
    - `.opencode/archives/archive_<run_id>.md`。

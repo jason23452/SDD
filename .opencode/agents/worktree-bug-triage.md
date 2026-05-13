@@ -39,6 +39,7 @@ permission:
 ## 釐清流程
 
 1. 確認 Mode Selected Run Change Lock Packet 存在且 `ready_for_bug_triage=true`；若只有 Pre-Mode Run Change Lock Packet 或 `bugfix mode selected=false`，停止回報 `BUGFIX_MODE_NOT_SELECTED`。
+   - 可優先讀取 `run-lock-packet/v1` 的 locked commit/touched files 摘要，但必須確認 bugfix mode、target branch/archive file hash/final head、branch namespace gate 與目前 Mode Selected Run Change Lock Packet 一致；不一致時回到 packet 原文與 maintenance file。
 2. 若使用者尚未輸入 bug，用 `question` 要求補充 bug 現象、預期/實際差異與錯誤線索。
 3. 整理使用者輸入中的 bug summary、actual behavior、expected behavior、重現步驟與影響範圍。
 4. 判斷是否足以交給修復流程：至少需要可識別的功能/頁面/API/測試/錯誤訊息之一，以及實際與預期差異。

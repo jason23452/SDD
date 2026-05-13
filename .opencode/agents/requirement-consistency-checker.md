@@ -58,6 +58,7 @@ permission:
 - 草稿/流程要求使用 `/opsx-*` commands、讀 OpenSpec 初始化帶入的原始 skills，或在主工作區執行 OpenSpec propose/apply => `不一致`。
 - 草稿/流程未規劃 `schemaVersion=dispatch-ledger/v1` 的 dispatch ledger、必要欄位（run_id/stages/readyWaves/eligibleSets/expectedWorktrees/runnerEventPaths/status/timestamps/commits/verification/error/retryCount）、狀態流轉、`runner-event/v1` schema，或未定義中斷後只重試 failed/aborted worktree、不得重跑已完成 worktree 的 resume gate => `不一致`。
 - 草稿/流程若使用 `barrier-preflight/v1`、`bug-search-packet/v1`、`culprit-score/v1`、`port-registry/v1`、`schema-validation/v1` 或 `cleanup-locks/v1` 等 P1 optimization artifacts，但把它們當成取代原始 gate、取代 runner event/dispatch ledger/final report、跳過 project-rules/dependency/schema/branch/verification gate，或允許 stale/blocked 摘要繼續流程 => `不一致`。
+- 草稿/流程若使用 `project-rules-lock/v1`、`final-report-index/v1`、`run-lock-packet/v1`、`verification-summary/v1` 或 compact packet/path/hash-first 優化，但讓它們取代 `.opencode/project-rules.md`、development-detail-planner、dispatch ledger、runner event、final maintained report、archive final file、commit map、verification log/source artifact，或允許 missing/stale/schema 不符/blocked 摘要通過 gate => `不一致`。
 - 草稿/流程一次建立未來多個 apply stage 的 worktree，或要求 runner 自行 merge upstream/stage integration 補基準，而不是在上一 stage integration 後重新呼叫 splitter 建立/同步下一 stage => `不一致`。同一 apply stage 內多個 ready eligibleSetId 同輪建立不屬於此錯誤。
 - 合理工程步驟若未宣稱已確認，可列 `一致` 並標示為實作推導。
 - 原需求與後續確認衝突時，以後續明確確認為準並列覆蓋原因。

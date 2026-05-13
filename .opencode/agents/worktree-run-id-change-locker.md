@@ -48,6 +48,7 @@ permission:
 4. 若本 agent 被 `worktree-bug-fix` 使用，模式選擇必須交回 `worktree-bug-fix` 用 `question` 執行；本 agent 只能輸出 `available bugfix modes` 與 evidence，不得自動選 active 或 archived。
 5. 讀取可用模式的 commit map / locator index；若 final report 未記 touched files，或 archive index 缺 touched files，使用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案。
 6. 輸出 Pre-Mode Run Change Lock Packet。只要 run_id 已選定，且至少一種模式有可用 commit map / archive locator index / git-log-derived commit list，即可 `ready_for_mode_selection=true`；`ready_for_bug_triage` 必須維持 `false`，直到 `worktree-bug-fix` 用 question 選定模式並產生 Mode Selected Run Change Lock Packet。
+7. 若已存在 `.opencode/run-artifacts/<run_id>/bugfix/run-lock-packet.json` 且 schemaVersion=`run-lock-packet/v1`、source hash/head/branch namespace 與目前 evidence 一致，可優先引用其 locked commit/touched files 摘要；若 missing/stale/blocked，必須依上述來源重新鎖定。Pre-Mode packet 仍不得直接進入 bug triage。
 
 ## 停止條件
 
