@@ -53,6 +53,11 @@ function writeJson(filePath, value, checkOnly = false) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8")
 }
 
+function output(flags, text, jsonValue) {
+  if (flags && flags.json) console.log(JSON.stringify(jsonValue || { status: "completed", message: text }, null, 2))
+  else console.log(text)
+}
+
 function git(args, options = {}) {
   try {
     return execFileSync("git", args, { cwd: options.cwd || ROOT, encoding: "utf8" }).trim()
@@ -117,6 +122,7 @@ module.exports = {
   git,
   head,
   now,
+  output,
   parseArgs,
   printAndExitUsage,
   readJson,

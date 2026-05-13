@@ -23,6 +23,8 @@ const BUILD_SKILL_LOCK = path.join(ROOT, ".opencode", "scripts", "build-skill-lo
 const BUILD_DEPENDENCY = path.join(ROOT, ".opencode", "scripts", "build-dependency-readiness.js")
 const BUILD_PLANNER_INDEX = path.join(ROOT, ".opencode", "scripts", "build-planner-index.js")
 const CHECK_FRESHNESS = path.join(ROOT, ".opencode", "scripts", "check-artifact-freshness.js")
+const CHECK_CROSSREFS = path.join(ROOT, ".opencode", "scripts", "check-artifact-crossrefs.js")
+const CHECK_SCRIPT_CONTRACTS = path.join(ROOT, ".opencode", "scripts", "check-script-contracts.js")
 const BUILD_DISPATCH_LEDGER = path.join(ROOT, ".opencode", "scripts", "build-dispatch-ledger-skeleton.js")
 const CHECK_DISPATCH_LEDGER = path.join(ROOT, ".opencode", "scripts", "check-dispatch-ledger-readiness.js")
 const BUILD_RUNNER_EVENT = path.join(ROOT, ".opencode", "scripts", "build-runner-event-skeleton.js")
@@ -310,6 +312,39 @@ try {
   writeFileSync(planner, "# planner\n", "utf8")
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), validDispatchLedger(runId))
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), validRunnerEvent(runId))
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "context-slices", "class-1.json"), {
+    schemaVersion: "context-slice/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner and dispatch ledger",
+  })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "package-decision-record.json"), {
+    schemaVersion: "package-decision-record/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner package decision section",
+  })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "experience-contract.json"), {
+    schemaVersion: "experience-contract/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner experience contract section",
+  })
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
     schemaVersion: "verification-matrix/v1",
     run_id: runId,
@@ -345,6 +380,20 @@ try {
   runCase("build runner event dry-run", [BUILD_RUNNER_EVENT, runId, "class-1", "--check"], 0)
   runCase("check runner event", [CHECK_RUNNER_EVENT, runId, "class-1"], 0)
   runCase("build final report index dry-run", [BUILD_FINAL_INDEX, runId, "--check"], 0)
+  runCase("script contracts", [CHECK_SCRIPT_CONTRACTS], 0)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "port-map.json"), {
+    schemaVersion: "port-registry/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "recompute deterministic port map from planner",
+    ports: [{ owner: "class-1", classificationId: "class-1" }],
+  })
+  runCase("artifact crossrefs", [CHECK_CROSSREFS, runId, "--strict"], 0)
 } finally {
   rmSync(path.join(ROOT, ".opencode", "run-artifacts", "run-test"), { recursive: true, force: true })
   rmSync(tempRoot, { recursive: true, force: true })

@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+const { existsSync, readdirSync, readFileSync } = require("node:fs")
+const path = require("node:path")
+
+const ROOT = process.cwd()
+const scriptsDir = path.join(ROOT, ".opencode", "scripts")
+const findings = []
+
+function rel(file) {
+  return path.relative(ROOT, file).replace(/\\/g, "/")
+}
+
+for (const name of readdirSync(scriptsDir).filter((item) => item.endsWith(".js")).sort()) {
+  const file = path.join(scriptsDir, name)
+  const text = readFileSync(file, "utf8")
+  if (name.startsWith("build-") && !text.includes("flags.check")) findings.push({ code: "BUILD_SCRIPT_NO_CHECK", file: rel(file) })
+  if (name.startsWith("build-") && !text.includes("writeJson(")) findings.push({ code: "BUILD_SCRIPT_NO_WRITEJSON", file: rel(file) })
+  if (name !== "check-script-contracts.js" && text.includes(".opencode/skills") && /writeFileSync|rmSync|unlinkSync|mkdirSync/.test(text)) findings.push({ code: "SCRIPT_MAY_WRITE_SKILLS", file: rel(file) })
+  if (/git\s+commit|git\s+merge|git\s+reset|git\s+checkout|git\s+push/.test(text)) findings.push({ code: "SCRIPT_CONTAINS_GIT_MUTATION", file: rel(file) })
+  if (name.startsWith("build-") && !text.includes(".opencode/run-artifacts") && !text.includes("artifactDir(")) findings.push({ code: "BUILD_SCRIPT_OUTPUT_SCOPE_UNKNOWN", file: rel(file) })
+  if (!text.includes("schemaVersion") && !text.includes("commonArtifact(") && name !== "agent-contract-check.js" && name !== "test-checkers.js" && name !== "artifact-scope-check.js") findings.push({ code: "SCRIPT_OUTPUT_SCHEMA_UNKNOWN", file: rel(file) })
+}
+
+if (!existsSync(path.join(scriptsDir, "lib", "artifact-utils.js"))) findings.push({ code: "ARTIFACT_UTILS_MISSING", file: ".opencode/scripts/lib/artifact-utils.js" })
+
+const status = findings.length ? "failed" : "passed"
+console.log(JSON.stringify({ schemaVersion: "schema-validation/v1", status, checkedAt: new Date().toISOString(), findings }, null, 2))
+process.exit(status === "passed" ? 0 : 1)

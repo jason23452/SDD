@@ -62,6 +62,8 @@ Use scoped checks to avoid validating the whole run artifact tree in every runne
 ```bash
 node .opencode/scripts/check-verification-matrix.js <run_id>
 node .opencode/scripts/check-artifact-freshness.js .opencode/run-artifacts/<run_id> --strict
+node .opencode/scripts/check-artifact-crossrefs.js <run_id> --strict
+node .opencode/scripts/check-script-contracts.js
 node .opencode/scripts/check-dispatch-ledger-readiness.js <run_id>
 node .opencode/scripts/check-runner-event-completeness.js <run_id> <classification_id>
 node .opencode/scripts/check-apply-readiness.js <worktree> <run_id> <classification_id>
@@ -75,3 +77,7 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 `build-context-slices.js`, `build-port-map.js`, and `build-runner-event-skeleton.js` are ledger-aware. If the dispatch ledger is missing or has no matching expected worktrees, they emit blocked summaries instead of placeholder passing artifacts.
 
 `check-artifact-freshness.js --strict` fails blocked/stale/failed/missing summaries, stale source hashes, HEAD mismatches, and missing fallback actions on summary artifacts. `check-verification-matrix.js` fails empty matrices so runners cannot treat an empty matrix as "no verification needed".
+
+`check-artifact-crossrefs.js` validates cross-artifact consistency between dispatch ledger, context slices, runner event refs, port owners, and run-level package/experience/verification artifacts. `check-script-contracts.js` validates script safety contracts such as `--check` support for builders, run-artifact output scope, no git mutation commands, and no skill writes.
+
+`build-planner-index.js` stores section ranges, section hashes, keyword index, and package/experience/verification section refs. `build-final-report-index.js` stores file-to-commit, classification-to-commit, and keyword-to-commit maps for lower-token bugfix lookup.
