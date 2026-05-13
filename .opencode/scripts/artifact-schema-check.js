@@ -33,6 +33,10 @@ const COMMON_REQUIRED_SCHEMAS = [
   /^package-decision-record\/v1$/,
   /^experience-contract\/v1$/,
   /^context-slice\/v1$/,
+  /^openspec-template-contract\/v1$/,
+  /^apply-readiness-checklist\/v1$/,
+  /^snapshot-manifest\/v1$/,
+  /^commit-metadata-summary\/v1$/,
 ]
 
 const COMMON_FIELDS = [

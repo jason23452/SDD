@@ -69,6 +69,8 @@ runner prompt context 只應包含本 worktree 的 `contextRefs[]`、`contextSli
 
 若存在 `verification-matrix/v1`，runner 只執行本 classification slice 的必要 one-shot checks；stage integration 與 final-only checks 只記錄為交給 merge/final，不得在每個 runner 重複跑全量。若 matrix missing/stale，回到 planner 的驗證章節與 project rules，不得猜測 passed。
 
+若存在 `openspec-template-contract/v1`，runner 必須依其固定欄位產生 proposal、design、tasks、specs 與 alignment-check，並保留 Package/Experience/Fullstack/verification sections。模板只能降低格式與重複推理成本，不得跳過 OpenSpec CLI、strict validate、alignment 或 `規格：...` commit。
+
 若存在 `skill-lock/v1`，runner 可用其 hash/diffStatus 作為快速 P0-SKILL 前置檢查；進入 propose、apply、commit 等 mutating boundary 前仍必須確認目前 worktree skill diff 未變。若 lock stale、sourceHead 不符或 diffStatus 非 clean，停止回報 skill blocker 或執行完整 skill gate。
 
 若存在 `dependency-readiness/v1`，runner 可用其 package manager、lockfile hash 與 copy-ready 狀態避免重判 dependency；若本 worktree lockfile/manifest hash 不一致、dependency dir missing、或本 worktree 新增/更新套件，必須執行完整 Dependency Gate。
@@ -184,8 +186,9 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
    - `context` 與 `rules` 只作為約束，不得原文複製到 artifact。
 8. 直到所有 `applyRequires` artifact 狀態為 done，最後在 `spec-flow/` 執行 `openspec status --change "<openspec_change>"` 與 `openspec validate "<openspec_change>" --type change --strict`。
 9. 產出 `spec-flow/openspec/changes/<openspec_change>/alignment-check.md`，逐項比對本分類 proposal/specs/design/tasks 與原需求、已確認決策、不做範圍、分類表、Stage Execution Graph、project rules read-back 與依賴；此檔是 gate，不取代 OpenSpec artifacts。
-10. Alignment 通過且 strict validate 通過後，必須依「規格 Commit 規則」建立 `規格：...` commit。此 commit 是本 runner 的第一個必要交付 commit，必須在 runner event output 的 `commits.specCommit` 記錄 hash；若無法 commit，停止回報 `SPEC_COMMIT_REQUIRED` / `SPEC_COMMIT_FAILED`。
-11. Propose phase 成功時，回報 change path、artifacts、alignment 結論、strict validate 結果、規格 commit 與下一步 apply gate。
+10. 產出或更新 `.opencode/run-artifacts/<run_id>/apply-readiness-checklist/<classification_id>.json`（schemaVersion=`apply-readiness-checklist/v1`），記錄 applyRequires done、strict validate、alignment、project rules hash、dependency/package/experience gates、task count 與 blockers。此 checklist 只加速 apply/barrier，不得取代 validate 或 alignment。
+11. Alignment 通過且 strict validate 通過後，必須依「規格 Commit 規則」建立 `規格：...` commit。此 commit 是本 runner 的第一個必要交付 commit，必須在 runner event output 的 `commits.specCommit` 記錄 hash；若無法 commit，停止回報 `SPEC_COMMIT_REQUIRED` / `SPEC_COMMIT_FAILED`。
+12. Propose phase 成功時，回報 change path、artifacts、alignment 結論、strict validate 結果、apply-readiness checklist、規格 commit 與下一步 apply gate。
 
 ## Alignment Gate
 
@@ -240,6 +243,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 - 規格 commit body 必須包含 `run_id`、`classification ID`、實際 OpenSpec change、`eligibleSetId`、`parallelGroupId`、project-rules read-back hash、strict validate 結果與 alignment 結論。
 - 規格 commit 是後續 apply 的硬性 gate；沒有 `規格：...` commit、commit 未包含完整 OpenSpec artifacts、或 worktree status 因 spec artifacts 未提交而不乾淨時，不得進入 apply/fallback，也不得把 runner 標記 completed。
 - 在 commit 已授權時，每完成一個最小可驗收 task 立即執行對應局部驗證並 commit；不得累積到 worktree 結尾才做單一大 commit。
+- Commit 粒度以「最小可驗收單位」為準，不以每個 task checkbox 強制一 commit。多個 checkbox 若共同構成同一不可分割驗收單位，可在對應局部驗證通過後合併為一個中文標籤 commit；若每 task commit，commit body 必須說明 traceability 或 rollback 理由。
 - 每個 commit 只包含一個最小可理解變更；不得混入不相關變更。backend/frontend/tests/docs/config 可同 commit 的前提是它們構成同一個不可分割驗收單位。
 - Commit subject 必須使用中文標籤格式 `<標籤>：<中文描述>`，標籤限 `規格`、`實作`、`測試`、`修正`、`重構`、`文件`、`設定`。例如 `實作：新增登入 API`、`測試：補齊登入 API 驗證`、`修正：調整 JWT 過期錯誤處理`。
 - commit 前必須 read-back project rules、執行 Dependency Gate，並檢查 `git status` 與 `git diff`，只 stage 相關檔案。
@@ -250,6 +254,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 - 不改 git config、不用 `--no-verify`、不 amend，除非使用者明確要求且符合安全條件。
 - 測試補齊、修正測試、文件更新、設定更新要獨立 commit；local test 失敗後的修復使用 `修正：...` 新 commit，不 amend。
 - commit 後必須重新執行 `git status --porcelain`。若仍有未提交變更，必須判斷是否為必要檔案、OpenSpec artifacts、bootstrap 基底快照或不相關/禁止檔案；必要檔案需追加新中文 commit，不相關或禁止檔案需回報 blocker。
+- commit 後必須寫入或更新 `.opencode/run-artifacts/<run_id>/commit-metadata-summary/<classification_id>.json`（schemaVersion=`commit-metadata-summary/v1`），記錄 commit、subject/body digest、classification ID、OpenSpec change、task/tag、touched files、verification-summary refs、package/experience refs 與 source HEAD。此 summary 只供 barrier/final report 加速；missing/stale 時 merge 可用 `git show` 重建。
 - `.opencode/skills/**/SKILL.md` 若有實際內容 diff，必須停止並回報 `ERROR: skill rules are immutable and cannot be changed`；不得 stage、commit、刪除或修改 skill 檔。
 
 ## 驗證

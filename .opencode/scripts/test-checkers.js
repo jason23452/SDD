@@ -151,6 +151,28 @@ try {
     detailRefs: [],
     fallbackAction: "read full verification plan",
   })
+  writeJson(path.join(validDir, "snapshot-manifest.json"), {
+    schemaVersion: "snapshot-manifest/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "rebuild full snapshot from source worktree",
+  })
+  writeJson(path.join(validDir, "commit-metadata-summary.json"), {
+    schemaVersion: "commit-metadata-summary/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "rebuild commit metadata from git show",
+  })
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [

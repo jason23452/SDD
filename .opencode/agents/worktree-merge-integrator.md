@@ -59,9 +59,13 @@ merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-
 
 Merge speed path：若 `run-preflight-packet/v1`、`verification-matrix/v1`、`package-decision-record/v1`、`experience-contract/v1`、`openspec-change-index/v1`、`runner-event/v1`、`verification-summary/v1` 與 `barrier-preflight/v1` 的 schemaVersion、source hashes、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 均一致，merge/barrier 預設只讀摘要與 refs。只有 missing/stale/blocked/failed/hash mismatch、衝突或使用者要求完整診斷時，才回讀完整 runner outputs、OpenSpec artifacts、test logs 或 planner。
 
+Commit metadata speed path：若每個來源 worktree 都提供 `commit-metadata-summary/v1` 且 source HEAD、commit list、classification ID、OpenSpec change 與 runner event 對齊，merge/final report 必須優先合併 summaries 產生 commit map、Bug Fix Locator Index 與 touched files。只有 summary missing/stale/blocked/hash mismatch 或 commit alignment 缺失時，才對對應 commit 執行 `git show --name-status` 重建；不得預設掃描所有 commits。
+
 merge prompt context 應只傳本 readyWave 的 `contextRefs[]`：dispatch ledger、ready-set manifest、barrier-preflight、schema-validation、runner event refs、verification summaries、port registry 與 source branch list。不得貼全部 runner outputs、完整 logs 或完整 planner；若 refs missing/stale/blocked，merge integrator 依前置 Gate 讀完整 artifacts。compact prompt 不得縮小 merge source set 或改變 merge order。
 
 若 runner 提供 `openspec-change-index/v1`，merge/barrier 可優先用 index 驗證 artifact path/hash、strict validate、alignment、tasks 與 specCommit；任一 index missing/stale/blocked 或與 branch HEAD 不一致時，必須回讀該 worktree 的完整 OpenSpec artifacts。
+
+若 runner 提供 `apply-readiness-checklist/v1`，merge/barrier 可用它快速確認 apply 前置條件；任一 checklist missing/stale/blocked、與 OpenSpec index/specCommit 不一致或 blockers 非空時，必須回讀完整 OpenSpec artifacts 與 alignment-check。
 
 若存在 `resume-cursor/v1`，merge/barrier 可用它快速定位目前 readyWave 與 failed/missing worktrees；cursor 的 source ledger hash 必須與 dispatch ledger 一致，否則忽略 cursor 並回完整 ledger/event scan。merge/barrier 完成後可單點更新 cursor nextAction，但不得用 cursor 取代 dispatch ledger 狀態流轉。
 
@@ -192,6 +196,8 @@ Port cleanup map 欄位至少包含：
 ## Schema Validation Summary
 
 merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-validation.json`，schemaVersion 固定 `schema-validation/v1`，彙整 dispatch ledger、runner events、barrier preflight、port registry 與 final report index（若有）的 schema 檢查結果。此檔只作摘要；任一項為 failed/stale/missing 時，必須回到原始 artifact 重新驗證並回報對應 blocker，不得用 summary 覆蓋實際檢查。
+
+Schema validation scope policy：runner 只需驗證自己的 runner event、verification summary、OpenSpec index、apply-readiness checklist 與 commit metadata summary；barrier 只驗證目前 ready wave refs；final 才驗證整個 run artifact set。不得在每個 runner 或每個 stage 無條件掃描整個 `.opencode/run-artifacts/<run_id>`。
 
 最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
 

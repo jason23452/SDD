@@ -51,6 +51,9 @@ permission:
 - 允許上游依賴：後續分類可依賴前一 apply 階段已 merge 的穩定程式碼、schema、API contract、helper 或 fixture；必須明確列出依賴與 apply 階段。
 - 禁止同批隱性依賴：同一 apply 階段內不得出現需要另一同階段分類先完成的程式依賴；若存在，改為不同階段或合併分類。
 - 禁止過度序列化：若分類間沒有 Dependency Graph edge，也沒有 Conflict Graph hard edge，卻被排成不同 apply stage 或不同 priority，必須標示為 `AVOIDABLE_SERIALIZATION` 並重排為平行 eligible set；不得讓「保守」成為理由。
+- Wave 數量最小化：在不違反 dependency/hard conflict、ownership、package owner 與 verification gate 的前提下，classifier 必須最小化 ready wave 數。任何新增 stage、priority wave 或 foundation stage 都必須引用具體 dependency edge、hard conflict edge、package/global contract owner 或 unstable contract reason；不得因 UI 狀態、測試項目、文件或小型相鄰任務而增加 wave。
+- Worktree 粒度最佳化：同一 ownerCapability 中的 API、UI、validation、states、tests、docs 與小型設定變更應合併在同一 vertical slice；不得為每個 checkbox、每個 UI state、每個測試檔或每個文件段落建立獨立 worktree。分類表必須列出 `worktreeSizingReason`。
+- Commit 粒度規劃：OpenSpec `規格：...` commit 仍獨立；implementation/test/fix/documentation commit 應以「最小可驗收單位」聚合，不以每個 task checkbox 強制一 commit。若需要每 task commit，必須列出 traceability 或 rollback 理由。
 - 優先度 lane 只處理同一 apply 階段內的必要先後；不得用優先度或 lane 拆分掩蓋同階段程式依賴。若某分類真的需要另一分類完成後才能 apply，必須移到後續 apply 階段或合併。
 - 禁止循環依賴：若 A 依賴 B 且 B 依賴 A，必須合併或重切邊界。
 - Baseline / dependency / rules 交接必須完整：分類輸出需保留 bootstrap commit hash、Stage 1 baseline source、後續 stage integration baseline、copy-first dependency snapshot requirement（runner dispatch 前優先複製，只有 fallback 或新套件才 install/sync）、project-rules path/hash 與 runner read-back requirement；若缺任一項，完整性檢查不得通過。
@@ -79,6 +82,10 @@ permission:
 ### Package / Skill Ownership Matrix
 | classificationId | activeSkills | capability | package-first expected | packageNeeds | packageOwner | packageDecisionRecordRef | selectedPackages | manualBuildReason | globalImpact | verification |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+### Worktree Sizing / Wave Minimization
+| applyStage | readyWaveId | eligibleSetId | classifications | waveCountDecision | worktreeSizingReason | avoidableSerialization | commitGranularity |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 
 ### Dependency Graph
 | fromClassification | toClassification | edgeType | contract/source | reason | hardBlocker |
@@ -132,6 +139,9 @@ permission:
 - Dependency Graph edge 未反映到 Stage Graph 數：
 - Conflict Graph hard edge 未反映到 Stage Graph 數：
 - 無 dependency/hard conflict 卻被序列化數：
+- 可避免 wave 數：
+- 缺 worktreeSizingReason 分類數：
+- task checkbox 被強制一一 commit 且缺理由數：
 - ready eligibleSetId 漏入同輪 dispatch 數：
 - 缺 readSet/writeSet/contractOwner/parallelSafety 分類數：
 - 缺 parallelGroupId 分類數：
