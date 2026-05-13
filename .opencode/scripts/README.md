@@ -71,3 +71,7 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 ```
 
 `artifact-scope-check.js` delegates to `artifact-schema-check.js`; it only narrows the target path so runner, wave, and final checks do not repeatedly scan unrelated artifacts.
+
+`build-context-slices.js`, `build-port-map.js`, and `build-runner-event-skeleton.js` are ledger-aware. If the dispatch ledger is missing or has no matching expected worktrees, they emit blocked summaries instead of placeholder passing artifacts.
+
+`check-artifact-freshness.js --strict` fails blocked/stale/failed/missing summaries, stale source hashes, HEAD mismatches, and missing fallback actions on summary artifacts. `check-verification-matrix.js` fails empty matrices so runners cannot treat an empty matrix as "no verification needed".

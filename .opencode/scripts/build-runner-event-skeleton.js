@@ -1,21 +1,28 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, parseArgs, printAndExitUsage, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id> [--wave <id>] [--eligible-set <id>] [--branch <branch>] [--check]")
 const [runId, classificationId] = positional
+const ledger = readJson(path.join(artifactDir(runId), "dispatch-ledger.json"))
+let found = null
+if (ledger && Array.isArray(ledger.stages)) {
+  for (const stage of ledger.stages) for (const set of stage.eligibleSets || []) for (const wt of set.expectedWorktrees || []) {
+    if (wt.classificationId === classificationId || wt.name === classificationId) found = { stage, set, wt }
+  }
+}
 const out = path.join(artifactDir(runId), "runner-events", `${classificationId}.json`)
 const event = {
   schemaVersion: "runner-event/v1",
   run_id: runId,
   classificationId,
-  readyWaveId: flags.wave || null,
-  eligibleSetId: flags["eligible-set"] || null,
-  parallelGroupId: flags["parallel-group"] || null,
-  worktreePath: flags.worktree || null,
-  branch: flags.branch || `worktree/${runId}/${classificationId}`,
-  openspecChange: flags.change || null,
+  readyWaveId: flags.wave || (found && found.set.readyWaveId) || null,
+  eligibleSetId: flags["eligible-set"] || (found && found.set.eligibleSetId) || null,
+  parallelGroupId: flags["parallel-group"] || (found && found.set.parallelGroupId) || null,
+  worktreePath: flags.worktree || (found && found.wt.worktreePath) || null,
+  branch: flags.branch || (found && found.wt.branch) || `worktree/${runId}/${classificationId}`,
+  openspecChange: flags.change || (found && found.wt.openspecChange) || null,
   status: "planned",
   timestamps: { createdAt: new Date().toISOString() },
   projectRulesReadBack: [],

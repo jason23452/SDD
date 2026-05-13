@@ -10,6 +10,7 @@ const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schem
 const AGENT_CHECKER = path.join(ROOT, ".opencode", "scripts", "agent-contract-check.js")
 const BUILD_PREFLIGHT = path.join(ROOT, ".opencode", "scripts", "build-run-preflight-packet.js")
 const BUILD_MATRIX = path.join(ROOT, ".opencode", "scripts", "build-verification-matrix.js")
+const CHECK_MATRIX = path.join(ROOT, ".opencode", "scripts", "check-verification-matrix.js")
 const BUILD_CONTEXT = path.join(ROOT, ".opencode", "scripts", "build-context-slices.js")
 const BUILD_SNAPSHOT = path.join(ROOT, ".opencode", "scripts", "build-snapshot-manifest.js")
 const BUILD_PORT_MAP = path.join(ROOT, ".opencode", "scripts", "build-port-map.js")
@@ -145,6 +146,7 @@ try {
   const runId = "run-test"
   const validDir = path.join(tempRoot, "valid")
   const invalidDir = path.join(tempRoot, "invalid")
+  const staleDir = path.join(tempRoot, "stale")
 
   writeJson(path.join(validDir, "dispatch-ledger.json"), validDispatchLedger(runId))
   writeJson(path.join(validDir, "runner-event.json"), validRunnerEvent(runId))
@@ -289,6 +291,17 @@ try {
       },
     ],
   })
+  writeJson(path.join(staleDir, "blocked-summary.json"), {
+    schemaVersion: "run-preflight-packet/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "blocked",
+    blockers: ["PLANNER_MISSING"],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner",
+  })
 
   runCase("agent checker strict", [AGENT_CHECKER, "--strict"], 0)
   runCase("artifact checker valid fixtures", [ARTIFACT_CHECKER, validDir, "--strict"], 0)
@@ -297,6 +310,20 @@ try {
   writeFileSync(planner, "# planner\n", "utf8")
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), validDispatchLedger(runId))
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), validRunnerEvent(runId))
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
+    schemaVersion: "verification-matrix/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full verification plan",
+    runnerLocal: [],
+    stageIntegration: [],
+    finalOnly: [],
+  })
   runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
@@ -311,6 +338,8 @@ try {
   runCase("build dependency dry-run", [BUILD_DEPENDENCY, runId, "--check"], 0)
   runCase("build planner index dry-run", [BUILD_PLANNER_INDEX, runId, "--planner", planner, "--check"], 0)
   runCase("freshness valid fixtures", [CHECK_FRESHNESS, validDir, "--strict"], 0)
+  runCase("freshness rejects blocked summary", [CHECK_FRESHNESS, staleDir, "--strict"], 1)
+  runCase("verification matrix rejects empty", [CHECK_MATRIX, runId], 1)
   runCase("build dispatch ledger dry-run", [BUILD_DISPATCH_LEDGER, runId, "--planner", planner, "--check"], 0)
   runCase("check dispatch ledger", [CHECK_DISPATCH_LEDGER, runId], 0)
   runCase("build runner event dry-run", [BUILD_RUNNER_EVENT, runId, "class-1", "--check"], 0)
