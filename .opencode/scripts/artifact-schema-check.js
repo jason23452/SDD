@@ -6,6 +6,7 @@ const path = require("node:path")
 const ROOT = process.cwd()
 const DEFAULT_ARTIFACTS_DIR = path.join(ROOT, ".opencode", "run-artifacts")
 const JSON_MODE = process.argv.includes("--json")
+const STRICT_MODE = process.argv.includes("--strict")
 const TARGET_ARG = process.argv.slice(2).find((arg) => !arg.startsWith("--"))
 const TARGET = TARGET_ARG ? path.resolve(ROOT, TARGET_ARG) : DEFAULT_ARTIFACTS_DIR
 const MAX_JSON_BYTES = 5 * 1024 * 1024
@@ -252,6 +253,7 @@ function printSummary() {
   }
 
   console.log(`artifact-schema-check: ${results.status}`)
+  console.log(`strict: ${STRICT_MODE ? "enabled" : "disabled"}`)
   console.log(`target: ${results.target}`)
   console.log(`checked files: ${results.checkedFiles}`)
   console.log(`skipped files: ${results.skippedFiles}`)
@@ -266,14 +268,14 @@ try {
     results.status = "skipped"
     addFinding("warning", "ARTIFACT_TARGET_MISSING", results.target, "Target does not exist; nothing to check.")
     printSummary()
-    process.exit(0)
+    process.exit(STRICT_MODE ? 1 : 0)
   }
 
   const files = walkJsonFiles(TARGET)
   results.checkedFiles = files.length
   for (const file of files) checkFile(file)
   printSummary()
-  process.exit(results.status === "failed" ? 1 : 0)
+  process.exit(results.status === "failed" || (STRICT_MODE && results.status === "warning") ? 1 : 0)
 } catch (error) {
   results.status = "failed"
   addFinding("error", "CHECKER_CRASHED", "artifact-schema-check.js", error && error.stack ? error.stack : String(error))

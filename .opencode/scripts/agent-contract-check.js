@@ -7,6 +7,7 @@ const path = require("node:path")
 const ROOT = process.cwd()
 const AGENTS_DIR = path.join(ROOT, ".opencode", "agents")
 const JSON_MODE = process.argv.includes("--json")
+const STRICT_MODE = process.argv.includes("--strict")
 
 const REQUIRED_REGISTRY_SCHEMAS = [
   "project-rules-lock/v1",
@@ -22,6 +23,9 @@ const REQUIRED_REGISTRY_SCHEMAS = [
   "verification-summary/v1",
   "classification-compact/v1",
   "handoff-next-step/v1",
+  "barrier-preflight/v1",
+  "port-registry/v1",
+  "schema-validation/v1",
   "cleanup-locks/v1",
   "cleanup-plan/v1",
 ]
@@ -178,6 +182,7 @@ function printSummary() {
   }
 
   console.log(`agent-contract-check: ${results.status}`)
+  console.log(`strict: ${STRICT_MODE ? "enabled" : "disabled"}`)
   console.log(`checked files: ${results.checkedFiles}`)
   console.log(`findings: ${results.findings.length}`)
   for (const finding of results.findings) {
@@ -193,7 +198,7 @@ try {
   checkInitRegistry(agents)
   for (const agent of agents) checkAgentText(agent)
   printSummary()
-  process.exit(results.status === "failed" ? 1 : 0)
+  process.exit(results.status === "failed" || (STRICT_MODE && results.status === "warning") ? 1 : 0)
 } catch (error) {
   results.status = "failed"
   addFinding("error", "CHECKER_CRASHED", "agent-contract-check.js", error && error.stack ? error.stack : String(error))
