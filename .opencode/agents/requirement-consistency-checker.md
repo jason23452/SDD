@@ -38,6 +38,7 @@ permission:
 - `不需優先度` lane 被標空集合，但分類表中存在 `parallelSafety=safe-parallel` 且 dependency 已滿足的分類，或 `需要優先度` lane 包含沒有具體 dependency/hard conflict 理由的分類 => `不一致`。
 - 分類以 `conflictRisk=high`、同一大需求、同一功能群、同一頁面附近、測試較多、或「保守」作為唯一理由阻止平行，而沒有具體 `writeSet` 重疊、未穩定 contract、migration chain、form submit flow 或 fixture hard conflict => `不一致`。
 - 草稿/流程採舊版全分類 spec-plan 雙平面、要求建立 `worktree/<run_id>/spec/<name>`、或要求 bootstrap 後一次建立所有 planning worktree => `不一致`。
+- 草稿/流程、manifest、dispatch ledger、runner packet 或任何交接 artifact 若使用 `work/<run_id>/*`、`worktrees/<run_id>/*` 或其他 alias 作為 execution worktree branch namespace，而不是唯一合法的 `worktree/<run_id>/*` => `不一致`。
 - 草稿/流程因上游尚未 merge 而預建未來 stage worktree，或允許 runner 自行 merge upstream integration => `不一致`。
 - 草稿/流程未規劃 Stage N worktree 只在 Stage N-1 integration 完成後建立/同步 => `不一致`。
 - 草稿/流程未規劃 `project-bootstrapper` 在最小啟動、依賴安裝、README/ignore 與 one-shot 驗證完成後建立中文 bootstrap commit，或未規劃 Stage 1 baseline 固定使用 bootstrap commit HEAD => `不一致`。pre-bootstrap 階段可標 `bootstrap commit=pending-bootstrap`，但必須規劃 blocker 與交接欄位。

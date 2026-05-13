@@ -52,6 +52,7 @@ permission:
 - merge worktree path：階段整合可用 `.worktree/<run_id>/merge-stage-<n>`；最終整合使用 `.worktree/<run_id>/merge`。
 - integration branch：階段整合必須使用不會阻擋 final branch namespace 的命名，例如 `integration-stage/<run_id>/stage-<n>`；最終整合固定使用 `integration/<run_id>`。
 - 禁止使用 `integration/<run_id>/stage-<n>` 作為 stage branch，因為它會阻擋 final branch `integration/<run_id>` 的建立。
+- 來源 execution worktree branch 僅允許 `worktree/<run_id>/*`。若來源 worktree、runner event、dispatch ledger、ready-set manifest 或 merge summary 顯示 `work/<run_id>/*`、其他 alias，或與實際 branch 不一致，停止並回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`；merge integrator 不得把 alias branch merge 進 integration，也不得自動改名後繼續。
 - 若 merge path 或 branch 已存在，必須用 `question` 確認續用、重建或改名；不得覆蓋。
 - 建議基準：本 apply 階段 splitter 記錄的基準 commit；第一階段必須為 bootstrap commit HEAD，後續階段必須為上一階段 integration 結果。
 - 建立命令：`git worktree add -b <integration-branch> <merge-path> <base>`。

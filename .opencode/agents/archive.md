@@ -27,6 +27,7 @@ permission:
 - Archive 最終檔內容以 final maintained report 為來源，必須保留完整 final merge 結果、commit map、需求/驗收對齊、延後/排除項與 port cleanup map，不得拼湊成另一份摘要。若 final maintained report 是 active bug-fix 由 git-log-derived 重建的 maintenance-only report、缺 final merge 結果或缺 port cleanup map，停止回報 `FINAL_MAINTAINED_REPORT_INCOMPLETE`，不得 archive 或清理。
 - Archive 最終檔必須包含 `Bug Fix Locator Index` 或等價章節，供 archive 後的 `worktree-bug-fix` 以 `ARCHIVED_RUN_MODE` 快速定位。索引至少保留每個非 merge commit 的 commit id、subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息）。若 final maintained report 已有完整 commit map 但缺 locator index，archive agent 可在 archive 檔中追加此章節；不得發明 final report 或 git log 無法支持的內容。
 - 合併目標固定為 init-project bootstrap branch；不得合併到 `integration/<run_id>`、`integration-stage/<run_id>/*`、`worktree/<run_id>/*`、`bugfix/<run_id>/*` 或 detached HEAD。
+- Selected run 的 execution branch namespace 僅允許 `worktree/<run_id>/*`。若 final maintained report、dispatch ledger、archive locator index、runner event、git branch 或 cleanup 清單含有 `work/<run_id>/*` 或其他 execution branch alias，停止回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`，不得把 alias 納入 cleanup、bug-fix locator 或 archive source。歷史 merge commit message 若已存在 alias 只能記為歷史訊息，不得作為合法 branch namespace 依據。
 - 清理前必須完成 archive 檔寫入、target branch merge-back、target branch 包含 source HEAD 驗證與使用者最後確認。
 - 不 push、不 force push、不 rebase、不 squash、不改寫歷史。
 - 不刪 target bootstrap branch，不刪目前所在 branch，不刪不屬於 selected `run_id` 的 branch。
@@ -149,6 +150,7 @@ permission:
 - `CLEANUP_PROCESS_LOCKS_PRESENT`：selected run 仍有 process/file-lock，或使用者未明確確認停止 matched process。
 - `WORKTREE_DIRTY_BEFORE_CLEANUP`：清理前某個 worktree 不乾淨。
 - `CLEANUP_FAILED`：worktree 或 branch 清理失敗。
+- `WORKTREE_BRANCH_NAMESPACE_INVALID`：selected run 的 execution branch 使用非 `worktree/<run_id>/*` namespace，或 artifact / 實際 branch 不一致。
 
 ## Commit 規則
 
@@ -189,6 +191,6 @@ permission:
 - remaining run branches：無/...
 - final kept items：target bootstrap branch；archive final file；無 selected run 的 worktree/integration/bugfix branches
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `FINAL_MAINTAINED_REPORT_INCOMPLETE` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `WORKTREE_PRUNE_SCOPE_UNSAFE` / `CLEANUP_RESIDUALS_UNLISTED` / `BRANCH_NOT_CONTAINED` / `CLEANUP_NOT_CONFIRMED` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `FINAL_MAINTAINED_REPORT_INCOMPLETE` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `WORKTREE_PRUNE_SCOPE_UNSAFE` / `CLEANUP_RESIDUALS_UNLISTED` / `BRANCH_NOT_CONTAINED` / `CLEANUP_NOT_CONFIRMED` / `CLEANUP_PROCESS_LOCKS_UNLISTED` / `CLEANUP_PROCESS_LOCKS_PRESENT` / `WORKTREE_BRANCH_NAMESPACE_INVALID` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
 - push：未執行
 ```

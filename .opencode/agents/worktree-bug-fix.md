@@ -28,6 +28,7 @@ permission:
 - `ARCHIVED_RUN_MODE` 修改目標固定是 archive 保留下來的 init/bootstrap branch，定位來源與維護紀錄固定是 `.opencode/archives/archive_<run_id>.md`；此模式不得要求恢復 `.worktree/<run_id>/merge`，也不得因 `.worktree` / `integration/<run_id>` 已刪除而失敗。
 - 選定 run_id 後，即使只找到 active 或只找到 archive evidence，也必須用 `question` 讓使用者選模式；不得因使用者文字暗示、證據只剩一種或模型判斷而自動切換。
 - 找 culprit commit 時，只能從選定 run_id 的 locked commits 中選。
+- Selected run 的 execution branch namespace 僅允許 `worktree/<run_id>/*`。若 active final report、archive final file、dispatch ledger、locked commit map、locator index 或 git branch evidence 出現 `work/<run_id>/*` 或其他 alias，停止回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`；bug-fix 不得把 alias branch 納入候選、不得依 alias 擴大或修正範圍。
 - 找到 culprit commit 時，優先修改 culprit commit touched files；需要改其他檔案時必須記錄 scope expansion。
 - 找不到 culprit commit 時，使用 `NEW_WORKTREE_FEATURE_CHANGE`；允許修改既有已 commit 檔案，也允許新增檔案。
 - 不建立新的 bug-fix worktree，不回原 stage worktree 修正。`ACTIVE_WORKTREE_RUN` 不在主工作區修正；`ARCHIVED_RUN_MODE` 只能在使用者選定的 target bootstrap branch 修正。
@@ -204,6 +205,7 @@ permission:
 - `PROJECT_RULES_ALIGNMENT_FAILED`：本次修正、驗證或 report 更新與 project rules 不一致。
 - `DEPENDENCY_SYNC_FAILED`：套件新增/變更後 install/sync 失敗。
 - `ERROR: skill rules are immutable and cannot be changed`：skill 檔有實際內容 diff。
+- `WORKTREE_BRANCH_NAMESPACE_INVALID`：selected run 的 execution branch 使用非 `worktree/<run_id>/*` namespace，或維護文件 / locator index / git evidence 不一致。
 
 注意：找不到 relevant commit 不再是停止條件；必須改走 `NEW_WORKTREE_FEATURE_CHANGE`。
 
@@ -266,11 +268,12 @@ permission:
 - verification：...
 - dependency sync：...
 - project-rules read-back：...
+- branch namespace gate：passed/blocked；blocker 可為 `WORKTREE_BRANCH_NAMESPACE_INVALID`
 - change commit：<hash> <subject>
 - maintenance file：.opencode/run-artifacts/<run_id>/final-merge-report.md 或 .opencode/archives/archive_<run_id>.md
 - report commit：<hash> 文件：更新最終整合維護紀錄
 - status：completed/blocked
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_VERSION_MISMATCH` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_VERSION_MISMATCH` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED` / `WORKTREE_BRANCH_NAMESPACE_INVALID`
 - merge：未執行
 - push：未執行
 ```

@@ -22,6 +22,7 @@ permission:
 - 以讀取 git/worktree/run artifacts/archive 狀態為主；不執行 active merge worktree 恢復。若 `.worktree/<run_id>/merge` 遺失但可由 `integration/<run_id>` 安全恢復，只在 evidence 中標示 `active restore possible`，交由 `worktree-bug-fix` active mode 執行。
 - 可執行 read-only git 指令，例如 `git worktree list`、`git branch --all`、`git log`、`git show --name-status`、`git status --porcelain`。
 - 可讀 `.worktree/<run_id>/**`、`.opencode/run-artifacts/<run_id>/**`、`.opencode/archives/archive_<run_id>.md`、final maintained report、dispatch ledger、archive locator index 與各 worktree manifest。
+- Execution worktree branch namespace 僅允許 `worktree/<run_id>/*`。若 evidence、dispatch ledger、final maintained report、archive locator index 或 git refs 出現 `work/<run_id>/*` 或其他 alias，必須標記 `WORKTREE_BRANCH_NAMESPACE_INVALID` 並使 packet 不可進入 mode selection；本 agent 不得把 alias branch 納入 locked commits 或 touched files index。
 - 不建立/刪除 worktree，不切 branch，不 checkout，不 merge，不 reset，不 commit，不 push。
 - 不釐清 bug，不判斷 culprit commit，不修改檔案。
 
@@ -57,6 +58,7 @@ permission:
 - `RUN_COMMIT_MAP_MISSING`：active 與 archived 兩種模式都沒有 final commit map、archive locator index，也無法由 integration branch 建立 commit 清單。
 - `ARCHIVE_FILE_MISSING`：archive mode 需要的 `.opencode/archives/archive_<run_id>.md` 不存在；若 active evidence 可用，這只標記 archived blocked，不阻止模式選擇。
 - `RUN_SCOPE_AMBIGUOUS`：run_id 對應多個 final merge target 或 integration branch 且無法安全判斷。
+- `WORKTREE_BRANCH_NAMESPACE_INVALID`：selected run 的 execution branch 使用非 `worktree/<run_id>/*` namespace，或 artifact / git refs 不一致。
 
 ## 輸出
 
@@ -64,7 +66,7 @@ permission:
 ## Pre-Mode Run Change Lock Packet
 - ready_for_mode_selection：true/false
 - ready_for_bug_triage：false（必須由 worktree-bug-fix 選模式後重建為 Mode Selected Run Change Lock Packet）
-- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS`；mode-level blocker 可為 `ACTIVE_EVIDENCE_UNAVAILABLE` / `MERGE_WORKTREE_DIRTY` / `ARCHIVE_FILE_MISSING`
+- blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `WORKTREE_BRANCH_NAMESPACE_INVALID`；mode-level blocker 可為 `ACTIVE_EVIDENCE_UNAVAILABLE` / `MERGE_WORKTREE_DIRTY` / `ARCHIVE_FILE_MISSING`
 - selected run_id：...
 - run_id candidates：...
 - bugfix mode selected：false（後續必須由 worktree-bug-fix 用 question 選 ACTIVE_WORKTREE_RUN 或 ARCHIVED_RUN_MODE）

@@ -27,6 +27,7 @@ permission:
 - 不執行會修改檔案、安裝依賴、啟動長時間服務、清理資料、reset、checkout 覆蓋、merge、rebase、commit 或 push 的命令。
 - 不把候選 commit 當成已定案 culprit commit；定案與修正由 `worktree-bug-fix` 做。
 - 不得把不在 Run Change Lock Packet locked commits 內的 commit 納入候選。
+- Run Change Lock Packet 中的 execution branch 必須全部符合 `worktree/<run_id>/*`。若含 `work/<run_id>/*` 或其他 alias，停止回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`，不得建立 Bug Search Packet。
 - 若資訊不足，必須用 `question` 問使用者補齊，不得猜測進修復。
 
 ## 必要輸入
@@ -65,13 +66,14 @@ permission:
 - `NEEDS_REPRODUCTION_INFO`：缺少重現步驟或 failing command/test。
 - `REQUIREMENT_AMBIGUOUS`：看起來像需求未定義或期望行為不明。
 - `ENVIRONMENT_BLOCKED`：環境、port、外部服務或資料狀態阻塞，不能判定程式 bug。
+- `WORKTREE_BRANCH_NAMESPACE_INVALID`：Run Change Lock Packet 含非 `worktree/<run_id>/*` 的 execution branch namespace。
 
 ## 輸出
 
 ```markdown
 ## Bug Triage Packet
 - ready_for_fix：true/false
-- blocker：無 / `RUN_CHANGE_LOCK_REQUIRED` / `BUGFIX_MODE_NOT_SELECTED` / `BUG_INPUT_INSUFFICIENT` / `NEEDS_REPRODUCTION_INFO` / `REQUIREMENT_AMBIGUOUS` / `ENVIRONMENT_BLOCKED`
+- blocker：無 / `RUN_CHANGE_LOCK_REQUIRED` / `BUGFIX_MODE_NOT_SELECTED` / `BUG_INPUT_INSUFFICIENT` / `NEEDS_REPRODUCTION_INFO` / `REQUIREMENT_AMBIGUOUS` / `ENVIRONMENT_BLOCKED` / `WORKTREE_BRANCH_NAMESPACE_INVALID`
 - selected run_id：...
 - bugfix mode：ACTIVE_WORKTREE_RUN / ARCHIVED_RUN_MODE
 - final merge_worktree：...

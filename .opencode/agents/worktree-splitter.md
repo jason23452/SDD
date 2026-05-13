@@ -57,6 +57,7 @@ permission:
 - 每個分類的 `<name>` 取自 classification ID 的 `<name>` 部分。
 - worktree path：`.worktree/<run_id>/stage-<n>/<name>`；若主流程明確傳入單一階段目標根，可使用該根目錄。
 - branch：`worktree/<run_id>/stage-<n>/<name>`。
+- Execution worktree branch namespace 僅允許 `worktree/<run_id>/*`。不得建立、重用、記錄或輸出 `work/<run_id>/*`、`worktrees/<run_id>/*` 或其他 alias。若既有 branch、manifest、dispatch ledger、port map 或 runner dispatch packet 使用非 `worktree/<run_id>/*` 的 execution branch，必須停止並回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`，不得自動修正、不得混用。
 - OpenSpec change 建議名：`change-<run_id>-<name>`。
 - `classification_id` 必須維持原始分類 ID，例如 `<run_id>-featurs-<name>`；不得為了 OpenSpec CLI 改掉分類 ID。
 - `openspec_change` 必須是 OpenSpec CLI-safe name，符合 `^[a-z][a-z0-9-]*$`，且不得直接使用可能以數字開頭的 `classification_id`。
@@ -64,6 +65,7 @@ permission:
 - 若產生後仍不符合 `^[a-z][a-z0-9-]*$`，splitter 必須停止回報 blocker，不得把非法 change name 交給 runner。
 - spec-flow path：`<worktree path>/spec-flow`。
 - 建立方式：同一 splitter invocation 可以包含一個或多個 ready eligibleSetId；對每個 eligibleSetId，該 batch 的所有 worktree 必須在同一 invocation 內完成 `git worktree add -b <branch> <path> <base>`。若任一個 worktree 建立失敗，所屬 eligibleSetId batch 標記 failed，不得啟動該 batch 已建立部分的 runner；同一 invocation 內其他已成功且互不依賴的 ready batch 可由主流程依 dispatch ledger 判斷是否 dispatch。若 Stage 1 base 不是 bootstrap commit，或後續 stage base 不是預期 integration 結果，停止並回報 `BOOTSTRAP_BASELINE_INVALID` / `ERROR: stage baseline missing; run previous stage integration before splitting this stage`。
+- `git worktree add -b` 前必須以 `git check-ref-format --branch` 驗證 branch，且確認 branch exactly 以 `worktree/<run_id>/stage-<n>/` 開頭。若不符合，停止回報 `WORKTREE_BRANCH_NAMESPACE_INVALID`。
 - 禁止在 splitter 階段執行 OpenSpec、實作、測試、commit、merge、push。
 
 ## 快照同步規則
