@@ -89,33 +89,42 @@ permission:
     - `integration-stage/<run_id>/*` branches。
     - `integration/<run_id>` branch。
     - `bugfix/<run_id>/*` branches。
-2. 顯示將保留的項目：
+2. 檢查 selected run 的 process/file-lock 風險，至少包含：
+   - command line 或 module path 指向 `.worktree/<run_id>/` 的 `node`、`python`、`uvicorn`、`vite`、`npm`、`pnpm`、`Code`、language server 或 shell process。
+   - Windows 上特別檢查 loaded module 是否指向 `.worktree/<run_id>/.../node_modules/@tailwindcss/oxide-*/tailwindcss-oxide*.node`，因 VS Code / CSS tooling 可能載入 native module 並阻止刪除。
+   - 若偵測到 process/file-lock，必須把 PID、process name 與 matched path/command line 加入清理確認清單；未列出或無法判定時，停止回報 `CLEANUP_PROCESS_LOCKS_UNLISTED`。
+3. 顯示將保留的項目：
    - target bootstrap branch。
    - `.opencode/archives/archive_<run_id>.md`。
-3. 用 `question` 要求使用者最後確認清理；未確認時停止回報 `CLEANUP_NOT_CONFIRMED`。
-4. 再次確認 target branch 包含 `source_head` 且 archive 檔存在；否則停止，不得清理。
-5. 對每個即將刪除的 branch 執行 contained gate：`git merge-base --is-ancestor <branch> HEAD` 必須通過，或該 branch 必須明確等於已被 target HEAD 包含的 `source_head` 歷史。任何 `worktree/<run_id>/*`、`integration-stage/<run_id>/*`、`integration/<run_id>` 或 `bugfix/<run_id>/*` branch 未被 target HEAD 包含時，停止回報 `BRANCH_NOT_CONTAINED`；不得用使用者 cleanup 確認覆蓋此 gate。
+4. 用 `question` 要求使用者最後確認清理；若有 process/file-lock，確認文字必須明確說明會停止這些 selected run 相關 process。未確認時停止回報 `CLEANUP_NOT_CONFIRMED`。
+5. 再次確認 target branch 包含 `source_head` 且 archive 檔存在；否則停止，不得清理。
+6. 對每個即將刪除的 branch 執行 contained gate：`git merge-base --is-ancestor <branch> HEAD` 必須通過，或該 branch 必須明確等於已被 target HEAD 包含的 `source_head` 歷史。任何 `worktree/<run_id>/*`、`integration-stage/<run_id>/*`、`integration/<run_id>` 或 `bugfix/<run_id>/*` branch 未被 target HEAD 包含時，停止回報 `BRANCH_NOT_CONTAINED`；不得用使用者 cleanup 確認覆蓋此 gate。
 
 ## Phase 6：刪除 worktree 與 branches
 
 1. 確認目前所在 branch 是 target bootstrap branch，不是任何即將刪除的 branch。
-2. 對 selected `run_id` 的每個 registered worktree：
+2. 若 Phase 5 已列出 selected run 相關 process/file-lock 且使用者已確認停止：
+   - 只停止明確 match `.worktree/<run_id>/` command line 或 loaded module path 的 process。
+   - 不得停止未 match selected run path 的全域 `node`、`python`、`Code`、terminal、editor 或 language-server process。
+   - 停止後重跑 process/file-lock 檢查；若仍有 lock，停止回報 `CLEANUP_PROCESS_LOCKS_PRESENT`。
+3. 對 selected `run_id` 的每個 registered worktree：
    - 先檢查 path 符合 `.worktree/<run_id>/...`。
    - 若 worktree status 不乾淨，停止回報 `WORKTREE_DIRTY_BEFORE_CLEANUP`。
    - 使用 `git worktree remove <path>` 移除；若因已不存在而失敗，後續執行 `git worktree prune`。
-3. 執行 `git worktree prune`。
-4. 若 `.worktree/<run_id>/` 仍存在且只剩非 git registry 殘留檔，必須確認所有殘留項目已出現在 Phase 5 的清理清單且使用者已確認；若發現未列項目或無法列舉，停止回報 `CLEANUP_RESIDUALS_UNLISTED`。確認 path 精確符合 selected `run_id` 後才可刪除該目錄；不得刪 `.worktree/` 之外任何路徑。
-5. 刪除 selected `run_id` 相關 branches 前，逐一重跑 contained gate；未通過者不得刪除，並停止回報 `BRANCH_NOT_CONTAINED`：
-   - `worktree/<run_id>/*`
-   - `integration-stage/<run_id>/*`
-   - `integration/<run_id>`
-   - `bugfix/<run_id>/*`
-6. 刪 branch 前必須再次排除 target bootstrap branch 與目前所在 branch。
-7. 刪除後驗證：
-   - `git worktree list --porcelain` 不再列出 `.worktree/<run_id>/...`。
-   - `git branch --list` 不再列出 selected `run_id` 的 worktree/integration/bugfix branches。
-   - target bootstrap branch 仍存在且目前所在 branch 即為 target bootstrap branch。
-   - archive final file 存在。
+4. 執行 `git worktree prune`。
+5. 若 `.worktree/<run_id>/` 仍存在且只剩非 git registry 殘留檔，必須確認所有殘留項目已出現在 Phase 5 的清理清單且使用者已確認；若發現未列項目或無法列舉，停止回報 `CLEANUP_RESIDUALS_UNLISTED`。確認 path 精確符合 selected `run_id` 後才可刪除該目錄；不得刪 `.worktree/` 之外任何路徑。若刪除失敗且錯誤為 access denied / file in use，必須重跑 process/file-lock 檢查並回報 matched PID；只有當該 PID match selected run path 且使用者已在 Phase 5 確認停止 process 時，才可停止後重試；否則停止回報 `CLEANUP_PROCESS_LOCKS_PRESENT`。
+6. 刪除 selected `run_id` 相關 branches 前，逐一重跑 contained gate；未通過者不得刪除，並停止回報 `BRANCH_NOT_CONTAINED`：
+    - `worktree/<run_id>/*`
+    - `integration-stage/<run_id>/*`
+    - `integration/<run_id>`
+    - `bugfix/<run_id>/*`
+7. 刪 branch 前必須再次排除 target bootstrap branch 與目前所在 branch。
+8. 刪除後驗證：
+    - `git worktree list --porcelain` 不再列出 `.worktree/<run_id>/...`。
+    - `git branch --list` 不再列出 selected `run_id` 的 worktree/integration/bugfix branches。
+    - `.worktree/<run_id>/` 實體目錄不存在；若仍存在，必須列出原因與殘留項。
+    - target bootstrap branch 仍存在且目前所在 branch 即為 target bootstrap branch。
+    - archive final file 存在。
 
 ## 停止條件
 
@@ -136,6 +145,8 @@ permission:
 - `CLEANUP_RESIDUALS_UNLISTED`：`.worktree/<run_id>/` 仍有未列入確認清單的殘留檔或無法列舉。
 - `BRANCH_NOT_CONTAINED`：即將刪除的 selected run branch 尚未被 target HEAD 包含。
 - `CLEANUP_NOT_CONFIRMED`：使用者未確認清理。
+- `CLEANUP_PROCESS_LOCKS_UNLISTED`：無法完整列出 selected run 相關 process/file-lock 風險。
+- `CLEANUP_PROCESS_LOCKS_PRESENT`：selected run 仍有 process/file-lock，或使用者未明確確認停止 matched process。
 - `WORKTREE_DIRTY_BEFORE_CLEANUP`：清理前某個 worktree 不乾淨。
 - `CLEANUP_FAILED`：worktree 或 branch 清理失敗。
 
@@ -170,6 +181,7 @@ permission:
 - target branch contains source head：yes/no
 - cleanup confirmed：yes/no
 - residual cleanup entries：...
+- process/file-lock cleanup：無/已停止/blocked，matched processes：...
 - branch contained gate：passed/blocked，未包含 branches：...
 - removed worktrees：...
 - removed branches：...
