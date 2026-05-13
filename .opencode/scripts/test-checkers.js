@@ -129,6 +129,28 @@ try {
 
   writeJson(path.join(validDir, "dispatch-ledger.json"), validDispatchLedger(runId))
   writeJson(path.join(validDir, "runner-event.json"), validRunnerEvent(runId))
+  writeJson(path.join(validDir, "run-preflight-packet.json"), {
+    schemaVersion: "run-preflight-packet/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner and project rules",
+  })
+  writeJson(path.join(validDir, "verification-matrix.json"), {
+    schemaVersion: "verification-matrix/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full verification plan",
+  })
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [

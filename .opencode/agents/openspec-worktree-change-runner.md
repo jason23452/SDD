@@ -61,9 +61,13 @@ propose/spec 前必須讀取 development-detail-planner、當前 `run_id` 相關
 
 為降低 token 與重複 I/O，runner 必須採 path/hash-first：優先讀 manifest、dispatch packet、`project-rules-lock/v1` 與本 classification slice；不要要求主流程在 Task prompt 貼完整 planner、完整 project rules、完整 Stage Graph 或完整 dispatch ledger。若 compact packet 的 source hash、HEAD、branch、readyWaveId、eligibleSetId 或 schemaVersion 不一致，立即回到本節完整解析順序與原 gate，不得用摘要通過。
 
+Runner speed path：若 `run-preflight-packet/v1`、`context-slice/v1`、`verification-matrix/v1`、`package-decision-record/v1` 與 `experience-contract/v1` 存在且 schemaVersion、run_id、source hash、HEAD、readyWaveId、eligibleSetId、classificationId 與目前 worktree 一致，runner 必須優先使用這些 compact artifacts。只有 missing/stale/blocked/failed/hash mismatch 或 slice 缺 gate 必填欄位時，才回讀完整 development-detail-planner、project rules、Stage Graph 或 classification output。
+
 runner prompt context 只應包含本 worktree 的 `contextRefs[]`、`contextSlice` 與必要使用者需求摘要。若 prompt 直接貼入大型全文，runner 仍必須以 worktree 內 artifact path/hash 為準，避免使用過期上下文。`contextSlice` 不足以完成 ownership、dependency、project-rules、OpenSpec alignment 或 verification gate 時，runner 必須讀取完整來源或停止回報既有 blocker，不得用 slice 猜測。
 
 若存在 `planner-index/v1`，runner 可先讀本 classification / readyWaveId 相關 section refs；若 section hash 不符、缺 required section 或 alignment 需要完整脈絡，必須回讀完整 development-detail-planner。runner 不得只憑 planner index 產生 OpenSpec artifacts。
+
+若存在 `verification-matrix/v1`，runner 只執行本 classification slice 的必要 one-shot checks；stage integration 與 final-only checks 只記錄為交給 merge/final，不得在每個 runner 重複跑全量。若 matrix missing/stale，回到 planner 的驗證章節與 project rules，不得猜測 passed。
 
 若存在 `skill-lock/v1`，runner 可用其 hash/diffStatus 作為快速 P0-SKILL 前置檢查；進入 propose、apply、commit 等 mutating boundary 前仍必須確認目前 worktree skill diff 未變。若 lock stale、sourceHead 不符或 diffStatus 非 clean，停止回報 skill blocker 或執行完整 skill gate。
 
@@ -108,6 +112,8 @@ Project rules read-back 是每個 OpenSpec 執行點的硬性 gate：
 5. runner final output 與 runner event artifact 必須包含每個 checkpoint 的 project-rules read-back 摘要；barrier collect 會檢查此記錄。
 
 若存在 `.opencode/run-artifacts/<run_id>/project-rules-lock.json` 且 schemaVersion=`project-rules-lock/v1`、path/hash 與 worktree 內 `.opencode/project-rules.md` 目前 hash 一致，checkpoint 可記錄 lock hash 與 relevantRulesDigest，避免重複輸出規則全文。hash 不一致、lock missing/stale/blocked 時必須讀取完整 `.opencode/project-rules.md` 並重新比對。
+
+Checkpoint memoization：每個 checkpoint 必須記錄 project-rules hash 與 active skill hash；若 hash 與上一 checkpoint 相同，可記錄 `hash unchanged, alignment memoized`，不需重貼全文或重做完整摘要。若 hash 改變，必須回讀完整內容並重新 alignment。
 
 Dependency gate 是 local verification 與 commit 前的硬性 gate；正常路徑應使用 splitter 已複製好的 dependency snapshot，不應在每個 worktree 重複 install：
 
@@ -256,7 +262,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 - 測試命令必須 one-shot 且可結束：Vitest 用 `vitest run` 或 package script 的等價 one-shot；backend 固定用 `uv run pytest -q --maxfail=1` 或既有 pytest script；Playwright/E2E 用 headless/non-interactive；禁止 watch mode。
 - Python 驗證不得用 ad-hoc `python -c`、手寫 Python smoke 或互動式 Python 指令取代 pytest；import app、health、startup sanity、API smoke 必須寫成 pytest 測試或 pytest fixture。
 - 所有 install/build/test/smoke 必須有 timeout。逾時回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或假裝通過。
-- 測試輸出採 summary-first：runner 可寫入 `.opencode/run-artifacts/<run_id>/verification-summary/<classification_id>.json`，schemaVersion=`verification-summary/v1`，記錄 command、exitCode、duration、status、logRef、errorDigest 與 blocker。final output 只需列摘要與 logRef；但失敗、blocked、或 merge/barrier 要求時必須提供足以重現與診斷的原始命令/錯誤來源，不得把 summary 當 passed 證據。
+- 測試輸出採 summary-first：runner 可寫入 `.opencode/run-artifacts/<run_id>/verification-summary/<classification_id>.json`，schemaVersion=`verification-summary/v1`，記錄 command、exitCode、duration、status、logRef、errorDigest、matrixRef 與 blocker。final output 只需列摘要與 logRef；但失敗、blocked、或 merge/barrier 要求時必須提供足以重現與診斷的原始命令/錯誤來源，不得把 summary 當 passed 證據。
 - 同一 worktree 內 project-rules read-back 可做 checkpoint memoization：若 `.opencode/project-rules.md` hash 與上一 checkpoint 相同，event 只需記錄 hash/time/result，不重貼 rules digest；hash 改變才重讀全文並重新 alignment。memoization 不得跳過任何 checkpoint。
 - runner 完成或 blocked 時可寫入/更新 `resume-cursor/v1` 的本 worktree 狀態與 nextAction，但不得直接改 shared dispatch ledger。主流程/merge barrier 仍以 dispatch ledger 與 runner event 為準；cursor 只用於快速定位下一步。
 - 執行任何 install/build/test/smoke 前，必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。

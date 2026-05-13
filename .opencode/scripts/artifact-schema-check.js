@@ -28,6 +28,11 @@ const COMMON_REQUIRED_SCHEMAS = [
   /^port-registry\/v1$/,
   /^bug-search-packet\/v1$/,
   /^culprit-score\/v1$/,
+  /^run-preflight-packet\/v1$/,
+  /^verification-matrix\/v1$/,
+  /^package-decision-record\/v1$/,
+  /^experience-contract\/v1$/,
+  /^context-slice\/v1$/,
 ]
 
 const COMMON_FIELDS = [

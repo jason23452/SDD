@@ -54,6 +54,7 @@ permission:
 - 優先度 lane 只處理同一 apply 階段內的必要先後；不得用優先度或 lane 拆分掩蓋同階段程式依賴。若某分類真的需要另一分類完成後才能 apply，必須移到後續 apply 階段或合併。
 - 禁止循環依賴：若 A 依賴 B 且 B 依賴 A，必須合併或重切邊界。
 - Baseline / dependency / rules 交接必須完整：分類輸出需保留 bootstrap commit hash、Stage 1 baseline source、後續 stage integration baseline、copy-first dependency snapshot requirement（runner dispatch 前優先複製，只有 fallback 或新套件才 install/sync）、project-rules path/hash 與 runner read-back requirement；若缺任一項，完整性檢查不得通過。
+- Speed / token 交接必須完整：分類輸出需能切成 `run-preflight-packet/v1`、`verification-matrix/v1` 與每個 classification 的 `context-slice/v1`。這些 compact artifacts 只能保存已驗證事實、source refs、hash、status、blockers 與 fallbackAction；不得省略完整分類、Dependency Graph、Conflict Graph、Stage Execution Graph、Package Decision Record 或 Experience Contract。
 
 ## 平行安全判斷
 - 每個分類必須列出 `readSet` 與 `writeSet`。`readSet` 是該分類只讀的已穩定 contract/schema/helper/fixture；`writeSet` 是會新增或修改的 API/schema/form/migration/helper/fixture/UI flow。
@@ -147,6 +148,8 @@ permission:
 - 使用未確認套件分類數：
 - 非 active skill 規則被當成 blocker 數：
 - 同一 fullstack 使用者能力被拆成互相等待分類數：
+- 缺 run-preflight/context-slice/verification-matrix 交接規劃數：
+- compact artifact 被用來取代完整分類或原 gate 數：
 - Stage 1 baseline 非 bootstrap commit HEAD 數：
 - 缺 bootstrap commit 交接數：
 - 缺 dependency snapshot 規劃數：

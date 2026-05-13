@@ -57,6 +57,8 @@ permission:
 
 merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-preflight/v1`、`schema-validation/v1`、`port-registry/v1`、`verification-summary/v1` 或 runner event index 的 schemaVersion、source hash、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 任一不一致，必須執行前置 Gate 的完整讀取與交叉核對。passed summary 只能減少重複讀取與輸出長度，不能跳過 clean status、specCommit、local verification、project-rules read-back、dependency sync、parallel dispatch 與 branch namespace gate。
 
+Merge speed path：若 `run-preflight-packet/v1`、`verification-matrix/v1`、`package-decision-record/v1`、`experience-contract/v1`、`openspec-change-index/v1`、`runner-event/v1`、`verification-summary/v1` 與 `barrier-preflight/v1` 的 schemaVersion、source hashes、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 均一致，merge/barrier 預設只讀摘要與 refs。只有 missing/stale/blocked/failed/hash mismatch、衝突或使用者要求完整診斷時，才回讀完整 runner outputs、OpenSpec artifacts、test logs 或 planner。
+
 merge prompt context 應只傳本 readyWave 的 `contextRefs[]`：dispatch ledger、ready-set manifest、barrier-preflight、schema-validation、runner event refs、verification summaries、port registry 與 source branch list。不得貼全部 runner outputs、完整 logs 或完整 planner；若 refs missing/stale/blocked，merge integrator 依前置 Gate 讀完整 artifacts。compact prompt 不得縮小 merge source set 或改變 merge order。
 
 若 runner 提供 `openspec-change-index/v1`，merge/barrier 可優先用 index 驗證 artifact path/hash、strict validate、alignment、tasks 與 specCommit；任一 index missing/stale/blocked 或與 branch HEAD 不一致時，必須回讀該 worktree 的完整 OpenSpec artifacts。
@@ -227,6 +229,8 @@ merge/barrier integrator 可寫入 `.opencode/run-artifacts/<run_id>/schema-vali
 - fullstack/E2E smoke；browser smoke 只能用 Playwright MCP。
 - fullstack contract 驗證：確認 frontend API service、form validation、server error mapping、auth/session 狀態與 backend response/error schema 一致。
 - Experience Contract 驗證：frontend/fullstack 時確認主要 route 或流程在 mobile/desktop、loading/empty/error/success/disabled、focus-visible/accessibility 與視覺一致性上未違反 active skill；未能驗證時標 skipped/blocked。
+
+Verification matrix policy：merge integrator 必須優先讀 `verification-matrix/v1` 決定 stage integration checks 與 final-only checks；不得重跑 runner-local checks，除非 runner summary stale/failed、source hash 不符或 integration failure 需要診斷。final 階段才執行 matrix 中標示為 final-only 的全量驗證。
 
 Server smoke 必須 bounded 且不得使用 PowerShell：
 - 禁止產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。

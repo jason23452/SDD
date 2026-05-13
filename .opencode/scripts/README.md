@@ -23,4 +23,6 @@ node .opencode/scripts/artifact-schema-check.js .opencode/run-artifacts/<run_id>
 
 `artifact-schema-check.js` validates summary/index/lock/packet common fields, `dispatch-ledger/v1`, `runner-event/v1`, source refs/hashes, fallback actions, status values, and `worktree/<run_id>/*` branch namespace.
 
+Compact flow artifacts such as `run-preflight-packet/v1`, `verification-matrix/v1`, `package-decision-record/v1`, `experience-contract/v1`, and `context-slice/v1` are treated as summary artifacts. They must include common source refs, source hashes, status, blockers, detail refs, and fallback actions; they never replace the full planner, project rules, dispatch ledger, runner events, or final maintained report.
+
 If `.opencode/run-artifacts` does not exist, the checker reports `skipped`; this is expected outside an active run.

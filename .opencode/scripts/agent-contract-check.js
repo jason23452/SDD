@@ -28,6 +28,11 @@ const REQUIRED_REGISTRY_SCHEMAS = [
   "schema-validation/v1",
   "cleanup-locks/v1",
   "cleanup-plan/v1",
+  "run-preflight-packet/v1",
+  "verification-matrix/v1",
+  "package-decision-record/v1",
+  "experience-contract/v1",
+  "context-slice/v1",
 ]
 
 const COMPACT_FIELDS = [
