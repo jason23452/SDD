@@ -62,7 +62,11 @@
 
 ## 流程圖
 
-流程圖原檔已附在同一分支：
+下方為 PNG 預覽圖：
+
+![自訂 OpenCode 工作流程圖](./opencode-workflow.png)
+
+流程圖原檔也已附在同一分支，方便後續用 diagrams.net 編輯：
 
 [opencode-workflow.drawio](./opencode-workflow.drawio)
 
