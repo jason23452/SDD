@@ -71,6 +71,7 @@ permission:
 8. 讀取每個 locked commit 的 touched files、message、source branch/source worktree、classification ID、OpenSpec change。若維護文件未記 touched files，用 `git show --name-status <commit>` 補齊於輸出，不寫回檔案，除非後續維護區段需要記錄本次修復。
 9. 形成內部 Mode Selected Run Change Lock Packet；只有使用者已選模式、該模式 evidence 可用、target fix target 已鎖定、且至少有 commit map / archive locator index / git-log-derived commit list 時，才可進 Phase 2。此 packet 必須標示 `ready_for_bug_triage=true`、`bugfix mode selected=true`、commit map source、locked commits、locked touched files index、maintenance file path；不得把 `worktree-run-id-change-locker` 的 Pre-Mode packet 直接交給 triage。
 10. 將 Mode Selected Run Change Lock Packet 以 `run-lock-packet/v1` 保存到 `.opencode/run-artifacts/<run_id>/bugfix/run-lock-packet.json`，或在 archived mode 無可寫 run-artifacts 時於 final output 內提供等價 structured packet。此 packet 只加速後續 triage/fix retry；若 mode、target branch、archive file hash、final head、branch namespace gate 或 locked commits 與目前 evidence 不一致，必須重新執行 Phase 1。
+    - packet 可保存 `commitDiffDigest[]`（commit、touchedFiles、keywords、hunkSummaryHash、source），用於後續 culprit 比對。`commitDiffDigest` 只能由 final report/archive locator/git show 派生；若缺失或 stale，只對 top candidates 執行 `git show`，但不得把 locked commits 以外的 commit 加入候選。
 
 ## Phase 2：釐清 bug 並建立 Bug Search Packet
 
@@ -269,6 +270,7 @@ permission:
 - culprit evidence：...
 - bug search packet：.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json / output-only
 - culprit score：.opencode/run-artifacts/<run_id>/bugfix/culprit-score.json / output-only
+- run lock packet：.opencode/run-artifacts/<run_id>/bugfix/run-lock-packet.json / output-only；commitDiffDigest：present/missing/stale
 - fix target set：...
 - modified files：...
 - added files：...
@@ -284,4 +286,5 @@ permission:
 - blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_VERSION_MISMATCH` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED` / `WORKTREE_BRANCH_NAMESPACE_INVALID`
 - merge：未執行
 - push：未執行
+- compact output：enabled；完整 final/archive report 與 git log 未重貼，detailRefs：...
 ```

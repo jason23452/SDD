@@ -55,6 +55,8 @@ merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-
 
 merge prompt context 應只傳本 readyWave 的 `contextRefs[]`：dispatch ledger、ready-set manifest、barrier-preflight、schema-validation、runner event refs、verification summaries、port registry 與 source branch list。不得貼全部 runner outputs、完整 logs 或完整 planner；若 refs missing/stale/blocked，merge integrator 依前置 Gate 讀完整 artifacts。compact prompt 不得縮小 merge source set 或改變 merge order。
 
+若 runner 提供 `openspec-change-index/v1`，merge/barrier 可優先用 index 驗證 artifact path/hash、strict validate、alignment、tasks 與 specCommit；任一 index missing/stale/blocked 或與 branch HEAD 不一致時，必須回讀該 worktree 的完整 OpenSpec artifacts。
+
 固定路徑：`.opencode/run-artifacts/<run_id>/barrier-preflight/stage-<n>-wave-<k>.json`。
 
 必填欄位：
@@ -286,4 +288,5 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 - commit map：已產生/未產生，原因：...
 - port cleanup：completed/blocked，原因：...
 - 後續建議：主流程用上一列基準呼叫 `worktree-splitter mode=apply-stage` 建立下一 ready wave 或下一 stage execution worktree；不得要求 runner merge upstream integration
+- compact output：enabled；detailRefs：barrier-preflight/schema-validation/verification-summary/final-report-index；完整表格僅在 blocked/failed 或使用者要求時輸出
 ```

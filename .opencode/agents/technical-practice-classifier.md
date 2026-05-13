@@ -36,6 +36,7 @@ permission:
 - ID 固定 `<run_id>-featurs-<name>`；保留 `featurs`，不得用 `features`、`TP-001` 或純流水號；`<name>` 用可讀小寫英數與 hyphen，重名時改更具體。
 - Execution worktree branch namespace 固定為 `worktree/<run_id>/*`，分類輸出、Stage Execution Graph 與 dispatch plan 不得建議 `work/<run_id>/*`、`worktrees/<run_id>/*` 或其他 alias；若草稿或既有 artifact 出現 alias，必須在完整性檢查標示不通過。
 - 輸出應支援 compact handoff：完整分類表、Dependency Graph、Conflict Graph、Stage Execution Graph 仍必須存在於 agent 輸出或後續 planner artifact，但給 splitter/runner 的交接應可切成每個 readyWaveId / eligibleSetId / classification 的必要 slice。不得為了省 token 省略 alternatives 比較、owner、readSet/writeSet、contract、parallelSafety 或完整性檢查。
+- 可在完整輸出後附 `classification-compact/v1`，用 schema header + rows/slices 表示同一組欄位，避免重複 Markdown 表頭與空欄。compact 必須包含 source hash、row count、allRequiredFieldsPresent、blockers；若 compact 與完整分類不一致，以完整分類為準並標示 blocked。
 
 ## 粒度、同類聚合與依賴批次
 - 同類能力放一起：例如 auth/access 的後端登入、前端登入頁、受保護路由、session 狀態、失效重登、登出不外露與 auth tests 應是同一分類，不得拆成 backend-auth、frontend-auth、auth-tests。
@@ -146,3 +147,5 @@ permission:
 ```
 
 若任一完整性檢查未通過，必須明確標示 blocker 與修正建議。
+
+可選 compact handoff：輸出 `classification-compact/v1`，只作 splitter/runner contextSlice 來源；不得取代上述完整分類、Dependency Graph、Conflict Graph、Stage Execution Graph 與完整性檢查。
