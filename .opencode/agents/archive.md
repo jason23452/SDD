@@ -200,5 +200,5 @@ permission:
 - status：completed/blocked
 - blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `FINAL_MAINTAINED_REPORT_MISSING` / `FINAL_MAINTAINED_REPORT_INCOMPLETE` / `BOOTSTRAP_BRANCH_MISSING` / `BOOTSTRAP_BRANCH_INVALID` / `TARGET_BRANCH_DIRTY` / `MERGE_CONFLICT` / `ARCHIVE_FILE_WRITE_FAILED` / `ARCHIVE_LOCATOR_INDEX_MISSING` / `WORKTREE_PRUNE_SCOPE_UNSAFE` / `CLEANUP_RESIDUALS_UNLISTED` / `BRANCH_NOT_CONTAINED` / `CLEANUP_NOT_CONFIRMED` / `CLEANUP_PROCESS_LOCKS_UNLISTED` / `CLEANUP_PROCESS_LOCKS_PRESENT` / `WORKTREE_BRANCH_NAMESPACE_INVALID` / `WORKTREE_DIRTY_BEFORE_CLEANUP` / `CLEANUP_FAILED`
 - push：未執行
-- compact output：enabled；完整 final report/cleanup listing 未重貼，detailRefs：final-report-index/cleanup-plan/archive file
+- compact output：enabled；status：completed/blocked；blockers：無/列表；commits：merge-back/archive/cleanup refs；verification：source/head/branch contained gates；contextRefs：final-report-index/cleanup-plan/archive file；artifactRefs：final-report-index/cleanup-plan/archive file；nextAction：cleanup done 或 blocker fix；fallbackUsed：none/full final report/full cleanup listing；完整 final report/cleanup listing 未重貼
 ```

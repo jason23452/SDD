@@ -292,5 +292,5 @@ Server smoke 必須 bounded 且不得使用 PowerShell：
 - commit map：已產生/未產生，原因：...
 - port cleanup：completed/blocked，原因：...
 - 後續建議：主流程用上一列基準呼叫 `worktree-splitter mode=apply-stage` 建立下一 ready wave 或下一 stage execution worktree；不得要求 runner merge upstream integration
-- compact output：enabled；detailRefs：barrier-preflight/schema-validation/verification-summary/final-report-index；完整表格僅在 blocked/failed 或使用者要求時輸出
+- compact output：enabled；status：completed/blocked/failed；blockers：無/列表；commits：merge/integration/final report；verification：stage/final commands + summary refs；contextRefs：dispatch ledger/runner events/barrier-preflight；artifactRefs：barrier-preflight/schema-validation/verification-summary/final-report-index；nextAction：next wave/next stage/final/archive 或 blocker fix；fallbackUsed：none/full runner events/full OpenSpec artifacts/full logs；完整表格僅在 blocked/failed 或使用者要求時輸出
 ```

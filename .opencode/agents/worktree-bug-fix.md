@@ -287,5 +287,5 @@ permission:
 - blocker：無 / `RUN_ID_NOT_SELECTED` / `RUN_ID_NOT_FOUND` / `BUGFIX_MODE_NOT_SELECTED` / `ACTIVE_RUN_UNAVAILABLE` / `ARCHIVED_RUN_UNAVAILABLE` / `ARCHIVE_FILE_MISSING` / `ARCHIVE_FILE_VERSION_MISMATCH` / `TARGET_BRANCH_DIRTY` / `MERGE_WORKTREE_MISSING` / `MERGE_WORKTREE_RESTORE_FAILED` / `MERGE_WORKTREE_DIRTY` / `RUN_COMMIT_MAP_MISSING` / `RUN_SCOPE_AMBIGUOUS` / `BUG_TRIAGE_NOT_READY` / `MULTIPLE_CULPRIT_COMMITS` / `BUGFIX_SCOPE_EXPANSION_REQUIRED` / `FINAL_MAINTAINED_REPORT_WRITE_FAILED` / `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED` / `DEPENDENCY_SYNC_FAILED` / `WORKTREE_BRANCH_NAMESPACE_INVALID`
 - merge：未執行
 - push：未執行
-- compact output：enabled；完整 final/archive report 與 git log 未重貼，detailRefs：...
+- compact output：enabled；status：completed/blocked；blockers：無/列表；commits：fix/report commits；verification：commands + result；contextRefs：run-lock-packet/final-report-index/archive locator/bug-search-packet/culprit-score；artifactRefs：maintenance file/bug-search-packet/culprit-score/run-lock-packet；nextAction：archive/update user 或 blocker fix；fallbackUsed：none/full archive/full final report/git show top candidates；完整 final/archive report 與 git log 未重貼
 ```

@@ -62,6 +62,7 @@ permission:
 - 草稿/流程若 Task prompt 仍要求貼完整 planner、完整 project rules、完整 Stage Graph、完整 runner outputs、完整 test logs、完整 final report 或完整 cleanup listing，而不是傳 `contextRefs[]` / `contextSlice` / artifact path/hash，且沒有說明是 fallback 或 blocked 診斷所需 => `不一致`。反之，若 compact prompt 缺必要 refs、hash、fallbackAction 或 required gate slice，也 => `不一致`。
 - 草稿/流程若使用 `planner-index/v1`、`openspec-change-index/v1`、`classification-compact/v1`、P0 short contracts 或 compact output，但省略原本必填欄位、隱藏 failed/skipped/blocked、移除完整 artifact fallback、或讓 final maintained report / archive final file 變成只有摘要 => `不一致`。
 - 草稿/流程若使用 `skill-lock/v1`、`dependency-readiness/v1`、`resume-cursor/v1` 或 artifact read policy，但讓它們取代 skill diff gate、dependency sync gate、dispatch ledger / runner event resume gate，或缺 schemaVersion/run_id/sourceRefs/sourceHashes/status/blockers/detailRefs/fallbackAction 仍繼續 => `不一致`。
+- 草稿/流程若列出的 summary/index/lock/cursor artifact 與 `init-project` artifact schema registry 命名不一致、漏列已使用的 `cleanup-locks/v1`、新增 `work/<run_id>/*` 類 alias、或 compact output 缺 `status/blockers/commits/verification/contextRefs/artifactRefs/nextAction/fallbackUsed` 任一欄位且非 final maintained report/archive final file => `不一致`。
 - 草稿/流程一次建立未來多個 apply stage 的 worktree，或要求 runner 自行 merge upstream/stage integration 補基準，而不是在上一 stage integration 後重新呼叫 splitter 建立/同步下一 stage => `不一致`。同一 apply stage 內多個 ready eligibleSetId 同輪建立不屬於此錯誤。
 - 合理工程步驟若未宣稱已確認，可列 `一致` 並標示為實作推導。
 - 原需求與後續確認衝突時，以後續明確確認為準並列覆蓋原因。
