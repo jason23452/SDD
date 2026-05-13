@@ -57,6 +57,10 @@ merge prompt context 應只傳本 readyWave 的 `contextRefs[]`：dispatch ledge
 
 若 runner 提供 `openspec-change-index/v1`，merge/barrier 可優先用 index 驗證 artifact path/hash、strict validate、alignment、tasks 與 specCommit；任一 index missing/stale/blocked 或與 branch HEAD 不一致時，必須回讀該 worktree 的完整 OpenSpec artifacts。
 
+若存在 `resume-cursor/v1`，merge/barrier 可用它快速定位目前 readyWave 與 failed/missing worktrees；cursor 的 source ledger hash 必須與 dispatch ledger 一致，否則忽略 cursor 並回完整 ledger/event scan。merge/barrier 完成後可單點更新 cursor nextAction，但不得用 cursor 取代 dispatch ledger 狀態流轉。
+
+若存在 `dependency-readiness/v1` 或 `skill-lock/v1`，merge worktree hydration 可先用其 hash/status 判斷是否需要重跑 dependency/skill gate；hash/sourceHead 不一致時回完整 gate。
+
 固定路徑：`.opencode/run-artifacts/<run_id>/barrier-preflight/stage-<n>-wave-<k>.json`。
 
 必填欄位：

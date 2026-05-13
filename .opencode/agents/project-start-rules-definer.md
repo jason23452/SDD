@@ -39,6 +39,7 @@ permission:
 - 規則中若包含 multi-worktree/OpenSpec staged flow，可寫入 token/efficiency contract：優先傳遞 packet path、hash、schemaVersion 與本 worktree/stage 必要 slice，避免在 Task prompt 與 final output 重複貼完整 planner、project rules、Stage Graph、runner events、test logs 或 final report；可使用 `project-rules-lock/v1`、`final-report-index/v1`、`run-lock-packet/v1`、`verification-summary/v1`、`cleanup-plan/v1`。這些摘要只能節省讀取與輸出，不得新增流程階段、不得降低 gate、不得取代原始 artifact；missing/stale/blocked 時回完整流程。
 - 規則中若包含 multi-worktree/OpenSpec staged flow，可寫入 Prompt Context Contract：subagent prompt 預設只傳 `contextRefs[]`、`contextSlice`、source hash/HEAD 與 blocker summary；不得要求重貼完整 planner、完整 project rules、完整 Stage Graph、完整 runner outputs、完整 logs、完整 final report 或完整 cleanup listing，除非 compact refs stale/missing/blocked 且完整 gate 需要。Context contract 只限制提示詞上下文大小，不得改變流程、驗證或交付內容。
 - 規則中若包含 multi-worktree/OpenSpec staged flow，可寫入 compact output 與 index 契約：預設回覆只列 summary/refs/nextAction，完整表格與 log 寫 artifact；可使用 `planner-index/v1`、`openspec-change-index/v1` 與 P0 short contracts。這些只減少 prompt/output，不得取代 planner、OpenSpec artifacts、final report 或任何 P0/P1 gate。
+- 規則中若包含 multi-worktree/OpenSpec staged flow，可寫入 artifact read policy 與新增摘要：`skill-lock/v1`、`dependency-readiness/v1`、`resume-cursor/v1`。所有摘要必須有 schemaVersion/run_id/sourceRefs/sourceHashes/status/blockers/detailRefs/fallbackAction；缺失或 stale 時回完整 gate。這些摘要只能減少重複讀取、重複 install 判斷與 resume 搜尋，不得取代 skill diff、dependency sync、dispatch ledger 或 runner event。
 
 ## Skill 保護
 - `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。

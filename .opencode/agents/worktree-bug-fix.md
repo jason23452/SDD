@@ -40,6 +40,7 @@ permission:
 - 在 selected fix target 修改、驗證、commit 與更新維護文件前，都必須 read-back 該目標內 `.opencode/project-rules.md`；若缺失或本次修正/驗證與規則不一致，停止回報 `PROJECT_RULES_MISSING` / `PROJECT_RULES_ALIGNMENT_FAILED`。
 - 若 selected fix target 缺 dependency dir，先從 bootstrap/source 或 final integration snapshot copy-first 補齊；只有 snapshot 缺失/hash 不一致/複製失敗，或本次修正新增、移除、更新套件或修改 dependency manifest/lockfile 時，才自動使用既有 package manager install/sync。只提交 manifest/lockfile 與必要 source/test/config，不提交 dependency directory。
 - Bugfix prompt context 應只傳 selected run/mode、`run-lock-packet/v1` ref、`final-report-index/v1` 或 archive locator ref、bug-search-packet ref、culprit-score ref、target branch/worktree 與 minimal bug summary。不得貼完整 final report/archive file/git log，除非 refs missing/stale/blocked 或需要完整 maintenance file 更新。compact context 不得擴大 locked commits、不得跳過 mode question、不得跳過 project-rules/dependency/verification/maintenance file gate。
+- 若存在 `skill-lock/v1`、`dependency-readiness/v1` 或 `resume-cursor/v1`，bugfix 只能用於快速確認 selected target 狀態；不得跳過 mode question、archive file read-back、project-rules/dependency/verification gate。hash/sourceHead/target branch 不一致時回完整 bugfix Phase 1/4 gate。
 
 ## Phase 1：列出並鎖定 run_id
 
