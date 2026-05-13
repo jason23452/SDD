@@ -15,10 +15,15 @@ for (const name of readdirSync(scriptsDir).filter((item) => item.endsWith(".js")
   const text = readFileSync(file, "utf8")
   if (name.startsWith("build-") && !text.includes("flags.check")) findings.push({ code: "BUILD_SCRIPT_NO_CHECK", file: rel(file) })
   if (name.startsWith("build-") && !text.includes("writeJson(")) findings.push({ code: "BUILD_SCRIPT_NO_WRITEJSON", file: rel(file) })
-  if (name !== "check-script-contracts.js" && text.includes(".opencode/skills") && /writeFileSync|rmSync|unlinkSync|mkdirSync/.test(text)) findings.push({ code: "SCRIPT_MAY_WRITE_SKILLS", file: rel(file) })
+  if (name.startsWith("build-") && !/Usage: .*--check/.test(text)) findings.push({ code: "BUILD_USAGE_NO_CHECK", file: rel(file) })
+  const isContractFixture = name === "check-script-contracts.js" || name === "test-checkers.js"
+  if (!isContractFixture && text.includes(".opencode/skills") && /writeFileSync|rmSync|unlinkSync|mkdirSync/.test(text)) findings.push({ code: "SCRIPT_MAY_WRITE_SKILLS", file: rel(file) })
   if (/git\s+commit|git\s+merge|git\s+reset|git\s+checkout|git\s+push/.test(text)) findings.push({ code: "SCRIPT_CONTAINS_GIT_MUTATION", file: rel(file) })
+  if (!isContractFixture && /writeFileSync|mkdirSync|rmSync|unlinkSync/.test(text) && text.includes(".worktree")) findings.push({ code: "SCRIPT_MAY_WRITE_WORKTREE", file: rel(file) })
+  if (!isContractFixture && /Start-Process|Stop-Process|Get-CimInstance|Get-NetTCPConnection/.test(text)) findings.push({ code: "SCRIPT_CONTAINS_POWERSHELL_LIFECYCLE", file: rel(file) })
   if (name.startsWith("build-") && !text.includes(".opencode/run-artifacts") && !text.includes("artifactDir(")) findings.push({ code: "BUILD_SCRIPT_OUTPUT_SCOPE_UNKNOWN", file: rel(file) })
   if (!text.includes("schemaVersion") && !text.includes("commonArtifact(") && name !== "agent-contract-check.js" && name !== "test-checkers.js" && name !== "artifact-scope-check.js") findings.push({ code: "SCRIPT_OUTPUT_SCHEMA_UNKNOWN", file: rel(file) })
+  if (name.startsWith("check-") && !text.includes("findings")) findings.push({ code: "CHECK_SCRIPT_NO_FINDINGS", file: rel(file) })
 }
 
 if (!existsSync(path.join(scriptsDir, "lib", "artifact-utils.js"))) findings.push({ code: "ARTIFACT_UTILS_MISSING", file: ".opencode/scripts/lib/artifact-utils.js" })

@@ -53,9 +53,18 @@ function writeJson(filePath, value, checkOnly = false) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8")
 }
 
+function resolveOutPath(defaultOut, flags = {}) {
+  return flags.out ? path.resolve(ROOT, flags.out) : defaultOut
+}
+
 function output(flags, text, jsonValue) {
   if (flags && flags.json) console.log(JSON.stringify(jsonValue || { status: "completed", message: text }, null, 2))
   else console.log(text)
+}
+
+function exitForStatus(status, flags = {}) {
+  const failed = ["failed", "blocked", "stale", "missing"].includes(status)
+  process.exit(failed && flags.strict ? 1 : 0)
 }
 
 function git(args, options = {}) {
@@ -128,8 +137,10 @@ module.exports = {
   readJson,
   rel,
   resolveRoot,
+  resolveOutPath,
   sha256File,
   sha256Text,
   walkFiles,
   writeJson,
+  exitForStatus,
 }

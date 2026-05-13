@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { ROOT, artifactDir, commonArtifact, parseArgs, rel, sha256File, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
+if (flags.help) printAndExitUsage("Usage: node .opencode/scripts/build-project-rules-lock.js <run_id> [--check]")
 const runId = positional[0] || "local"
 const rulesPath = path.join(ROOT, ".opencode", "project-rules.md")
 const hash = sha256File(rulesPath)

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { ROOT, artifactDir, commonArtifact, git, parseArgs, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, git, parseArgs, printAndExitUsage, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
+if (flags.help) printAndExitUsage("Usage: node .opencode/scripts/build-skill-lock.js <run_id> [--check]")
 const runId = positional[0] || "local"
 const skillsDir = path.join(ROOT, ".opencode", "skills")
 const files = walkFiles(skillsDir).filter((file) => file.endsWith("SKILL.md"))

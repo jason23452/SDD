@@ -29,8 +29,19 @@ if (ledger && Array.isArray(ledger.stages)) {
   const portOwners = new Set((portMap && portMap.ports || []).map((port) => port.classificationId || port.owner).filter(Boolean))
   for (const item of expected) {
     const id = item.wt.classificationId || item.wt.name
-    existsRef(`.opencode/run-artifacts/${runId}/context-slices/${id}.json`, "CONTEXT_SLICE_MISSING", id)
+    const contextPath = `.opencode/run-artifacts/${runId}/context-slices/${id}.json`
+    existsRef(contextPath, "CONTEXT_SLICE_MISSING", id)
+    const context = readJson(resolveRoot(contextPath))
+    if (context) {
+      if (context.branch && item.wt.branch && context.branch !== item.wt.branch) findings.push({ code: "CONTEXT_BRANCH_MISMATCH", owner: id, expected: item.wt.branch, actual: context.branch })
+      if (context.eligibleSetId && context.eligibleSetId !== item.set.eligibleSetId) findings.push({ code: "CONTEXT_ELIGIBLE_SET_MISMATCH", owner: id, expected: item.set.eligibleSetId, actual: context.eligibleSetId })
+    }
     existsAnyRef([item.wt.runnerEventPath, `.opencode/run-artifacts/${runId}/runner-events/${id}.json`], "RUNNER_EVENT_REF_MISSING", id)
+    const runner = readJson(resolveRoot(`.opencode/run-artifacts/${runId}/runner-events/${id}.json`))
+    if (runner) {
+      if (runner.branch && item.wt.branch && runner.branch !== item.wt.branch) findings.push({ code: "RUNNER_BRANCH_MISMATCH", owner: id, expected: item.wt.branch, actual: runner.branch })
+      if (runner.eligibleSetId && runner.eligibleSetId !== item.set.eligibleSetId) findings.push({ code: "RUNNER_ELIGIBLE_SET_MISMATCH", owner: id, expected: item.set.eligibleSetId, actual: runner.eligibleSetId })
+    }
     if (item.wt.branch && !item.wt.branch.startsWith(`worktree/${runId}/`)) findings.push({ code: "WORKTREE_BRANCH_NAMESPACE_INVALID", owner: id, branch: item.wt.branch })
     if (portMap && !portOwners.has(id)) findings.push({ code: "PORT_OWNER_MISSING", owner: id })
   }

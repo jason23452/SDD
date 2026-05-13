@@ -44,6 +44,19 @@ function runCase(name, command, expectedStatus) {
   }
 }
 
+function runJsonCase(name, command, expectedStatus, assertFn) {
+  try {
+    const output = execFileSync(process.execPath, command, { cwd: ROOT, encoding: "utf8" })
+    const data = JSON.parse(output)
+    const assertion = assertFn ? assertFn(data) : true
+    results.push({ name, passed: expectedStatus === 0 && assertion === true, status: 0, output: assertion === true ? output.trim() : `assertion failed: ${assertion}` })
+  } catch (error) {
+    const status = typeof error.status === "number" ? error.status : 1
+    const output = `${error.stdout || ""}${error.stderr || ""}`.trim()
+    results.push({ name, passed: status === expectedStatus, status, output })
+  }
+}
+
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true })
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8")
@@ -304,9 +317,21 @@ try {
     detailRefs: [],
     fallbackAction: "read full planner",
   })
+  writeJson(path.join(staleDir, "bad-source-ref.json"), {
+    schemaVersion: "planner-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [{ path: "missing.md", sha256: "abc123" }],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: ["missing-detail.md"],
+    fallbackAction: "read full planner",
+  })
 
   runCase("agent checker strict", [AGENT_CHECKER, "--strict"], 0)
   runCase("artifact checker valid fixtures", [ARTIFACT_CHECKER, validDir, "--strict"], 0)
+  runJsonCase("artifact checker json output", [ARTIFACT_CHECKER, validDir, "--json"], 0, (data) => data.schemaVersion ? "unexpected schemaVersion" : data.status === "passed" || `status=${data.status}`)
   runCase("artifact checker rejects alias branch", [ARTIFACT_CHECKER, invalidDir], 1)
   const planner = path.join(tempRoot, "planner.md")
   writeFileSync(planner, "# planner\n", "utf8")
@@ -374,6 +399,7 @@ try {
   runCase("build planner index dry-run", [BUILD_PLANNER_INDEX, runId, "--planner", planner, "--check"], 0)
   runCase("freshness valid fixtures", [CHECK_FRESHNESS, validDir, "--strict"], 0)
   runCase("freshness rejects blocked summary", [CHECK_FRESHNESS, staleDir, "--strict"], 1)
+  runCase("freshness gate rejects planned", [CHECK_FRESHNESS, validDir, "--strict", "--gate", "runner"], 1)
   runCase("verification matrix rejects empty", [CHECK_MATRIX, runId], 1)
   runCase("build dispatch ledger dry-run", [BUILD_DISPATCH_LEDGER, runId, "--planner", planner, "--check"], 0)
   runCase("check dispatch ledger", [CHECK_DISPATCH_LEDGER, runId], 0)
@@ -394,6 +420,20 @@ try {
     ports: [{ owner: "class-1", classificationId: "class-1" }],
   })
   runCase("artifact crossrefs", [CHECK_CROSSREFS, runId, "--strict"], 0)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "context-slices", "class-1.json"), {
+    schemaVersion: "context-slice/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner and dispatch ledger",
+    branch: `worktree/${runId}/stage-1/different`,
+    eligibleSetId: "set-1",
+  })
+  runCase("artifact crossrefs rejects branch mismatch", [CHECK_CROSSREFS, runId, "--strict"], 1)
 } finally {
   rmSync(path.join(ROOT, ".opencode", "run-artifacts", "run-test"), { recursive: true, force: true })
   rmSync(tempRoot, { recursive: true, force: true })
