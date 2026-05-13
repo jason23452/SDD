@@ -89,6 +89,7 @@ Run-specific context 顯式同步：
 - 必須建立 `<worktree>/.opencode/run-artifacts/<run_id>/`，寫入本 worktree 的 `manifest.json`、runner event 目錄、必要分類/一致性/planner 摘要副本、dispatch ledger readable copy 或 source pointer；shared ledger 仍以主流程單點寫入，不由 runner 更新。
 - Manifest 必須記錄 `copied_files[]`，每列包含 `source`、`destination`、`sha256`、`requiredFor`、`copyResult`。缺任一 required context 時，不得輸出 dispatch packet。
 - 為降低 runner token，splitter 應同步 compact context slice：只複製/產生本 worktree 需要的 classification row、readyWaveId/eligibleSetId slice、project-rules hash/digest、dependency snapshot pointer 與 detailRefs；不得要求主流程把完整 planner 或完整 Stage Graph 貼到 runner prompt。若 compact slice 缺少必要欄位或 hash 不符，runner 必須能回到完整 planner/manifest 來源。
+- 每個 `runnerDispatchPackets[]` 應包含 `contextRefs[]` 與 `contextSlice`。`contextRefs[]` 至少引用 planner、project rules lock、dispatch ledger、manifest、dependency snapshot manifest、port map 與 runner event path，並提供 hash/HEAD 與 fallbackAction；`contextSlice` 只包含本 classification 的 owner/contract/touchSet/testImpact/stage/wave/branch/ports。若任何 required ref 缺失或 hash 不符，不得輸出 dispatch packet，除非同 packet 明確標示 fallbackAction 可讀完整來源。
 
 ## Dependency Snapshot 同步規則
 
@@ -178,7 +179,8 @@ Manifest 至少包含：
 
 Runner dispatch packet 規則：
 - splitter 必須為每個建立成功的 worktree 產生一個 `runnerDispatchPackets[]` entry，供主流程直接同輪平行呼叫 `openspec-worktree-change-runner phase=execute-worktree`；主流程不得再依表格順序逐一重組後序列化。
-- 每個 packet 至少包含 `run_id`、`classification_id`、`apply_stage`、`ready_wave_id`、`execution_lane`、`execution_priority`、`parallelGroupId`、`eligibleSetId`、`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`conflictRisk`、`upstream_dependencies`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、`dispatch_ledger_path`、`runner_event_path`、`development_detail_planner_path`、`planner_path_in_worktree`、`project_rules_path`、`project_rules_path_in_worktree`、`project_rules_hash`、`run_artifacts_in_worktree`、`copied_files`、`dependency_snapshot_manifest`、`dependency_snapshot`、`bootstrap_commit`、`ports`、`fallback_authorized`、`commit_authorized`。
+- 每個 packet 至少包含 `run_id`、`classification_id`、`apply_stage`、`ready_wave_id`、`execution_lane`、`execution_priority`、`parallelGroupId`、`eligibleSetId`、`ownerCapability`、`ownedRequirements`、`excludedResponsibilities`、`touchSet`、`contractInputs`、`contractOutputs`、`testImpact`、`impactReason`、`isolationStrategy`、`conflictRisk`、`upstream_dependencies`、`worktree`、`branch`、`spec_flow_path`、`openspec_change`、`dispatch_ledger_path`、`runner_event_path`、`development_detail_planner_path`、`planner_path_in_worktree`、`project_rules_path`、`project_rules_path_in_worktree`、`project_rules_hash`、`run_artifacts_in_worktree`、`copied_files`、`dependency_snapshot_manifest`、`dependency_snapshot`、`bootstrap_commit`、`ports`、`fallback_authorized`、`commit_authorized`、`contextRefs[]`、`contextSlice`。
+- packet 不得包含完整 planner、完整 project rules、完整 Stage Graph 或完整 consistency report 文字；只能包含必要 slice 與 refs。runner 需要全文時依 refs 讀取，refs 不一致時停止或 fallback 完整解析。
 - `runner_event_path` 固定使用該 worktree 私有 artifact，例如 `<worktree>/.opencode/run-artifacts/<run_id>/runner-events/<classification_id>.json`；此檔由 runner 寫入，不能由多個 runner 共寫，也不得 stage/commit。
 - shared `dispatch-ledger.json` 只記錄 ready wave、batch、dispatch started 與後續 barrier 彙整狀態；splitter 不得要求 runner 直接寫 shared ledger。
 - splitter 輸出的每個 `runnerDispatchPackets[]` 必須能與 dispatch ledger 的 `expectedWorktrees[]` 以 `classificationId + readyWaveId + eligibleSetId + worktreePath + runnerEventPath` 精準對齊；不一致時不得回傳 ready status，也不得交主流程 dispatch。

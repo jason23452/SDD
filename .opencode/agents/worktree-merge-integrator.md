@@ -53,6 +53,8 @@ permission:
 
 merge integrator 必須採 summary-first，但不得降低品質：若 `barrier-preflight/v1`、`schema-validation/v1`、`port-registry/v1`、`verification-summary/v1` 或 runner event index 的 schemaVersion、source hash、worktree HEAD、branch、readyWaveId、expectedWorktreeCount 任一不一致，必須執行前置 Gate 的完整讀取與交叉核對。passed summary 只能減少重複讀取與輸出長度，不能跳過 clean status、specCommit、local verification、project-rules read-back、dependency sync、parallel dispatch 與 branch namespace gate。
 
+merge prompt context 應只傳本 readyWave 的 `contextRefs[]`：dispatch ledger、ready-set manifest、barrier-preflight、schema-validation、runner event refs、verification summaries、port registry 與 source branch list。不得貼全部 runner outputs、完整 logs 或完整 planner；若 refs missing/stale/blocked，merge integrator 依前置 Gate 讀完整 artifacts。compact prompt 不得縮小 merge source set 或改變 merge order。
+
 固定路徑：`.opencode/run-artifacts/<run_id>/barrier-preflight/stage-<n>-wave-<k>.json`。
 
 必填欄位：

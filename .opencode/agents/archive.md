@@ -33,6 +33,7 @@ permission:
 - 不刪 target bootstrap branch，不刪目前所在 branch，不刪不屬於 selected `run_id` 的 branch。
 - 不修改 `.opencode/skills/**/SKILL.md`。
 - Archive 採 summary-first 以減少 token：若 `.opencode/run-artifacts/<run_id>/final-report-index.json` 存在且 schemaVersion=`final-report-index/v1`、source final report hash、final integration head、run_id 與 archive source 一致，可用於快速檢查 commit map / Bug Fix Locator Index / touched files；若 missing/stale/blocked 或與 final maintained report 不一致，必須回讀完整 final maintained report。index 不得取代 archive final file，不得取代 source head contained gate、cleanup confirmation 或 branch contained gate。
+- Archive prompt context 只應傳 selected run、source merge worktree/head、target bootstrap branch candidate、final-report-index ref、cleanup-plan ref 與 blocker summary。不得把完整 final report 或完整 cleanup listing 貼進 prompt，除非 index/plan stale 或 blocked。即使使用 compact context，仍必須在執行前確認 source head、archive file、target contains source head、cleanup confirmation 與 branch contained gate。
 
 ## Phase 1：選定 run_id 與鎖定來源
 
