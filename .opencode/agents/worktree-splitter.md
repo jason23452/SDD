@@ -88,7 +88,7 @@ Run-specific context 顯式同步：
 - 必須複製 development-detail-planner 到 `<worktree>/.opencode/local-docs/development-detail-planner/<same filename>`。
 - 必須建立 `<worktree>/.opencode/run-artifacts/<run_id>/`，寫入本 worktree 的 `manifest.json`、runner event 目錄、必要分類/一致性/planner 摘要副本、dispatch ledger readable copy 或 source pointer；shared ledger 仍以主流程單點寫入，不由 runner 更新。
 - Manifest 必須記錄 `copied_files[]`，每列包含 `source`、`destination`、`sha256`、`requiredFor`、`copyResult`。缺任一 required context 時，不得輸出 dispatch packet。
-- 為降低 runner token，splitter 應同步 compact context slice：只複製/產生本 worktree 需要的 classification row、readyWaveId/eligibleSetId slice、project-rules hash/digest、dependency snapshot pointer 與 detailRefs；不得要求主流程把完整 planner 或完整 Stage Graph 貼到 runner prompt。若 compact slice 缺少必要欄位或 hash 不符，runner 必須能回到完整 planner/manifest 來源。
+- 為降低 runner token，splitter 應同步 compact context slice：只複製/產生本 worktree 需要的 classification row、readyWaveId/eligibleSetId slice、project-rules hash/digest、dependency snapshot pointer、`artifactRefs[]` 與必要 `detailRefs[]`；不得要求主流程把完整 planner 或完整 Stage Graph 貼到 runner prompt。若 compact slice 缺少必要欄位或 hash 不符，runner 必須能回到完整 planner/manifest 來源。
 - 每個 `runnerDispatchPackets[]` 應包含 `contextRefs[]` 與 `contextSlice`。`contextRefs[]` 至少引用 planner、project rules lock、dispatch ledger、manifest、dependency snapshot manifest、port map 與 runner event path，並提供 hash/HEAD 與 fallbackAction；`contextSlice` 只包含本 classification 的 owner/contract/touchSet/testImpact/stage/wave/branch/ports。若任何 required ref 缺失或 hash 不符，不得輸出 dispatch packet，除非同 packet 明確標示 fallbackAction 可讀完整來源。
 
 ## Dependency Snapshot 同步規則

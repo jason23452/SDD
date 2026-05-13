@@ -109,7 +109,10 @@ permission:
 ### Bug Search Packet JSON
 - schemaVersion：`bug-search-packet/v1`
 - suggested path：`.opencode/run-artifacts/<run_id>/bugfix/bug-search-packet.json`（由 `worktree-bug-fix` 寫入，triage agent 不寫檔）
-- source：Mode Selected Run Change Lock Packet + 使用者 bug 輸入
+- run_id、createdAt/updatedAt、status、blockers[]
+- sourceRefs[]：Mode Selected Run Change Lock Packet、使用者 bug 輸入、可用 reproduction/test/log refs
+- sourceHashes 或 target branch HEAD
+- detailRefs[]、fallbackAction：bug 資訊不足時回到完整 triage question；packet stale 時重建 triage
 - readyForFix：true/false
 - keywords/fileHints/apiHints/testHints/errorText/expectedActualKeywords：...
 

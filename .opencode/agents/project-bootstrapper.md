@@ -73,7 +73,7 @@ permission:
 - 任一 smoke port 未釋放、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時，不得宣稱 bootstrap 完成；必須回報 blocker 與可確認的 port/PID/command line。
 - 回報 URL、port、命令、驗證結果、browser smoke 是否由 Playwright MCP 執行、或 skip/blocker 原因。
 - 驗證結果可同時寫入 `verification-summary/v1`，完整 log 以 logRef 保存；回報只列命令、狀態、exit code、duration、skip/blocker 與 logRef。失敗或 blocked 時不得只回摘要，必須保留足以診斷的錯誤來源。
-- 輸出預設 compact：`回主流程續行` 使用 `handoff-next-step/v1` 形式，列 run_id、bootstrap commit、dependency snapshot manifest、project-rules-lock/planner-index refs、blocker 與 nextAction；不得重貼完整 downstream 長敘述，除非授權缺失或 blocked 需要診斷。
+- 輸出預設 compact：`回主流程續行` 使用 `handoff-next-step/v1` 形式，列 schemaVersion、run_id、status、blockers[]、bootstrap commit、dependency snapshot manifest、project-rules-lock/planner-index refs、sourceHashes、detailRefs[]、fallbackAction 與 nextAction；不得重貼完整 downstream 長敘述，除非授權缺失或 blocked 需要診斷。
 - README 保留既有內容，只補技術棧、安裝、啟動、測試/build、目錄、專案規則、驗證、風險；不重排成新模板。
 - 完成後必須檢查 `git status` 與 `git diff`，只 stage bootstrap 交付物並建立中文 bootstrap commit。建議 subject：`設定：建立 frontend/backend 最小啟動基底`、`設定：建立 frontend 最小啟動基底` 或 `設定：建立 backend 最小啟動基底`。Commit body 必須包含 run_id、bootstrap branch、範圍、install/sync 命令、驗證命令與結果、dependency snapshot manifest path、downstream authorization source、downstream baseline 用途。
 - 失敗先修；仍失敗只回報未完成、原因、風險、下一步。
@@ -121,5 +121,5 @@ permission:
 - commit 授權狀態：<原樣回填主流程傳入值；若補問則寫使用者回答；若使用者明確要求不要 commit，寫 no commit；不得自行補「完整 downstream 已授權中文細分 commit」>
 - 交回資料：run_id、bootstrap_branch_name、原始 branch、變更檔案、README 摘要、dependency snapshot manifest、啟動命令、URL/port、驗證命令與結果、Playwright MCP smoke/skip/blocker、未完成項目、風險
 - 續行指令：主流程確認 bootstrap commit 與 dependency snapshot manifest，read-back project rules 並產生/更新 development-detail-planner 後，依 Stage Execution Graph 計算目前 stage ready wave，同時建立 worktree；splitter 在 runner dispatch 前優先複製 bootstrap/source dependency snapshot，只有 snapshot 缺失、hash 不一致、複製失敗、target readiness check 失敗或 worktree 新增/更新套件時才 install/sync；平行啟動 runner 在每個 worktree 內連續完成 OpenSpec propose/spec、apply/fallback、局部測試與最小中文 commit；同一 stage ready wave 內所有可派 worktree 由主流程同一輪平行呼叫多個 runner subagent，dispatch ledger 追蹤 ready wave、batch、錯誤與重試；所有 worktree 局部測試與 commit 完成後一次進入 merge integration，merge 後跑整合測試，最後跑整體測試；只有使用者主動明確限制為 bootstrap only 時，才可停止於此
-- handoff-next-step/v1：nextAction=`planner->splitter->parallel-runner->merge`；contextRefs=`dependency-snapshot,dependency-readiness,project-rules-lock,skill-lock,planner-index,verification-summary`；若任一 ref missing/stale，主流程回完整交接規則。
+- handoff-next-step/v1：schemaVersion=`handoff-next-step/v1`；run_id；status=passed/blocked；nextAction=`planner->splitter->parallel-runner->merge`；sourceRefs=`bootstrap commit,dependency snapshot manifest,project-rules-lock,skill-lock,dependency-readiness,planner-index,verification-summary`；sourceHashes 或 HEAD；blockers[]；detailRefs[]；fallbackAction=`read full bootstrap output and project rules`。此 handoff 只加速主流程續行；missing/stale/blocked 時主流程回完整交接規則，不得取代 bootstrap commit、dependency snapshot、project rules read-back 或 verification gate。
 ```
