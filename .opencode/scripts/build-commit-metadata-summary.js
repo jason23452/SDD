@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, git, parseArgs, printAndExitUsage, rel, sha256Text, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, git, output, parseArgs, printAndExitUsage, rel, sha256Text, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-commit-metadata-summary.js <run_id> <classification_id> [--check]")
@@ -17,4 +17,4 @@ const summary = commonArtifact("commit-metadata-summary/v1", runId, "passed", "r
   commitCount: commits.length,
 })
 writeJson(out, summary, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} commits=${commits.length}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} commits=${commits.length}`, { schemaVersion: "script-result/v1", status: summary.status, path: rel(out), artifact: summary })

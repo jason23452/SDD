@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { readFileSync } = require("node:fs")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-verification-matrix.js <run_id> --planner <path> [--check]")
@@ -31,4 +31,4 @@ const matrix = commonArtifact("verification-matrix/v1", runId, blockers.length ?
   finalOnly,
 })
 writeJson(out, matrix, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${matrix.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${matrix.status}`, { schemaVersion: "script-result/v1", status: matrix.status, path: rel(out), artifact: matrix })

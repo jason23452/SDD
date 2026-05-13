@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, output, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id> [--wave <id>] [--eligible-set <id>] [--branch <branch>] [--check]")
@@ -32,4 +32,4 @@ const event = {
   error: null,
 }
 writeJson(out, event, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${event.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${event.status}`, { schemaVersion: "script-result/v1", status: event.status, path: rel(out), artifact: event })

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-openspec-template.js <run_id> <classification_id> [--check]")
@@ -20,4 +20,4 @@ const template = commonArtifact("openspec-template-contract/v1", runId, "planned
   },
 })
 writeJson(out, template, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} classification=${classificationId}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} classification=${classificationId}`, { schemaVersion: "script-result/v1", status: template.status, path: rel(out), artifact: template })

@@ -54,6 +54,7 @@ node .opencode/scripts/build-final-report-index.js <run_id> --report <path>
 ```
 
 Every builder accepts `--check` to print the intended output without writing files.
+Most builders also support `--json` through the shared script result format so agents can parse `schemaVersion`, `status`, `path`, and `artifact` without reading human text.
 
 ## Scoped checks
 
@@ -79,5 +80,7 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 `check-artifact-freshness.js --strict` fails blocked/stale/failed/missing summaries, stale source hashes, HEAD mismatches, missing `requiredFor` on source refs, missing detail refs, and missing fallback actions on summary artifacts. Add `--gate runner|merge|final` when a gate needs usable summaries; planned artifacts fail in gate mode. `check-verification-matrix.js` fails empty matrices so runners cannot treat an empty matrix as "no verification needed".
 
 `check-artifact-crossrefs.js` validates cross-artifact consistency between dispatch ledger, context slices, runner event refs, branch/eligibleSet alignment, port owners, and run-level package/experience/verification artifacts. `check-script-contracts.js` validates script safety contracts such as `--check` support for builders, run-artifact output scope, no git mutation commands, no PowerShell lifecycle commands, no `.worktree` writes, and no skill writes.
+
+`check-dispatch-ledger-readiness.js` validates nested stage/wave/eligibleSet/worktree fields, duplicate classifications/branches, runner event path presence, and branch namespace. `check-runner-event-completeness.js` validates completed runner events have `specCommit`, local verification evidence, and no error; failed/blocked runner events must include an error object.
 
 `build-planner-index.js` stores section ranges, section hashes, keyword index, and package/experience/verification section refs. `build-final-report-index.js` stores file-to-commit, classification-to-commit, and keyword-to-commit maps for lower-token bugfix lookup.

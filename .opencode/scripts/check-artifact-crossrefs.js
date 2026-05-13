@@ -11,6 +11,7 @@ const root = artifactDir(runId)
 const findings = []
 const ledger = readJson(path.join(root, "dispatch-ledger.json"))
 const portMap = readJson(path.join(root, "port-map.json")) || readJson(path.join(root, "port-registry.json"))
+const commitSummaryDir = path.join(root, "commit-metadata-summary")
 
 function existsRef(ref, code, owner) {
   if (!ref) return
@@ -41,6 +42,13 @@ if (ledger && Array.isArray(ledger.stages)) {
     if (runner) {
       if (runner.branch && item.wt.branch && runner.branch !== item.wt.branch) findings.push({ code: "RUNNER_BRANCH_MISMATCH", owner: id, expected: item.wt.branch, actual: runner.branch })
       if (runner.eligibleSetId && runner.eligibleSetId !== item.set.eligibleSetId) findings.push({ code: "RUNNER_ELIGIBLE_SET_MISMATCH", owner: id, expected: item.set.eligibleSetId, actual: runner.eligibleSetId })
+      if (runner.status === "completed" && (!runner.commits || !runner.commits.specCommit)) findings.push({ code: "RUNNER_SPEC_COMMIT_MISSING", owner: id })
+      const summary = readJson(path.join(commitSummaryDir, `${id}.json`))
+      if (runner.status === "completed" && summary) {
+        const summaryCommits = new Set((summary.commits || []).map((commit) => commit.hash).filter(Boolean))
+        const runnerCommits = [runner.commits && runner.commits.specCommit, ...((runner.commits && runner.commits.implementationCommits) || []), ...((runner.commits && runner.commits.testCommits) || []), ...((runner.commits && runner.commits.fixCommits) || []), ...((runner.commits && runner.commits.documentationCommits) || [])].filter(Boolean)
+        for (const commit of runnerCommits) if (!summaryCommits.has(commit)) findings.push({ code: "COMMIT_SUMMARY_MISSING_RUNNER_COMMIT", owner: id, commit })
+      }
     }
     if (item.wt.branch && !item.wt.branch.startsWith(`worktree/${runId}/`)) findings.push({ code: "WORKTREE_BRANCH_NAMESPACE_INVALID", owner: id, branch: item.wt.branch })
     if (portMap && !portOwners.has(id)) findings.push({ code: "PORT_OWNER_MISSING", owner: id })

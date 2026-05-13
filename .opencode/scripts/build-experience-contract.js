@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync, readFileSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-experience-contract.js <run_id> [--planner <path>] [--check]")
@@ -38,4 +38,4 @@ const contract = commonArtifact("experience-contract/v1", runId, blockers.length
   visualVerification: "required when frontend/fullstack active; skipped/blocked must state reason",
 })
 writeJson(out, contract, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${contract.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${contract.status}`, { schemaVersion: "script-result/v1", status: contract.status, path: rel(out), artifact: contract })

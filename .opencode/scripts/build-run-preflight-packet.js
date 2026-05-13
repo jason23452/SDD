@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-run-preflight-packet.js <run_id> --planner <path> [--check]")
@@ -18,4 +18,4 @@ const packet = commonArtifact("run-preflight-packet/v1", runId, planner && sha25
   contextSlicesDir: `.opencode/run-artifacts/${runId}/context-slices`,
 })
 writeJson(out, packet, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${packet.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${packet.status}`, { schemaVersion: "script-result/v1", status: packet.status, path: rel(out), artifact: packet })

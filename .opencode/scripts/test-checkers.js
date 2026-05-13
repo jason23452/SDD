@@ -150,7 +150,7 @@ function validRunnerEvent(runId) {
       fixCommits: [],
       documentationCommits: [],
     },
-    verification: { local: [] },
+    verification: { local: [{ command: "test", status: "passed" }] },
     error: null,
   }
 }
@@ -385,6 +385,7 @@ try {
     finalOnly: [],
   })
   runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
+  runJsonCase("build preflight json dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check", "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.artifact && data.artifact.schemaVersion === "run-preflight-packet/v1" || "invalid script-result")
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
   runCase("build snapshot dry-run", [BUILD_SNAPSHOT, runId, "--stage", "1", "--wave", "wave-1", "--check"], 0)
@@ -405,6 +406,13 @@ try {
   runCase("check dispatch ledger", [CHECK_DISPATCH_LEDGER, runId], 0)
   runCase("build runner event dry-run", [BUILD_RUNNER_EVENT, runId, "class-1", "--check"], 0)
   runCase("check runner event", [CHECK_RUNNER_EVENT, runId, "class-1"], 0)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "bad-completed.json"), {
+    ...validRunnerEvent(runId),
+    classificationId: "bad-completed",
+    commits: { specCommit: null, implementationCommits: [], testCommits: [], fixCommits: [], documentationCommits: [] },
+    verification: { local: [] },
+  })
+  runCase("runner event rejects completed without spec", [CHECK_RUNNER_EVENT, runId, "bad-completed"], 1)
   runCase("build final report index dry-run", [BUILD_FINAL_INDEX, runId, "--check"], 0)
   runCase("script contracts", [CHECK_SCRIPT_CONTRACTS], 0)
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "port-map.json"), {
@@ -434,6 +442,11 @@ try {
     eligibleSetId: "set-1",
   })
   runCase("artifact crossrefs rejects branch mismatch", [CHECK_CROSSREFS, runId, "--strict"], 1)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), {
+    ...validDispatchLedger(runId),
+    stages: [{ ...validDispatchLedger(runId).stages[0], eligibleSets: [{ ...validDispatchLedger(runId).stages[0].eligibleSets[0], expectedWorktrees: [validDispatchLedger(runId).stages[0].eligibleSets[0].expectedWorktrees[0], { ...validDispatchLedger(runId).stages[0].eligibleSets[0].expectedWorktrees[0], name: "dup" }] }] }],
+  })
+  runCase("dispatch ledger rejects duplicate branch", [CHECK_DISPATCH_LEDGER, runId], 1)
 } finally {
   rmSync(path.join(ROOT, ".opencode", "run-artifacts", "run-test"), { recursive: true, force: true })
   rmSync(tempRoot, { recursive: true, force: true })

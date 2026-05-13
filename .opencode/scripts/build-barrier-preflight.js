@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync } = require("node:fs")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, readJson, rel, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, readJson, rel, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-barrier-preflight.js <run_id> --stage <n> --wave <id> [--check]")
@@ -34,4 +34,4 @@ const preflight = commonArtifact("barrier-preflight/v1", runId, blockers.length 
   runnerEvents,
 })
 writeJson(out, preflight, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${preflight.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${preflight.status}`, { schemaVersion: "script-result/v1", status: preflight.status, path: rel(out), artifact: preflight })

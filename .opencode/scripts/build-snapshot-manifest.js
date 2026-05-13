@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { ROOT, artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-snapshot-manifest.js <run_id> --stage <n> --wave <id> [--check]")
@@ -31,4 +31,4 @@ const manifest = commonArtifact("snapshot-manifest/v1", runId, "passed", "rebuil
   entries,
 })
 writeJson(out, manifest, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} files=${entries.length}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} files=${entries.length}`, { schemaVersion: "script-result/v1", status: manifest.status, path: rel(out), artifact: manifest })

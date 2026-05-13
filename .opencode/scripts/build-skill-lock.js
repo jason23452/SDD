@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { ROOT, artifactDir, commonArtifact, git, parseArgs, printAndExitUsage, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, git, output, parseArgs, printAndExitUsage, rel, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help) printAndExitUsage("Usage: node .opencode/scripts/build-skill-lock.js <run_id> [--check]")
@@ -20,4 +20,4 @@ const lock = commonArtifact("skill-lock/v1", runId, blockers.length ? "blocked" 
   diffFiles: `${diff}\n${cachedDiff}`.trim().split(/\r?\n/).filter(Boolean),
 })
 writeJson(out, lock, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${lock.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${lock.status}`, { schemaVersion: "script-result/v1", status: lock.status, path: rel(out), artifact: lock })

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync, readFileSync } = require("node:fs")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, walkFiles, readJson, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, walkFiles, readJson, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-final-report-index.js <run_id> [--report <path>] [--check]")
@@ -39,4 +39,4 @@ const index = commonArtifact("final-report-index/v1", runId, sha256File(report) 
   verificationRefs: [],
 })
 writeJson(out, index, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} commits=${commits.length} status=${index.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} commits=${commits.length} status=${index.status}`, { schemaVersion: "script-result/v1", status: index.status, path: rel(out), artifact: index })

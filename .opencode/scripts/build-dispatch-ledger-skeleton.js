@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, head, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, head, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-dispatch-ledger-skeleton.js <run_id> --planner <path> [--stage <n>] [--check]")
@@ -22,4 +22,4 @@ const ledger = {
   stages: [{ stage, baseline: head(), baselineSource: "bootstrap", readyWaves: [], readyEligibleSetIds: [], status: "planned", eligibleSets: [] }],
 }
 writeJson(out, ledger, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} stage=${stage}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} stage=${stage}`, { schemaVersion: "script-result/v1", status: "planned", path: rel(out), artifact: ledger })

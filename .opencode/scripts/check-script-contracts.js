@@ -14,6 +14,7 @@ for (const name of readdirSync(scriptsDir).filter((item) => item.endsWith(".js")
   const file = path.join(scriptsDir, name)
   const text = readFileSync(file, "utf8")
   if (name.startsWith("build-") && !text.includes("flags.check")) findings.push({ code: "BUILD_SCRIPT_NO_CHECK", file: rel(file) })
+  if (name.startsWith("build-") && !text.includes("flags.json") && !text.includes("output(")) findings.push({ code: "BUILD_SCRIPT_NO_JSON_OUTPUT", file: rel(file) })
   if (name.startsWith("build-") && !text.includes("writeJson(")) findings.push({ code: "BUILD_SCRIPT_NO_WRITEJSON", file: rel(file) })
   if (name.startsWith("build-") && !/Usage: .*--check/.test(text)) findings.push({ code: "BUILD_USAGE_NO_CHECK", file: rel(file) })
   const isContractFixture = name === "check-script-contracts.js" || name === "test-checkers.js"

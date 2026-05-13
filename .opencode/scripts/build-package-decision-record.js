@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync, readFileSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-package-decision-record.js <run_id> [--planner <path>] [--check]")
@@ -46,4 +46,4 @@ const record = commonArtifact("package-decision-record/v1", runId, blockers.leng
   policy: "runner must not add unconfirmed packages; report PACKAGE_DECISION_REQUIRED when a new package is needed",
 })
 writeJson(out, record, Boolean(flags.check))
-console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${record.status}`)
+output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${record.status}`, { schemaVersion: "script-result/v1", status: record.status, path: rel(out), artifact: record })

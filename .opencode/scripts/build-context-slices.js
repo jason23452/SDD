@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-context-slices.js <run_id> --ready-wave <id> [--check]")
@@ -34,7 +34,7 @@ if (expected.length === 0) {
     eligibleSetId: null,
   })
   writeJson(out, slice, Boolean(flags.check))
-  console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`)
+  output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`, { schemaVersion: "script-result/v1", status: slice.status, path: rel(out), artifact: slice })
   process.exit(0)
 }
 for (const item of expected) {
@@ -60,5 +60,5 @@ for (const item of expected) {
     verificationMatrixRef: verificationMatrix ? `.opencode/run-artifacts/${runId}/verification-matrix.json` : null,
   })
   writeJson(out, slice, Boolean(flags.check))
-  console.log(`${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`)
+  output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`, { schemaVersion: "script-result/v1", status: slice.status, path: rel(out), artifact: slice })
 }
