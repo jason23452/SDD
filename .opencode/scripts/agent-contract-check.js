@@ -139,28 +139,36 @@ function checkAgentText(agent) {
     }
   })
 
-  const hasAliasBlocker =
-    agent.text.includes("WORKTREE_BRANCH_NAMESPACE_INVALID") ||
-    agent.text.includes("不一致") ||
-    agent.text.includes("不通過")
+  checkAliasMentions(agent)
+}
 
-  if (agent.text.includes("work/<run_id>") && !hasAliasBlocker) {
+function checkAliasMentions(agent) {
+  const lines = agent.text.split(/\r?\n/)
+  lines.forEach((line, index) => {
+    const mentionsWorkAlias = line.includes("work/<run_id>")
+    const mentionsWorktreesAlias = line.includes("worktrees/<run_id>")
+    if (!mentionsWorkAlias && !mentionsWorktreesAlias) return
+
+    const start = Math.max(0, index - 2)
+    const end = Math.min(lines.length, index + 3)
+    const nearby = lines.slice(start, end).join("\n")
+    const hasNearbyBlocker =
+      nearby.includes("WORKTREE_BRANCH_NAMESPACE_INVALID") ||
+      nearby.includes("不一致") ||
+      nearby.includes("不通過") ||
+      nearby.includes("停止") ||
+      nearby.includes("不得")
+
+    if (hasNearbyBlocker) return
+
     addFinding(
       "warning",
-      "ALIAS_WITHOUT_BLOCKER",
+      mentionsWorkAlias ? "ALIAS_WITHOUT_NEARBY_BLOCKER" : "ALIASES_WITHOUT_NEARBY_BLOCKER",
       agent.rel,
-      "Mentions work/<run_id> alias without WORKTREE_BRANCH_NAMESPACE_INVALID in the same file.",
+      "Alias namespace mention should have a nearby blocker/invalid instruction.",
+      index + 1,
     )
-  }
-
-  if (agent.text.includes("worktrees/<run_id>") && !hasAliasBlocker) {
-    addFinding(
-      "warning",
-      "ALIASES_WITHOUT_BLOCKER",
-      agent.rel,
-      "Mentions worktrees/<run_id> alias without WORKTREE_BRANCH_NAMESPACE_INVALID in the same file.",
-    )
-  }
+  })
 }
 
 function printSummary() {

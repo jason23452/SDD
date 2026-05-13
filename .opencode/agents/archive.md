@@ -97,7 +97,7 @@ permission:
    - command line 或 module path 指向 `.worktree/<run_id>/` 的 `node`、`python`、`uvicorn`、`vite`、`npm`、`pnpm`、`Code`、language server 或 shell process。
    - Windows 上特別檢查 loaded module 是否指向 `.worktree/<run_id>/.../node_modules/@tailwindcss/oxide-*/tailwindcss-oxide*.node`，因 VS Code / CSS tooling 可能載入 native module 並阻止刪除。
    - 若偵測到 process/file-lock，必須把 PID、process name 與 matched path/command line 加入清理確認清單；未列出或無法判定時，停止回報 `CLEANUP_PROCESS_LOCKS_UNLISTED`。
-   - 將檢查結果保存為 `.opencode/run-artifacts/<run_id>/cleanup-preflight-locks.json`，schemaVersion=`cleanup-locks/v1`，內容只包含 selected run path 的 matched process、matched module/path、requiresUserConfirmationToStop、scanTimestamp 與 blockers。此檔只加速 cleanup confirmation，不取代使用者確認與 path 精準比對。
+   - 將檢查結果保存為 `.opencode/run-artifacts/<run_id>/cleanup-preflight-locks.json`，schemaVersion=`cleanup-locks/v1`，必須包含 `run_id`、`createdAt/updatedAt`、`sourceRefs[]`、`sourceHashes` 或 cleanup target HEAD、`status`、`blockers[]`、`detailRefs[]`、`fallbackAction`，並只在 detail 內保存 selected run path 的 matched process、matched module/path、requiresUserConfirmationToStop 與 scanTimestamp。此檔只加速 cleanup confirmation，不取代使用者確認與 path 精準比對。
    - 可另寫 `.opencode/run-artifacts/<run_id>/cleanup-plan.json`，schemaVersion=`cleanup-plan/v1`，保存完整 cleanup candidate list、contained gate refs、residual refs 與 confirmation text hash；final output 只需列摘要。若 plan missing/stale/blocked 或 source_head/target branch 不一致，必須重新產生完整清理清單。
 3. 顯示將保留的項目：
    - target bootstrap branch。
