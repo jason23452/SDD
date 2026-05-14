@@ -81,8 +81,7 @@ permission:
 
 ## Stack 規則
 
-- Frontend 預設 Vite + React + TypeScript SPA，除非已確認其他 stack；遵守 frontend skill 與 `.opencode/project-rules.md`；需 install、build、可用 typecheck/test。新專案若尚無既有規則，可用 active skill-backed frontend local test fallback 建立最小可測基底；但 downstream runner/merge 仍必須優先依 active skills，再由 project-rules 承接既有專案入口重新判斷。browser smoke framework 由 active frontend skill 與既有專案入口決定。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature 或 API 串接。
-- Backend 預設 FastAPI + uv，除非已確認其他 stack；遵守 backend skill 與 `.opencode/project-rules.md`；新專案至少有 `app/main.py`、`app = FastAPI()`、health、dev/prod-like 命令。需 sync 與由 active backend skill 決定的正式 backend test framework；`/health`、`/docs`、import app 或 startup sanity 必須寫成正式 backend 測試或 fixture，不用 ad-hoc Python/PowerShell smoke。不建需求 schema/migration/auth/service/repository/業務流程；若規則要求 DB/Redis/Compose，只建基礎設定並註明尚無需求 schema。
+- 新專案 scaffold、最小啟動入口、驗證入口與 browser smoke framework 由 active skills 與既有專案入口共同決定；bootstrapper 不在 agent 內重述新的框架或驗證模型預設。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature、正式業務 schema/migration/auth/service/repository 流程；若規則要求 DB/Redis/Compose，只建基礎設定並註明尚無需求 schema。
 - 同時建立時，定義啟動順序、API base URL、CORS/session/cookie/token 邊界、環境變數與錯誤格式。
 - README 只摘錄/引用 `.opencode/project-rules.md`；新舊規則衝突以最新明確規則覆蓋並記錄；不改 skill 原文。
 - 建立新專案時必須建立或更新對應 ignore 規則，至少排除 dependency/build/cache/test artifacts 與 runtime registry，例如 `node_modules/`、`.venv/`、`dist/`、`test-results/`、`.pytest_cache/`、`.ruff_cache/`、`__pycache__/`、`.opencode/run/`；不得讓 generated artifacts 成為待 commit 檔案。

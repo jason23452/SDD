@@ -116,7 +116,7 @@ const artifact = commonArtifact(
   "skill-driven-verification-contract/v1",
   runId,
   blockers.length ? "blocked" : "planned",
-  "read active skill selection contract, project-rules lock, skill-lock, active skill files, and optional planner verification section",
+  "read active skill selection contract, project-rules lock, skill-lock, and active skill files",
   {
     blockers,
     sourceRefs: [
@@ -137,7 +137,7 @@ const artifact = commonArtifact(
     activeSkillSelectionRef: activeSkillSelection ? rel(activeSkillSelectionPath) : null,
     projectRulesLockRef: projectRulesLock ? rel(projectRulesLockPath) : null,
     skillLockRef: skillLock ? rel(skillLockPath) : null,
-    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. Active skill selection must come from active-skill-selection-contract, and this contract is blocked when active-skill-selection, skill-lock, or project-rules-lock is missing/blocked. Planner verification sections are supplemental and do not override skill-defined verification strategy.",
+    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. Active skill selection must come from active-skill-selection-contract, and this contract is blocked when active-skill-selection, skill-lock, or project-rules-lock is missing/blocked. Planner verification sections are trace-only and do not participate in deriving verification strategy.",
     verificationSections,
     activeSkillNames,
     extractedSkillSections,

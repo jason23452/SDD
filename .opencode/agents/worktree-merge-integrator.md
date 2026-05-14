@@ -225,23 +225,17 @@ final report index 可用 `node .opencode/scripts/build-final-report-index.js <r
 
 ## 整合驗證
 
-整合後必須依 README、project rules、OpenSpec tasks 與已確認驗證門檻跑最小必要驗證。
+整合後必須依 README、project rules、OpenSpec tasks、`active-skill-selection-contract`、`skill-driven-verification-contract` 與 `verification-matrix` 跑最小必要驗證。
 
-整合驗證前必須先產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。frontend local test、backend Python/backend test、browser/E2E framework 都必須由 active skill 與既有專案入口共同決定；缺入口但來源 worktree 宣稱已完成對應功能，視為 blocker。
+整合驗證前必須先讀取單點測試矩陣與 `skill-driven-verification-contract`，列出本 stage/final 需要的 checks、入口檔、命令、timeout、skip/blocker 原因。缺入口但來源 worktree 宣稱已完成對應功能，視為 blocker。
 
-所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。merge integrator 不得自行硬選前端、backend 或 browser 測試工具，必須依測試矩陣、active skills 與既有專案執行；Python/backend import app、health、startup sanity、API smoke 必須寫成 active backend skill 指定的正式 backend 測試或 fixture。逾時時必須回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或宣稱完成。
+所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。merge integrator 不得自行硬選前端、backend 或 browser 測試工具，必須依測試矩陣與 `skill-driven-verification-contract` 執行；Python/backend import app、health、startup sanity、API smoke 必須寫成 active backend skill 指定的正式 backend 驗證或 fixture。逾時時必須回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或宣稱完成。
 
 整合驗證前必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
 
 整合驗證可寫入 `verification-summary/v1`，完整 log 以 logRef 保存；輸出與 final report 引用摘要即可。若驗證失敗、逾時、blocked 或 summary 與命令結果不一致，必須回到原始命令輸出與 logRef，不得把摘要當通過證據。
 
-常見驗證：
-- frontend install/typecheck/build/local tests（依 active frontend skill 與既有專案入口）。
-- backend sync/backend tests/migration/DB config；Python/backend 驗證由 active backend skill 與既有 backend test framework 決定，不用 ad-hoc Python 指令。
-- Docker Compose config 或 DB 啟動（若需求要求）。
-- fullstack/E2E smoke；browser framework 由 active frontend skill 與既有專案入口決定。
-- fullstack contract 驗證：確認 frontend API service、form validation、server error mapping、auth/session 狀態與 backend response/error schema 一致。
-- Experience Contract 驗證：frontend/fullstack 時確認主要 route 或流程在 mobile/desktop、loading/empty/error/success/disabled、focus-visible/accessibility 與視覺一致性上未違反 active skill；未能驗證時標 skipped/blocked。
+驗證內容與命令以 `verification-matrix` 與 `skill-driven-verification-contract` 為準；本 agent 不再自行定義 frontend/backend/browser 驗證分類，只負責執行 contract 列出的 stage integration 與 final-only checks，並在 blocked/stale 時回到完整來源。
 
 Verification matrix policy：merge integrator 必須優先讀 `verification-matrix/v1` 決定 stage integration checks 與 final-only checks；不得重跑 runner-local checks，除非 runner summary stale/failed、source hash 不符或 integration failure 需要診斷。final 階段才執行 matrix 中標示為 final-only 的全量驗證。
 

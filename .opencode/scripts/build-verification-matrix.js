@@ -34,12 +34,12 @@ const matrix = commonArtifact(
   "verification-matrix/v1",
   runId,
   blockers.length ? "blocked" : "planned",
-  "read skill-driven verification contract or full planner verification section",
+  "read skill-driven verification contract",
   {
     blockers,
     sourceRefs: [
-      ...(planner ? [{ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "verification matrix context", fallbackAction: "read full planner" }] : []),
-      ...(plannerIndex ? [{ kind: "planner-index", path: rel(plannerIndexPath), sha256: sha256File(plannerIndexPath), requiredFor: "verification matrix context", fallbackAction: "read planner index" }] : []),
+      ...(planner ? [{ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "verification matrix context", fallbackAction: "read full planner for contextual trace only" }] : []),
+      ...(plannerIndex ? [{ kind: "planner-index", path: rel(plannerIndexPath), sha256: sha256File(plannerIndexPath), requiredFor: "verification matrix context", fallbackAction: "read planner index for contextual trace only" }] : []),
       ...(verificationContract ? [{ kind: "skill-driven-verification-contract", path: rel(verificationContractPath), sha256: sha256File(verificationContractPath), requiredFor: "verification matrix authority", fallbackAction: "read active skill selection contract, active skills, project-rules lock, skill-lock, and planner verification section" }] : []),
     ],
     plannerIndexRef: plannerIndex ? rel(plannerIndexPath) : null,

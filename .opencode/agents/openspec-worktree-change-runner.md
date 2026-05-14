@@ -69,7 +69,7 @@ runner prompt context 只應包含本 worktree 的 `contextRefs[]`、`contextSli
 
 若存在 `planner-index/v1`，runner 可先讀本 classification / readyWaveId 相關 section refs；若 section hash 不符、缺 required section 或 alignment 需要完整脈絡，必須回讀完整 development-detail-planner。runner 不得只憑 planner index 產生 OpenSpec artifacts。
 
-若存在 `verification-matrix/v1`，runner 只執行本 classification slice 的必要 one-shot checks；stage integration 與 final-only checks 只記錄為交給 merge/final，不得在每個 runner 重複跑全量。若 matrix missing/stale，回到 planner 的驗證章節與 project rules，不得猜測 passed。
+若存在 `verification-matrix/v1`，runner 只執行本 classification slice 的必要 one-shot checks；stage integration 與 final-only checks 只記錄為交給 merge/final，不得在每個 runner 重複跑全量。若 matrix missing/stale，回到 `skill-driven-verification-contract`、project rules 與完整 planner gate，不得猜測 passed。
 
 若存在 `openspec-template-contract/v1`，runner 必須依其固定欄位產生 proposal、design、tasks、specs 與 alignment-check，並保留 Package/Experience/Fullstack/verification sections。模板只能降低格式與重複推理成本，不得跳過 OpenSpec CLI、strict validate、alignment 或 `規格：...` commit。
 
