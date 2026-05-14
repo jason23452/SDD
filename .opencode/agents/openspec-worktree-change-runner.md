@@ -181,7 +181,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
     - `proposal.md` 必須包含 Why、What Changes、Capabilities、Impact；Capabilities 只覆蓋本 classification ID，並列出 ownerCapability、ownedRequirements、excludedResponsibilities、上游依賴、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、conflictRisk、activeSkills、Package Decision Record 來源與 Experience Contract 對齊。若列出的依賴是未來 apply stage 的輸出，必須停止回報階段錯誤；若是同 apply 階段尚未 merge 的程式碼依賴，代表分類/階段錯誤，必須停止回報分類調整需求。
    - `specs/<capability>/spec.md` 必須使用 OpenSpec delta 格式，至少含 `## ADDED Requirements` 或其他正確 operation；每個 requirement 必須有 `#### Scenario:`。
     - `design.md` 必須記錄本分類架構、資料/API/UI/驗證決策、active skill 約束、採用/不採用套件、manual-build reason、依賴、風險與非目標；不得寫入未確認需求。
-     - `tasks.md` 必須用 OpenSpec 可追蹤 checkbox 格式 `- [ ] N.N [scope][標籤] ...`，任務只包含本分類在目前階段基準上可實作與可驗證內容。標籤建議使用 `[規格]`、`[套件]`、`[實作]`、`[測試]`、`[修正]`、`[重構]`、`[文件]`、`[設定]`。若涉及 frontend/fullstack，tasks 必須包含 Experience Contract 對齊、loading/empty/error/success/disabled states、responsive/accessibility、server error mapping 與 visual/browser verification 狀態；若涉及 backend/fullstack，tasks 必須包含 package-first 後端能力、migration/settings/auth/cache/queue/HTTP client/併發安全與 pytest/migration/startup 驗證。不得寫入「等待同階段另一 worktree 提供 schema/auth/error/helper 後才實作」這類會造成 apply 死結的任務；應回報分類/階段錯誤。
+     - `tasks.md` 必須用 OpenSpec 可追蹤 checkbox 格式 `- [ ] N.N [scope][標籤] ...`，任務只包含本分類在目前階段基準上可實作與可驗證內容。標籤建議使用 `[規格]`、`[套件]`、`[實作]`、`[測試]`、`[修正]`、`[重構]`、`[文件]`、`[設定]`。若涉及 frontend/fullstack，tasks 必須包含 Experience Contract 對齊、loading/empty/error/success/disabled states、responsive/accessibility、server error mapping 與 visual/browser verification 狀態；若涉及 backend/fullstack，tasks 必須包含 package-first 後端能力、migration/settings/auth/cache/queue/HTTP client/併發安全與 active backend skill 定義的驗證。不得寫入「等待同階段另一 worktree 提供 schema/auth/error/helper 後才實作」這類會造成 apply 死結的任務；應回報分類/階段錯誤。
    - 對每個 ready artifact 執行 `openspec instructions <artifact-id> --change "<openspec_change>" --json`。
    - 讀取 instructions 的 dependency files 作為上下文。
    - 依 `template` 與 `instruction` 寫入 `outputPath`。
@@ -265,18 +265,18 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 
 - 依 README、project rules、`spec-flow` OpenSpec tasks 與既有 scripts 做最小必要驗證。
 - 執行任何測試前必須先 read-back project rules、執行 Dependency Gate，並產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
-- backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與測試檔存在時，才可用 pytest 或既有 backend tests；缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
-- frontend/fullstack 只有在 `frontend/package.json` 與 scripts 存在時，才可跑 npm/pnpm/yarn scripts；缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
-- E2E 只有在 Playwright config、E2E 測試檔、受控 server lifecycle 與 Playwright MCP/browser verification 條件都存在時才可跑；缺入口或缺 MCP 時必須標記未執行原因，不得進入 watch 或互動模式。
-- 測試命令必須 one-shot 且可結束：Vitest 用 `vitest run` 或 package script 的等價 one-shot；backend 固定用 `uv run pytest -q --maxfail=1` 或既有 pytest script；Playwright/E2E 用 headless/non-interactive；禁止 watch mode。
-- Python 驗證不得用 ad-hoc `python -c`、手寫 Python smoke 或互動式 Python 指令取代 pytest；import app、health、startup sanity、API smoke 必須寫成 pytest 測試或 pytest fixture。
+- backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與既有 backend test entry 存在時，才可跑 Python/backend 測試；命令必須先依 active backend skill、README、`pyproject.toml` 與既有 scripts 決定。缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
+- frontend/fullstack 只有在 `frontend/package.json`、既有 scripts 或 test config 存在時，才可跑前端 local/unit 測試與 build/typecheck；命令必須先依 project rules、active frontend skill、既有 scripts 與 test config 決定。缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
+- E2E / browser verification framework 必須先依 active frontend skill、既有 browser config 與 scripts 決定。缺 skill 所需入口時必須標記未執行原因，不得進入 watch 或互動模式。
+- 測試命令必須 one-shot 且可結束：runner 先依 active skills 與既有 scripts/config 選 local test 與 browser/E2E 命令；browser/E2E 必須 headless/non-interactive；禁止 watch mode。
+- Python 驗證不得用 ad-hoc `python -c`、手寫 Python smoke 或互動式 Python 指令取代 active backend skill 指定的正式 backend test framework；import app、health、startup sanity、API smoke 必須寫成該正式 backend 測試或 fixture。
 - 所有 install/build/test/smoke 必須有 timeout。逾時回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或假裝通過。
 - 測試輸出採 summary-first：runner 可寫入 `.opencode/run-artifacts/<run_id>/verification-summary/<classification_id>.json`，schemaVersion=`verification-summary/v1`，記錄 command、exitCode、duration、status、logRef、errorDigest、matrixRef 與 blocker。final output 只需列摘要與 logRef；但失敗、blocked、或 merge/barrier 要求時必須提供足以重現與診斷的原始命令/錯誤來源，不得把 summary 當 passed 證據。
 - 同一 worktree 內 project-rules read-back 可做 checkpoint memoization：若 `.opencode/project-rules.md` hash 與上一 checkpoint 相同，event 只需記錄 hash/time/result，不重貼 rules digest；hash 改變才重讀全文並重新 alignment。memoization 不得跳過任何 checkpoint。
 - runner 完成或 blocked 時可寫入/更新 `resume-cursor/v1` 的本 worktree 狀態與 nextAction，但不得直接改 shared dispatch ledger。主流程/merge barrier 仍以 dispatch ledger 與 runner event 為準；cursor 只用於快速定位下一步。
 - 執行任何 install/build/test/smoke 前，必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
 - 禁止產生或執行任何 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
-- Browser smoke 只能透過 Playwright MCP。若沒有 Playwright MCP、沒有可存取 URL、沒有受控 server lifecycle，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
+- Browser smoke 必須先依 active frontend skill、既有 browser config 與 scripts 決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。沒有 helper 時不得臨時用 shell/PowerShell 拼接 server smoke。
 - 任一 assigned port 未釋放、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時，不得把 tasks checkbox 勾完成、不得 commit、不得回報 apply 完成；必須修復為非 PowerShell 受控流程或回報 blocker。
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。
@@ -361,7 +361,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 
 ### Server/Port 使用
 - assigned ports：...
-- browser smoke：Playwright MCP 執行/skip/blocker
+- browser smoke：skill-defined browser framework 執行/skip/blocker
 - server lifecycle helper：使用/不適用/缺失
 - port listener 狀態：未使用/已確認/未知 blocker
 

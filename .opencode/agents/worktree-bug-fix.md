@@ -182,10 +182,10 @@ permission:
 
 - 測試命令必須 one-shot、非互動且有 timeout。
 - 測試前必須先完成 project-rules read-back 與 dependency sync gate。
-- frontend 只有在 `frontend/package.json` 與 script 存在時才跑對應 npm/pnpm/yarn command。
-- backend 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與 pytest 入口存在時才跑 pytest。
-- Python 驗證固定走 pytest，不用 ad-hoc `python -c` 或手寫 Python smoke。
-- Browser smoke 只能透過 Playwright MCP；缺 MCP 或受控 server lifecycle 時標記 skipped/blocker，不得退回 PowerShell smoke。
+- frontend 只有在 `frontend/package.json` 與對應 script / test entry 存在時才跑前端驗證命令；實際工具由 active frontend skill 決定。
+- backend 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與既有 backend test entry 存在時才跑 backend 驗證命令；實際工具由 active backend skill 決定。
+- Python 驗證固定走 active backend skill 指定的正式 backend test framework，不用 ad-hoc `python -c` 或手寫 Python smoke。
+- Browser smoke 只能透過 active frontend skill 指定的 browser framework；缺 skill 所需條件或受控 server lifecycle 時標記 skipped/blocker，不得退回 PowerShell smoke。
 - 禁止產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
 - 若驗證入口不存在，必須回報未執行原因；不得假裝通過。
 

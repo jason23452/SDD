@@ -18,9 +18,9 @@ function includesAny(words) {
 const runnerLocal = []
 const stageIntegration = []
 const finalOnly = []
-if (includesAny(["frontend", "react", "vite", "ui", "tailwind", "browser"])) runnerLocal.push({ id: "frontend-local", commandHint: "package script typecheck/build/test when available", requiredWhen: "frontend/fullstack files changed" })
-if (includesAny(["backend", "fastapi", "api", "pytest", "database", "migration"])) runnerLocal.push({ id: "backend-local", commandHint: "pytest or existing backend test script", requiredWhen: "backend/fullstack files changed" })
-if (includesAny(["fullstack", "e2e", "playwright", "browser", "contract"])) stageIntegration.push({ id: "fullstack-contract", commandHint: "integration contract/browser verification when available", requiredWhen: "frontend and backend contract touched" })
+if (includesAny(["frontend", "react", "vite", "ui", "tailwind", "browser"])) runnerLocal.push({ id: "frontend-local", commandHint: "frontend local/unit test command resolved from project rules, package scripts, and test config", requiredWhen: "frontend/fullstack files changed" })
+if (includesAny(["backend", "fastapi", "api", "pytest", "database", "migration"])) runnerLocal.push({ id: "backend-local", commandHint: "backend/Python test command resolved from active backend skill and backend test entry", requiredWhen: "backend/fullstack files changed" })
+if (includesAny(["fullstack", "e2e", "playwright", "browser", "contract"])) stageIntegration.push({ id: "fullstack-contract", commandHint: "browser/E2E/integration verification resolved from active frontend skill and detected browser config", requiredWhen: "frontend and backend contract touched" })
 if (includesAny(["final", "全量", "整體", "regression", "release"])) finalOnly.push({ id: "final-regression", commandHint: "final-only full verification from planner", requiredWhen: "final integration" })
 const blockers = []
 if (!plannerHash) blockers.push("PLANNER_MISSING")
