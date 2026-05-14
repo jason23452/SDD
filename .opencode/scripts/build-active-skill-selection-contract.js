@@ -31,8 +31,18 @@ const skillLockPath = flags["skill-lock"] ? resolveRoot(flags["skill-lock"]) : p
 const plannerIndex = readJson(plannerIndexPath)
 const skillLock = readJson(skillLockPath)
 
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+function extractExplicitActiveSkills(text, plannerIndexData) {
+  const lines = text.split(/\r?\n/)
+  const activeSections = plannerIndexData && plannerIndexData.sectionRefs && Array.isArray(plannerIndexData.sectionRefs.activeSkills)
+    ? plannerIndexData.sectionRefs.activeSkills
+    : []
+  if (activeSections.length === 0) return []
+  const names = []
+  for (const section of activeSections) {
+    const sectionText = lines.slice(section.line - 1, section.endLine).join("\n")
+    for (const match of sectionText.matchAll(/`([a-z0-9-]+)`/g)) names.push(match[1])
+  }
+  return [...new Set(names)]
 }
 
 const availableSkills = (skillLock && Array.isArray(skillLock.sourceRefs) ? skillLock.sourceRefs : [])
@@ -43,14 +53,18 @@ const availableSkills = (skillLock && Array.isArray(skillLock.sourceRefs) ? skil
   }))
   .filter((item) => item.name && item.path)
 
-const activeSkills = availableSkills.filter((skill) => new RegExp(`(^|[^a-z0-9-])${escapeRegex(skill.name)}([^a-z0-9-]|$)`, "i").test(plannerText))
+const explicitActiveSkillNames = extractExplicitActiveSkills(plannerText, plannerIndex)
+const activeSkills = explicitActiveSkillNames.length
+  ? availableSkills.filter((skill) => explicitActiveSkillNames.includes(skill.name))
+  : []
 
 const blockers = []
 if (!plannerHash) blockers.push("PLANNER_MISSING")
 if (!skillLock) blockers.push("SKILL_LOCK_MISSING")
 if (skillLock && skillLock.status !== "passed") blockers.push("SKILL_LOCK_BLOCKED")
 if (plannerIndex && plannerIndex.status && plannerIndex.status !== "passed") blockers.push("PLANNER_INDEX_BLOCKED")
-if (plannerHash && activeSkills.length === 0) blockers.push("ACTIVE_SKILLS_UNRESOLVED")
+if (plannerHash && explicitActiveSkillNames.length === 0) blockers.push("ACTIVE_SKILLS_SECTION_MISSING")
+if (plannerHash && explicitActiveSkillNames.length > 0 && activeSkills.length === 0) blockers.push("ACTIVE_SKILLS_UNRESOLVED")
 
 const out = resolveOutPath(path.join(artifactDir(runId), "active-skill-selection-contract.json"), flags)
 const artifact = commonArtifact("active-skill-selection-contract/v1", runId, blockers.length ? "blocked" : "passed", "read full planner and skill-lock to resolve active skills", {
@@ -67,12 +81,13 @@ const artifact = commonArtifact("active-skill-selection-contract/v1", runId, blo
   },
   plannerIndexRef: plannerIndex ? rel(plannerIndexPath) : null,
   skillLockRef: skillLock ? rel(skillLockPath) : null,
-  selectionPolicy: "skills-first; active skill names resolve from planner-confirmed scope against skill-lock inventory; downstream agents/scripts must not infer tools outside selected skills",
+  selectionPolicy: "skills-first; active skill names must resolve only from an explicit planner `Active Skills` or `Active Skill Adoption` section matched against skill-lock inventory. Downstream agents/scripts must not infer tools outside selected skills.",
+  explicitActiveSkillNames,
   activeSkills: activeSkills.map((skill) => ({
     name: skill.name,
     path: skill.path,
     sha256: skill.sha256,
-    source: "planner-confirmed-scope+skill-lock",
+    source: "planner-active-skills-section+skill-lock",
   })),
 })
 

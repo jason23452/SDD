@@ -355,7 +355,8 @@ try {
     sourceHashes: { HEAD: "abc123" },
     detailRefs: [],
     fallbackAction: "read full planner and skill-lock to resolve active skills",
-    activeSkills: [{ name: "react-spa-feature-based", path: ".opencode/skills/frontend/react-spa-feature-based/SKILL.md", sha256: "abc123", source: "planner-confirmed-scope+skill-lock" }],
+    explicitActiveSkillNames: ["react-spa-feature-based"],
+    activeSkills: [{ name: "react-spa-feature-based", path: ".opencode/skills/frontend/react-spa-feature-based/SKILL.md", sha256: "abc123", source: "planner-active-skills-section+skill-lock" }],
   })
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
     schemaVersion: "verification-matrix/v1",

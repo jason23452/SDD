@@ -60,6 +60,7 @@ Use these after planner/classification decisions exist to reduce repeated long-c
 
 ```bash
 node .opencode/scripts/build-run-preflight-packet.js <run_id> --planner <path>
+node .opencode/scripts/build-active-skill-selection-contract.js <run_id> --planner <path>
 node .opencode/scripts/build-skill-driven-verification-contract.js <run_id> --planner <path>
 node .opencode/scripts/build-verification-matrix.js <run_id> --planner <path>
 node .opencode/scripts/build-package-decision-record.js <run_id> --planner <path>
@@ -86,7 +87,7 @@ Every builder accepts `--check` to print the intended output without writing fil
 
 `build-commit-metadata-summary.js` also supports `--runner-event <path>`, `--from <commit>`, `--to <commit>`, and `--commits <hashes>` so final report and bugfix indexes can be generated from exact runner commits instead of scanning recent history.
 
-`build-skill-driven-verification-contract.js` is the structured verification authority bridge between `skill.md` and `project-rules.md`. It should be generated before `build-verification-matrix.js`. If the contract is missing, stale, or blocked, downstream scripts and agents must block rather than infer tools.
+`build-active-skill-selection-contract.js` resolves the active skill set only from an explicit planner `Active Skills` or `Active Skill Adoption` section matched against `skill-lock`. `build-skill-driven-verification-contract.js` then reads that selection plus `project-rules-lock` and active `SKILL.md` files to build the structured verification authority. Planner verification sections are supplemental only. `build-verification-matrix.js` must read that contract instead of inferring tools.
 
 ## Scoped checks
 

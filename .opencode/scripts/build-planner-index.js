@@ -25,7 +25,7 @@ if (existsSync(planner)) {
     section.endLine = index + 1 < sections.length ? sections[index + 1].line - 1 : lines.length
     section.sha256 = require("node:crypto").createHash("sha256").update(lines.slice(section.line - 1, section.endLine).join("\n")).digest("hex")
     const title = section.title.toLowerCase()
-    section.kind = title.includes("verification") || title.includes("驗證") ? "verification" : title.includes("package") || title.includes("套件") ? "package" : title.includes("experience") || title.includes("ux") || title.includes("ui") ? "experience" : "general"
+    section.kind = title.includes("active skills") || title.includes("active skill adoption") || title.includes("skill-backed") ? "active-skills" : title.includes("verification") || title.includes("驗證") ? "verification" : title.includes("package") || title.includes("套件") ? "package" : title.includes("experience") || title.includes("ux") || title.includes("ui") ? "experience" : "general"
   })
 }
 const out = resolveOutPath(path.join(artifactDir(runId), "planner-index.json"), flags)
@@ -36,6 +36,7 @@ const index = commonArtifact("planner-index/v1", runId, hash ? "passed" : "block
   sections,
   keywordIndex: Object.fromEntries([...keywords.entries()].sort()),
   sectionRefs: {
+    activeSkills: sections.filter((section) => section.kind === "active-skills"),
     verification: sections.filter((section) => section.kind === "verification"),
     package: sections.filter((section) => section.kind === "package"),
     experience: sections.filter((section) => section.kind === "experience"),

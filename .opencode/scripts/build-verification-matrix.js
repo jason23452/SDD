@@ -17,18 +17,16 @@ const plannerIndex = readJson(plannerIndexPath)
 const verificationContract = readJson(verificationContractPath)
 const verificationSections = verificationContract && Array.isArray(verificationContract.verificationSections)
   ? verificationContract.verificationSections
-  : plannerIndex && plannerIndex.sectionRefs && Array.isArray(plannerIndex.sectionRefs.verification)
-    ? plannerIndex.sectionRefs.verification
-    : []
+  : []
 const runnerLocal = verificationContract && Array.isArray(verificationContract.runnerLocalChecks) ? verificationContract.runnerLocalChecks : []
 const stageIntegration = verificationContract && Array.isArray(verificationContract.stageIntegrationChecks) ? verificationContract.stageIntegrationChecks : []
 const finalOnly = verificationContract && Array.isArray(verificationContract.finalOnlyChecks) ? verificationContract.finalOnlyChecks : []
 
 const blockers = []
 if (!plannerHash) blockers.push("PLANNER_MISSING")
-if (plannerHash && verificationSections.length === 0) blockers.push("VERIFICATION_SECTION_MISSING")
 if (!verificationContract) blockers.push("SKILL_DRIVEN_VERIFICATION_CONTRACT_MISSING")
 if (verificationContract && verificationContract.status !== "planned" && verificationContract.status !== "passed") blockers.push("SKILL_DRIVEN_VERIFICATION_CONTRACT_BLOCKED")
+if (verificationContract && verificationSections.length === 0) blockers.push("SKILL_DRIVEN_VERIFICATION_CONTRACT_EMPTY")
 if (plannerHash && runnerLocal.length + stageIntegration.length + finalOnly.length === 0) blockers.push("VERIFICATION_MATRIX_EMPTY")
 
 const out = resolveOutPath(path.join(artifactDir(runId), "verification-matrix.json"), flags)
@@ -40,9 +38,9 @@ const matrix = commonArtifact(
   {
     blockers,
     sourceRefs: [
-      ...(planner ? [{ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "verification matrix", fallbackAction: "read full planner" }] : []),
-      ...(plannerIndex ? [{ kind: "planner-index", path: rel(plannerIndexPath), sha256: sha256File(plannerIndexPath), requiredFor: "verification matrix", fallbackAction: "read planner index" }] : []),
-      ...(verificationContract ? [{ kind: "skill-driven-verification-contract", path: rel(verificationContractPath), sha256: sha256File(verificationContractPath), requiredFor: "verification matrix", fallbackAction: "read active skills, project-rules lock, skill-lock, and planner verification section" }] : []),
+      ...(planner ? [{ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "verification matrix context", fallbackAction: "read full planner" }] : []),
+      ...(plannerIndex ? [{ kind: "planner-index", path: rel(plannerIndexPath), sha256: sha256File(plannerIndexPath), requiredFor: "verification matrix context", fallbackAction: "read planner index" }] : []),
+      ...(verificationContract ? [{ kind: "skill-driven-verification-contract", path: rel(verificationContractPath), sha256: sha256File(verificationContractPath), requiredFor: "verification matrix authority", fallbackAction: "read active skill selection contract, active skills, project-rules lock, skill-lock, and planner verification section" }] : []),
     ],
     plannerIndexRef: plannerIndex ? rel(plannerIndexPath) : null,
     verificationContractRef: verificationContract ? rel(verificationContractPath) : null,

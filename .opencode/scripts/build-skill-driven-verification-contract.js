@@ -102,7 +102,6 @@ for (const skill of activeSkillRefs) {
 
 const blockers = []
 if (!plannerHash) blockers.push("PLANNER_MISSING")
-if (plannerHash && verificationSections.length === 0) blockers.push("VERIFICATION_SECTION_MISSING")
 if (!activeSkillSelection) blockers.push("ACTIVE_SKILL_SELECTION_CONTRACT_MISSING")
 if (!projectRulesLock) blockers.push("PROJECT_RULES_LOCK_MISSING")
 if (!skillLock) blockers.push("SKILL_LOCK_MISSING")
@@ -117,7 +116,7 @@ const artifact = commonArtifact(
   "skill-driven-verification-contract/v1",
   runId,
   blockers.length ? "blocked" : "planned",
-  "read active skill selection contract, project-rules lock, skill-lock, and full planner verification section",
+  "read active skill selection contract, project-rules lock, skill-lock, active skill files, and optional planner verification section",
   {
     blockers,
     sourceRefs: [
@@ -138,13 +137,14 @@ const artifact = commonArtifact(
     activeSkillSelectionRef: activeSkillSelection ? rel(activeSkillSelectionPath) : null,
     projectRulesLockRef: projectRulesLock ? rel(projectRulesLockPath) : null,
     skillLockRef: skillLock ? rel(skillLockPath) : null,
-    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. Active skill selection must come from active-skill-selection-contract, and this contract is blocked when active-skill-selection, skill-lock, or project-rules-lock is missing/blocked.",
+    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. Active skill selection must come from active-skill-selection-contract, and this contract is blocked when active-skill-selection, skill-lock, or project-rules-lock is missing/blocked. Planner verification sections are supplemental and do not override skill-defined verification strategy.",
     verificationSections,
     activeSkillNames,
     extractedSkillSections,
     runnerLocalChecks: extractedSkillSections.filter((section) => section.checkType === "runner-local").map((section, index) => ({ id: `runner-local-${index + 1}`, commandHint: `resolved from skill ${section.skill}:${section.title}`, requiredWhen: "defined by active skill verification section", sourceSkill: section.skill, sourceSection: section.title, commandSamples: section.commandSamples })),
     stageIntegrationChecks: extractedSkillSections.filter((section) => section.checkType === "stage-integration").map((section, index) => ({ id: `stage-integration-${index + 1}`, commandHint: `resolved from skill ${section.skill}:${section.title}`, requiredWhen: "defined by active skill verification section", sourceSkill: section.skill, sourceSection: section.title, commandSamples: section.commandSamples })),
     finalOnlyChecks: extractedSkillSections.filter((section) => section.checkType === "final-only").map((section, index) => ({ id: `final-only-${index + 1}`, commandHint: `resolved from skill ${section.skill}:${section.title}`, requiredWhen: "defined by active skill verification section", sourceSkill: section.skill, sourceSection: section.title, commandSamples: section.commandSamples })),
+    plannerVerificationRefs: verificationSections,
   },
 )
 
