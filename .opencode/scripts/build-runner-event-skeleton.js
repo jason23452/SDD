@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, output, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, exitForStatus, output, parseArgs, printAndExitUsage, readJson, rel, resolveOutPath, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
-if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id> [--wave <id>] [--eligible-set <id>] [--branch <branch>] [--check]")
+if (flags.help || positional.length < 2) printAndExitUsage("Usage: node .opencode/scripts/build-runner-event-skeleton.js <run_id> <classification_id> [--wave <id>] [--eligible-set <id>] [--branch <branch>] [--check] [--json] [--out <path>] [--strict]")
 const [runId, classificationId] = positional
 const ledger = readJson(path.join(artifactDir(runId), "dispatch-ledger.json"))
 let found = null
@@ -12,7 +12,7 @@ if (ledger && Array.isArray(ledger.stages)) {
     if (wt.classificationId === classificationId || wt.name === classificationId) found = { stage, set, wt }
   }
 }
-const out = path.join(artifactDir(runId), "runner-events", `${classificationId}.json`)
+const out = resolveOutPath(path.join(artifactDir(runId), "runner-events", `${classificationId}.json`), flags)
 const event = {
   schemaVersion: "runner-event/v1",
   run_id: runId,
@@ -33,3 +33,4 @@ const event = {
 }
 writeJson(out, event, Boolean(flags.check))
 output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${event.status}`, { schemaVersion: "script-result/v1", status: event.status, path: rel(out), artifact: event })
+exitForStatus(event.status, flags)

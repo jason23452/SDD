@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, readJson, rel, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readJson, rel, resolveOutPath, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
-if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-port-map.js <run_id> --stage <n> --wave <id> [--check]")
+if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-port-map.js <run_id> --stage <n> --wave <id> [--check] [--json] [--out <path>] [--strict]")
 const runId = positional[0]
 const stage = Number(flags.stage || 1)
 const base = 15000 + stage * 100
@@ -38,7 +38,7 @@ const ports = expected.map((item, index) => {
   }
 })
 ports.push({ owner: "integration", readyWaveId: wave, frontendDev: base + 91, frontendPreview: base + 92, backendApi: base + 93, e2eBase: base + 94, postgresHost: base + 95, redisHost: base + 96 })
-const out = path.join(artifactDir(runId), "port-map.json")
+const out = resolveOutPath(path.join(artifactDir(runId), "port-map.json"), flags)
 const portMap = commonArtifact("port-registry/v1", runId, blockers.length ? "blocked" : "planned", "recompute deterministic port map from planner", {
   blockers,
   sourceRefs: [{ kind: "dispatch-ledger", path: rel(ledgerPath), sha256: sha256File(ledgerPath), requiredFor: "port map", fallbackAction: "read full dispatch ledger" }],
@@ -49,3 +49,4 @@ const portMap = commonArtifact("port-registry/v1", runId, blockers.length ? "blo
 })
 writeJson(out, portMap, Boolean(flags.check))
 output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} base=${base}`, { schemaVersion: "script-result/v1", status: portMap.status, path: rel(out), artifact: portMap })
+exitForStatus(portMap.status, flags)

@@ -53,8 +53,9 @@ node .opencode/scripts/build-commit-metadata-summary.js <run_id> <classification
 node .opencode/scripts/build-final-report-index.js <run_id> --report <path>
 ```
 
-Every builder accepts `--check` to print the intended output without writing files.
-Most builders also support `--json` through the shared script result format so agents can parse `schemaVersion`, `status`, `path`, and `artifact` without reading human text.
+Every builder accepts `--check` to print the intended output without writing files, `--json` to emit the shared script result format, `--out <path>` to override the output file, and `--strict` to exit non-zero when the generated artifact is blocked/stale/missing/failed.
+
+`build-commit-metadata-summary.js` also supports `--runner-event <path>`, `--from <commit>`, `--to <commit>`, and `--commits <hashes>` so final report and bugfix indexes can be generated from exact runner commits instead of scanning recent history.
 
 ## Scoped checks
 
@@ -82,5 +83,7 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 `check-artifact-crossrefs.js` validates cross-artifact consistency between dispatch ledger, context slices, runner event refs, branch/eligibleSet alignment, port owners, and run-level package/experience/verification artifacts. `check-script-contracts.js` validates script safety contracts such as `--check` support for builders, run-artifact output scope, no git mutation commands, no PowerShell lifecycle commands, no `.worktree` writes, and no skill writes.
 
 `check-dispatch-ledger-readiness.js` validates nested stage/wave/eligibleSet/worktree fields, duplicate classifications/branches, runner event path presence, and branch namespace. `check-runner-event-completeness.js` validates completed runner events have `specCommit`, local verification evidence, and no error; failed/blocked runner events must include an error object.
+
+`check-artifact-crossrefs.js` also checks completed runner events have commit metadata summaries, commit metadata hashes exist in git, final-report-index covers commit summaries, and verification summaries cover verification-matrix check IDs when present.
 
 `build-planner-index.js` stores section ranges, section hashes, keyword index, and package/experience/verification section refs. `build-final-report-index.js` stores file-to-commit, classification-to-commit, and keyword-to-commit maps for lower-token bugfix lookup.

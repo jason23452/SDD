@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync, readFileSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, rel, resolveOutPath, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
-if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-package-decision-record.js <run_id> [--planner <path>] [--check]")
+if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-package-decision-record.js <run_id> [--planner <path>] [--check] [--json] [--out <path>] [--strict]")
 
 const runId = positional[0]
 const planner = flags.planner ? resolveRoot(flags.planner) : null
@@ -35,7 +35,7 @@ const sourceRefs = []
 if (planner) sourceRefs.push({ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "package decisions", fallbackAction: "read full planner" })
 if (frontend) sourceRefs.push({ kind: "frontend-package", path: frontend.manifest, sha256: frontend.manifestHash, requiredFor: "package decisions", fallbackAction: "read frontend package manifest" })
 if (backend) sourceRefs.push({ kind: "backend-package", path: backend.manifest, sha256: backend.manifestHash, requiredFor: "package decisions", fallbackAction: "read backend package manifest" })
-const out = path.join(artifactDir(runId), "package-decision-record.json")
+const out = resolveOutPath(path.join(artifactDir(runId), "package-decision-record.json"), flags)
 const record = commonArtifact("package-decision-record/v1", runId, blockers.length ? "blocked" : "planned", "read full planner package decision section", {
   blockers,
   sourceRefs,
@@ -47,3 +47,4 @@ const record = commonArtifact("package-decision-record/v1", runId, blockers.leng
 })
 writeJson(out, record, Boolean(flags.check))
 output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${record.status}`, { schemaVersion: "script-result/v1", status: record.status, path: rel(out), artifact: record })
+exitForStatus(record.status, flags)

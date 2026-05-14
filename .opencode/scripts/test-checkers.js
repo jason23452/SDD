@@ -129,6 +129,12 @@ function validDispatchLedger(runId) {
 }
 
 function validRunnerEvent(runId) {
+  let head = "abc123"
+  try {
+    head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8" }).trim()
+  } catch (_error) {
+    head = "abc123"
+  }
   return {
     schemaVersion: "runner-event/v1",
     run_id: runId,
@@ -144,7 +150,7 @@ function validRunnerEvent(runId) {
     projectRulesReadBack: [],
     dependencySync: {},
     commits: {
-      specCommit: "abc123",
+      specCommit: head,
       implementationCommits: [],
       testCommits: [],
       fixCommits: [],
@@ -386,6 +392,9 @@ try {
   })
   runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
   runJsonCase("build preflight json dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check", "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.artifact && data.artifact.schemaVersion === "run-preflight-packet/v1" || "invalid script-result")
+  const outPath = path.join(tempRoot, "preflight-out.json")
+  runCase("build preflight custom out", [BUILD_PREFLIGHT, runId, "--planner", planner, "--out", outPath], 0)
+  runJsonCase("build matrix strict rejects missing verification", [BUILD_MATRIX, runId, "--planner", planner, "--check", "--json", "--strict"], 1)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
   runCase("build snapshot dry-run", [BUILD_SNAPSHOT, runId, "--stage", "1", "--wave", "wave-1", "--check"], 0)
@@ -426,6 +435,19 @@ try {
     detailRefs: [],
     fallbackAction: "recompute deterministic port map from planner",
     ports: [{ owner: "class-1", classificationId: "class-1" }],
+  })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "commit-metadata-summary", "class-1.json"), {
+    schemaVersion: "commit-metadata-summary/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "rebuild commit metadata from git show",
+    classificationId: "class-1",
+    commits: [{ hash: validRunnerEvent(runId).commits.specCommit, touchedFiles: [] }],
   })
   runCase("artifact crossrefs", [CHECK_CROSSREFS, runId, "--strict"], 0)
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "context-slices", "class-1.json"), {

@@ -64,7 +64,7 @@ function output(flags, text, jsonValue) {
 
 function exitForStatus(status, flags = {}) {
   const failed = ["failed", "blocked", "stale", "missing"].includes(status)
-  process.exit(failed && flags.strict ? 1 : 0)
+  if (failed && flags.strict) process.exit(1)
 }
 
 function git(args, options = {}) {

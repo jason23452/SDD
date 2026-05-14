@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, rel, sha256File, writeJson } = require("./lib/artifact-utils")
+const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, rel, resolveOutPath, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
-if (flags.help) printAndExitUsage("Usage: node .opencode/scripts/build-dependency-readiness.js <run_id> [--check]")
+if (flags.help) printAndExitUsage("Usage: node .opencode/scripts/build-dependency-readiness.js <run_id> [--check] [--json] [--out <path>] [--strict]")
 const runId = positional[0] || "local"
 function frontend() {
   const packageJson = path.join(ROOT, "frontend", "package.json")
@@ -25,7 +25,7 @@ if (frontendInfo.packageJsonHash) sourceRefs.push({ kind: "frontend-package", pa
 if (frontendInfo.lockfileHash) sourceRefs.push({ kind: "frontend-lockfile", path: frontendInfo.lockfile, sha256: frontendInfo.lockfileHash, requiredFor: "dependency readiness", fallbackAction: "read frontend lockfile" })
 if (backendInfo.pyprojectHash) sourceRefs.push({ kind: "backend-package", path: backendInfo.pyproject, sha256: backendInfo.pyprojectHash, requiredFor: "dependency readiness", fallbackAction: "read backend package manifest" })
 if (backendInfo.lockfileHash) sourceRefs.push({ kind: "backend-lockfile", path: backendInfo.lockfile, sha256: backendInfo.lockfileHash, requiredFor: "dependency readiness", fallbackAction: "read backend lockfile" })
-const out = path.join(artifactDir(runId), "dependency-readiness.json")
+const out = resolveOutPath(path.join(artifactDir(runId), "dependency-readiness.json"), flags)
 const dependency = commonArtifact("dependency-readiness/v1", runId, "planned", "read package manifests and run full dependency gate", {
   frontend: frontendInfo,
   backend: backendInfo,
@@ -35,3 +35,4 @@ const dependency = commonArtifact("dependency-readiness/v1", runId, "planned", "
 })
 writeJson(out, dependency, Boolean(flags.check))
 output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${dependency.status}`, { schemaVersion: "script-result/v1", status: dependency.status, path: rel(out), artifact: dependency })
+exitForStatus(dependency.status, flags)

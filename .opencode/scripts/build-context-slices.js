@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, commonArtifact, output, parseArgs, printAndExitUsage, readJson, rel, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readJson, rel, resolveOutPath, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
-if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-context-slices.js <run_id> --ready-wave <id> [--check]")
+if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-context-slices.js <run_id> --ready-wave <id> [--check] [--json] [--out <path>] [--strict]")
 const runId = positional[0]
 const readyWave = flags["ready-wave"] || null
 const ledgerPath = path.join(artifactDir(runId), "dispatch-ledger.json")
@@ -21,7 +21,7 @@ if (ledger && Array.isArray(ledger.stages)) {
   }
 }
 if (expected.length === 0) {
-  const out = path.join(artifactDir(runId), "context-slices", "_blocked.json")
+  const out = resolveOutPath(path.join(artifactDir(runId), "context-slices", "_blocked.json"), flags)
   const blockers = []
   if (!readyWave) blockers.push("READY_WAVE_MISSING")
   if (!ledger) blockers.push("DISPATCH_LEDGER_MISSING")
@@ -35,11 +35,11 @@ if (expected.length === 0) {
   })
   writeJson(out, slice, Boolean(flags.check))
   output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`, { schemaVersion: "script-result/v1", status: slice.status, path: rel(out), artifact: slice })
-  process.exit(0)
+  exitForStatus(slice.status, flags)
 }
 for (const item of expected) {
   const id = item.wt.classificationId || item.wt.name
-  const out = path.join(artifactDir(runId), "context-slices", `${id}.json`)
+  const out = resolveOutPath(path.join(artifactDir(runId), "context-slices", `${id}.json`), flags)
   const blockers = readyWave ? [] : ["READY_WAVE_MISSING"]
   const slice = commonArtifact("context-slice/v1", runId, blockers.length ? "blocked" : "planned", "read full planner and dispatch ledger", {
     sourceRefs: [{ kind: "dispatch-ledger", path: rel(ledgerPath), requiredFor: "context slice", fallbackAction: "read full dispatch ledger" }],
@@ -61,4 +61,5 @@ for (const item of expected) {
   })
   writeJson(out, slice, Boolean(flags.check))
   output(flags, `${flags.check ? "would write" : "wrote"}: ${rel(out)} status=${slice.status}`, { schemaVersion: "script-result/v1", status: slice.status, path: rel(out), artifact: slice })
+  exitForStatus(slice.status, flags)
 }
