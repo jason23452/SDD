@@ -25,13 +25,14 @@ const runId = positional[0]
 const planner = flags.planner ? resolveRoot(flags.planner) : null
 const plannerHash = planner ? sha256File(planner) : null
 const plannerIndexPath = flags["planner-index"] ? resolveRoot(flags["planner-index"]) : path.join(artifactDir(runId), "planner-index.json")
+const activeSkillSelectionPath = flags["active-skill-selection"] ? resolveRoot(flags["active-skill-selection"]) : path.join(artifactDir(runId), "active-skill-selection-contract.json")
 const projectRulesLockPath = flags["project-rules-lock"] ? resolveRoot(flags["project-rules-lock"]) : path.join(artifactDir(runId), "project-rules-lock.json")
 const skillLockPath = flags["skill-lock"] ? resolveRoot(flags["skill-lock"]) : path.join(artifactDir(runId), "skill-lock.json")
 
 const plannerIndex = readJson(plannerIndexPath)
+const activeSkillSelection = readJson(activeSkillSelectionPath)
 const projectRulesLock = readJson(projectRulesLockPath)
 const skillLock = readJson(skillLockPath)
-const plannerText = planner ? readText(planner) : ""
 const verificationSections = plannerIndex && plannerIndex.sectionRefs && Array.isArray(plannerIndex.sectionRefs.verification)
   ? plannerIndex.sectionRefs.verification
   : []
@@ -65,20 +66,10 @@ function extractCommandSamples(sectionText) {
   return [...new Set(commands)]
 }
 
-const availableSkills = (skillLock && Array.isArray(skillLock.sourceRefs) ? skillLock.sourceRefs : [])
-  .map((ref) => ({
-    name: ref.path ? ref.path.split("/").slice(-2, -1)[0] : null,
-    path: ref.path,
-    sha256: ref.sha256 || null,
-  }))
-  .filter((item) => item.name && item.path)
-
-const activeSkillNames = availableSkills
-  .map((item) => item.name)
-  .filter((name, index, array) => array.indexOf(name) === index)
-  .filter((name) => new RegExp(`(^|[^a-z0-9-])${escapeRegex(name)}([^a-z0-9-]|$)`, "i").test(plannerText))
-
-const activeSkillRefs = availableSkills.filter((item) => activeSkillNames.includes(item.name))
+const activeSkillRefs = activeSkillSelection && Array.isArray(activeSkillSelection.activeSkills)
+  ? activeSkillSelection.activeSkills.map((skill) => ({ name: skill.name, path: skill.path, sha256: skill.sha256 || null }))
+  : []
+const activeSkillNames = activeSkillRefs.map((skill) => skill.name)
 
 function classifyCheckType(section) {
   const text = section.text.toLowerCase()
@@ -112,8 +103,10 @@ for (const skill of activeSkillRefs) {
 const blockers = []
 if (!plannerHash) blockers.push("PLANNER_MISSING")
 if (plannerHash && verificationSections.length === 0) blockers.push("VERIFICATION_SECTION_MISSING")
+if (!activeSkillSelection) blockers.push("ACTIVE_SKILL_SELECTION_CONTRACT_MISSING")
 if (!projectRulesLock) blockers.push("PROJECT_RULES_LOCK_MISSING")
 if (!skillLock) blockers.push("SKILL_LOCK_MISSING")
+if (activeSkillSelection && activeSkillSelection.status !== "passed") blockers.push("ACTIVE_SKILL_SELECTION_CONTRACT_BLOCKED")
 if (projectRulesLock && projectRulesLock.status !== "passed") blockers.push("PROJECT_RULES_LOCK_BLOCKED")
 if (skillLock && skillLock.status !== "passed") blockers.push("SKILL_LOCK_BLOCKED")
 if (plannerHash && activeSkillNames.length === 0) blockers.push("ACTIVE_SKILLS_UNRESOLVED")
@@ -124,25 +117,28 @@ const artifact = commonArtifact(
   "skill-driven-verification-contract/v1",
   runId,
   blockers.length ? "blocked" : "planned",
-  "read active skills, project-rules lock, skill-lock, and full planner verification section",
+  "read active skill selection contract, project-rules lock, skill-lock, and full planner verification section",
   {
     blockers,
     sourceRefs: [
       ...(planner ? [{ kind: "planner", path: rel(planner), sha256: plannerHash, requiredFor: "skill-driven verification contract", fallbackAction: "read full planner" }] : []),
       ...(plannerIndex ? [{ kind: "planner-index", path: rel(plannerIndexPath), sha256: sha256File(plannerIndexPath), requiredFor: "skill-driven verification contract", fallbackAction: "read planner index" }] : []),
+      ...(activeSkillSelection ? [{ kind: "active-skill-selection-contract", path: rel(activeSkillSelectionPath), sha256: sha256File(activeSkillSelectionPath), requiredFor: "active skill selection authority", fallbackAction: "read active skill selection contract or rebuild from planner + skill-lock" }] : []),
       ...(projectRulesLock ? [{ kind: "project-rules-lock", path: rel(projectRulesLockPath), sha256: sha256File(projectRulesLockPath), requiredFor: "project-rules-driven verification authority", fallbackAction: "read full project rules and rebuild project-rules lock" }] : []),
       ...(skillLock ? [{ kind: "skill-lock", path: rel(skillLockPath), sha256: sha256File(skillLockPath), requiredFor: "active skill-driven verification authority", fallbackAction: "read active skills and rebuild skill-lock" }] : []),
       ...activeSkillRefs.map((skill) => ({ kind: "active-skill", path: skill.path, sha256: skill.sha256, requiredFor: "skill-driven verification extraction", fallbackAction: "read full skill file" })),
     ],
     sourceHashes: {
       planner: plannerHash,
+      activeSkillSelection: sha256File(activeSkillSelectionPath),
       projectRulesLock: sha256File(projectRulesLockPath),
       skillLock: sha256File(skillLockPath),
     },
     plannerIndexRef: plannerIndex ? rel(plannerIndexPath) : null,
+    activeSkillSelectionRef: activeSkillSelection ? rel(activeSkillSelectionPath) : null,
     projectRulesLockRef: projectRulesLock ? rel(projectRulesLockPath) : null,
     skillLockRef: skillLock ? rel(skillLockPath) : null,
-    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. If skill-lock or project-rules-lock is missing/blocked, this contract is blocked.",
+    contractPolicy: "skills-first, project-rules-second, existing-project-entry-third; agent and script layers must not infer or hardcode tool selection. Active skill selection must come from active-skill-selection-contract, and this contract is blocked when active-skill-selection, skill-lock, or project-rules-lock is missing/blocked.",
     verificationSections,
     activeSkillNames,
     extractedSkillSections,

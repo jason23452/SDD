@@ -10,6 +10,7 @@ const { rootRel, validDispatchLedger, validRunnerEvent, writeJson } = require(".
 const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schema-check.js")
 const AGENT_CHECKER = path.join(ROOT, ".opencode", "scripts", "agent-contract-check.js")
 const BUILD_PREFLIGHT = path.join(ROOT, ".opencode", "scripts", "build-run-preflight-packet.js")
+const BUILD_ACTIVE_SKILL_SELECTION = path.join(ROOT, ".opencode", "scripts", "build-active-skill-selection-contract.js")
 const BUILD_SKILL_VERIFICATION = path.join(ROOT, ".opencode", "scripts", "build-skill-driven-verification-contract.js")
 const BUILD_MATRIX = path.join(ROOT, ".opencode", "scripts", "build-verification-matrix.js")
 const CHECK_MATRIX = path.join(ROOT, ".opencode", "scripts", "check-verification-matrix.js")
@@ -344,6 +345,18 @@ try {
     detailRefs: [],
     fallbackAction: "read active skills and rebuild skill lock",
   })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "active-skill-selection-contract.json"), {
+    schemaVersion: "active-skill-selection-contract/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner and skill-lock to resolve active skills",
+    activeSkills: [{ name: "react-spa-feature-based", path: ".opencode/skills/frontend/react-spa-feature-based/SKILL.md", sha256: "abc123", source: "planner-confirmed-scope+skill-lock" }],
+  })
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
     schemaVersion: "verification-matrix/v1",
     run_id: runId,
@@ -377,7 +390,8 @@ try {
   runJsonCase("build preflight json dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check", "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.artifact && data.artifact.schemaVersion === "run-preflight-packet/v1" || "invalid script-result")
   const outPath = path.join(tempRoot, "preflight-out.json")
   runCase("build preflight custom out", [BUILD_PREFLIGHT, runId, "--planner", planner, "--out", outPath], 0)
-  runCase("build skill verification dry-run", [BUILD_SKILL_VERIFICATION, runId, "--planner", planner, "--project-rules-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "project-rules-lock.json")), "--skill-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "skill-lock.json")), "--check"], 0)
+  runCase("build active skill selection dry-run", [BUILD_ACTIVE_SKILL_SELECTION, runId, "--planner", planner, "--skill-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "skill-lock.json")), "--check"], 0)
+  runCase("build skill verification dry-run", [BUILD_SKILL_VERIFICATION, runId, "--planner", planner, "--project-rules-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "project-rules-lock.json")), "--skill-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "skill-lock.json")), "--active-skill-selection", rootRel(path.join(".opencode", "run-artifacts", runId, "active-skill-selection-contract.json")), "--check"], 0)
   runJsonCase("build matrix strict rejects missing verification", [BUILD_MATRIX, runId, "--planner", planner, "--check", "--json", "--strict"], 1)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)

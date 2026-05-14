@@ -12,6 +12,7 @@ const packet = commonArtifact("run-preflight-packet/v1", runId, planner && sha25
   sourceRefs: planner ? [{ kind: "planner", path: rel(planner), sha256: sha256File(planner), requiredFor: "run preflight", fallbackAction: "read full planner" }] : [],
   sourceHashes: { planner: planner ? sha256File(planner) : null },
   activeSkillsRef: ".opencode/project-rules.md",
+  activeSkillSelectionContractRef: `.opencode/run-artifacts/${runId}/active-skill-selection-contract.json`,
   skillDrivenVerificationContractRef: `.opencode/run-artifacts/${runId}/skill-driven-verification-contract.json`,
   packageDecisionRecordRef: `.opencode/run-artifacts/${runId}/package-decision-record.json`,
   experienceContractRef: `.opencode/run-artifacts/${runId}/experience-contract.json`,
