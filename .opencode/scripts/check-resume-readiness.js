@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { artifactDir, parseArgs, printAndExitUsage, readJson, rel, sha256File } = require("./lib/artifact-utils")
+const { BLOCKING_ARTIFACT_STATUSES, artifactDir, parseArgs, printAndExitUsage, readJson, rel, sha256File } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/check-resume-readiness.js <run_id> [--strict]")
@@ -13,7 +13,7 @@ if (!cursor) findings.push({ code: "RESUME_CURSOR_MISSING" })
 else {
   if (cursor.schemaVersion !== "resume-cursor/v1") findings.push({ code: "SCHEMA_VERSION_INVALID" })
   if (cursor.run_id !== runId) findings.push({ code: "RUN_ID_MISMATCH" })
-  if (["blocked", "failed", "stale", "missing"].includes(cursor.status)) findings.push({ code: "RESUME_CURSOR_NOT_READY", status: cursor.status })
+  if (BLOCKING_ARTIFACT_STATUSES.has(cursor.status)) findings.push({ code: "RESUME_CURSOR_NOT_READY", status: cursor.status })
   const expectedHash = cursor.sourceHashes && cursor.sourceHashes.dispatchLedger
   const actualHash = sha256File(path.join(artifactDir(runId), "dispatch-ledger.json"))
   if (expectedHash && actualHash && expectedHash !== actualHash) findings.push({ code: "DISPATCH_LEDGER_HASH_MISMATCH" })

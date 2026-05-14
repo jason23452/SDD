@@ -2,6 +2,7 @@
 
 const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs")
 const path = require("node:path")
+const { ALLOWED_ARTIFACT_STATUSES, BLOCKING_ARTIFACT_STATUSES } = require("./lib/artifact-utils")
 
 const ROOT = process.cwd()
 const DEFAULT_ARTIFACTS_DIR = path.join(ROOT, ".opencode", "run-artifacts")
@@ -11,7 +12,6 @@ const TARGET_ARG = process.argv.slice(2).find((arg) => !arg.startsWith("--"))
 const TARGET = TARGET_ARG ? path.resolve(ROOT, TARGET_ARG) : DEFAULT_ARTIFACTS_DIR
 const MAX_JSON_BYTES = 5 * 1024 * 1024
 const SKIP_DIRS = new Set([".git", "node_modules", ".worktree", "dist", "build", "coverage", "test-results"])
-const ALLOWED_STATUSES = new Set(["passed", "completed", "blocked", "failed", "stale", "missing", "skipped", "planned", "in_progress", "not_needed"])
 
 const COMMON_REQUIRED_SCHEMAS = [
   /-index\/v1$/,
@@ -128,7 +128,7 @@ function checkCommonFields(file, data) {
     addFinding("error", "FALLBACK_ACTION_EMPTY", rel(file), "fallbackAction must not be empty.")
   }
 
-  if (typeof data.status === "string" && !ALLOWED_STATUSES.has(data.status)) {
+  if (typeof data.status === "string" && !ALLOWED_ARTIFACT_STATUSES.has(data.status)) {
     addFinding("warning", "STATUS_UNKNOWN", rel(file), `Unknown status value: ${data.status}`)
   }
 
@@ -136,7 +136,7 @@ function checkCommonFields(file, data) {
     addFinding("warning", "TIMESTAMP_MISSING", rel(file), "Missing createdAt/updatedAt or equivalent timestamp.")
   }
 
-  if (["blocked", "failed", "stale"].includes(data.status) && Array.isArray(data.blockers) && data.blockers.length === 0) {
+  if (BLOCKING_ARTIFACT_STATUSES.has(data.status) && Array.isArray(data.blockers) && data.blockers.length === 0) {
     addFinding("warning", "BLOCKED_WITHOUT_BLOCKERS", rel(file), `status=${data.status} but blockers[] is empty.`)
   }
 }

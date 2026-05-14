@@ -26,6 +26,10 @@ function existsAnyRef(refs, code, owner) {
   findings.push({ code, owner, ref: refs.filter(Boolean).join(" | ") })
 }
 
+function firstExistingRef(refs) {
+  return refs.find((ref) => ref && existsSync(resolveRoot(ref))) || null
+}
+
 function commitExists(hash) {
   return git(["cat-file", "-t", hash]) === "commit"
 }
@@ -43,8 +47,10 @@ if (ledger && Array.isArray(ledger.stages)) {
       if (context.branch && item.wt.branch && context.branch !== item.wt.branch) findings.push({ code: "CONTEXT_BRANCH_MISMATCH", owner: id, expected: item.wt.branch, actual: context.branch })
       if (context.eligibleSetId && context.eligibleSetId !== item.set.eligibleSetId) findings.push({ code: "CONTEXT_ELIGIBLE_SET_MISMATCH", owner: id, expected: item.set.eligibleSetId, actual: context.eligibleSetId })
     }
-    existsAnyRef([item.wt.runnerEventPath, `.opencode/run-artifacts/${runId}/runner-events/${id}.json`], "RUNNER_EVENT_REF_MISSING", id)
-    const runner = readJson(resolveRoot(`.opencode/run-artifacts/${runId}/runner-events/${id}.json`))
+    const runnerRefs = [item.wt.runnerEventPath, `.opencode/run-artifacts/${runId}/runner-events/${id}.json`]
+    existsAnyRef(runnerRefs, "RUNNER_EVENT_REF_MISSING", id)
+    const runnerRef = firstExistingRef(runnerRefs)
+    const runner = runnerRef ? readJson(resolveRoot(runnerRef)) : null
     if (runner) {
       if (runner.branch && item.wt.branch && runner.branch !== item.wt.branch) findings.push({ code: "RUNNER_BRANCH_MISMATCH", owner: id, expected: item.wt.branch, actual: runner.branch })
       if (runner.eligibleSetId && runner.eligibleSetId !== item.set.eligibleSetId) findings.push({ code: "RUNNER_ELIGIBLE_SET_MISMATCH", owner: id, expected: item.set.eligibleSetId, actual: runner.eligibleSetId })

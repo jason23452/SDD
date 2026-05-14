@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
 const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs")
-const { ROOT, head, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File } = require("./lib/artifact-utils")
+const { BLOCKING_ARTIFACT_STATUSES, ROOT, head, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/check-artifact-freshness.js <artifact-or-dir> [--strict] [--gate runner|merge|final]")
@@ -20,7 +20,7 @@ function checkFile(file) {
   if (!data.schemaVersion) findings.push({ code: "SCHEMA_VERSION_MISSING", file: rel(file), fallbackAction: data.fallbackAction || "read full source artifacts" })
   const needsSummaryFallback = data.schemaVersion && data.schemaVersion !== "dispatch-ledger/v1" && data.schemaVersion !== "runner-event/v1"
   if (needsSummaryFallback && (!data.fallbackAction || typeof data.fallbackAction !== "string")) findings.push({ code: "FALLBACK_ACTION_MISSING", file: rel(file) })
-  if (["blocked", "failed", "stale", "missing"].includes(data.status)) findings.push({ code: "ARTIFACT_STATUS_NOT_USABLE", file: rel(file), status: data.status, fallbackAction: data.fallbackAction })
+  if (BLOCKING_ARTIFACT_STATUSES.has(data.status)) findings.push({ code: "ARTIFACT_STATUS_NOT_USABLE", file: rel(file), status: data.status, fallbackAction: data.fallbackAction })
   if (gate && needsSummaryFallback && data.status === "planned") findings.push({ code: "PLANNED_ARTIFACT_NOT_GATE_READY", file: rel(file), gate, fallbackAction: data.fallbackAction })
   if (data.sourceHashes && typeof data.sourceHashes.HEAD === "string" && /^[0-9a-f]{40}$/i.test(data.sourceHashes.HEAD)) {
     const currentHead = head()

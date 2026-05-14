@@ -167,9 +167,9 @@ function validRunnerEvent(runId) {
 }
 
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), "opencode-checkers-"))
+const runId = `run-test-${process.pid}-${Date.now()}`
 
 try {
-  const runId = "run-test"
   const validDir = path.join(tempRoot, "valid")
   const invalidDir = path.join(tempRoot, "invalid")
   const staleDir = path.join(tempRoot, "stale")
@@ -504,7 +504,7 @@ try {
   })
   runCase("dispatch ledger rejects duplicate branch", [CHECK_DISPATCH_LEDGER, runId], 1)
 } finally {
-  rmSync(path.join(ROOT, ".opencode", "run-artifacts", "run-test"), { recursive: true, force: true })
+  rmSync(path.join(ROOT, ".opencode", "run-artifacts", runId), { recursive: true, force: true })
   rmSync(tempRoot, { recursive: true, force: true })
 }
 

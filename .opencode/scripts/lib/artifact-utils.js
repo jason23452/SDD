@@ -4,6 +4,8 @@ const { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSyn
 const path = require("node:path")
 
 const ROOT = process.cwd()
+const ALLOWED_ARTIFACT_STATUSES = new Set(["passed", "completed", "blocked", "failed", "stale", "missing", "skipped", "planned", "in_progress", "not_needed"])
+const BLOCKING_ARTIFACT_STATUSES = new Set(["failed", "blocked", "stale", "missing"])
 
 function parseArgs(argv) {
   const positional = []
@@ -63,7 +65,7 @@ function output(flags, text, jsonValue) {
 }
 
 function exitForStatus(status, flags = {}) {
-  const failed = ["failed", "blocked", "stale", "missing"].includes(status)
+  const failed = BLOCKING_ARTIFACT_STATUSES.has(status)
   if (failed && flags.strict) process.exit(1)
 }
 
@@ -125,6 +127,8 @@ function printAndExitUsage(text) {
 }
 
 module.exports = {
+  ALLOWED_ARTIFACT_STATUSES,
+  BLOCKING_ARTIFACT_STATUSES,
   ROOT,
   artifactDir,
   commonArtifact,
