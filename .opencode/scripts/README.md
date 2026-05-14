@@ -51,6 +51,9 @@ node .opencode/scripts/build-openspec-template.js <run_id> <classification_id>
 node .opencode/scripts/build-barrier-preflight.js <run_id> --stage <n> --wave <id>
 node .opencode/scripts/build-commit-metadata-summary.js <run_id> <classification_id>
 node .opencode/scripts/build-final-report-index.js <run_id> --report <path>
+node .opencode/scripts/build-run-metrics-summary.js <run_id>
+node .opencode/scripts/build-resume-cursor.js <run_id>
+node .opencode/scripts/build-verification-summary.js <run_id> --scope <scope> --check-id <id> --status <status>
 ```
 
 Every builder accepts `--check` to print the intended output without writing files, `--json` to emit the shared script result format, `--out <path>` to override the output file, and `--strict` to exit non-zero when the generated artifact is blocked/stale/missing/failed.
@@ -68,6 +71,8 @@ node .opencode/scripts/check-artifact-crossrefs.js <run_id> --strict
 node .opencode/scripts/check-script-contracts.js
 node .opencode/scripts/check-dispatch-ledger-readiness.js <run_id>
 node .opencode/scripts/check-runner-event-completeness.js <run_id> <classification_id>
+node .opencode/scripts/check-resume-readiness.js <run_id> --strict
+node .opencode/scripts/check-runtime-artifacts-clean.js --strict
 node .opencode/scripts/check-apply-readiness.js <worktree> <run_id> <classification_id>
 node .opencode/scripts/artifact-scope-check.js <run_id> --scope runner --classification <id> --strict
 node .opencode/scripts/artifact-scope-check.js <run_id> --scope wave --stage <n> --wave <id> --strict
@@ -87,3 +92,5 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 `check-artifact-crossrefs.js` also checks completed runner events have commit metadata summaries, commit metadata hashes exist in git, final-report-index covers commit summaries, and verification summaries cover verification-matrix check IDs when present.
 
 `build-planner-index.js` stores section ranges, section hashes, keyword index, and package/experience/verification section refs. `build-final-report-index.js` stores file-to-commit, classification-to-commit, and keyword-to-commit maps for lower-token bugfix lookup.
+
+`build-run-metrics-summary.js` summarizes artifact status/schema counts, fallback risk count, and summary hit-rate proxy for speed/token tuning. `build-resume-cursor.js` and `check-resume-readiness.js` identify the next non-completed worktree from the dispatch ledger and validate cursor freshness. `build-verification-summary.js` creates compact check summaries with log refs. `check-runtime-artifacts-clean.js` prevents runtime run-artifacts from being staged, except the final maintained `final-merge-report.md`.

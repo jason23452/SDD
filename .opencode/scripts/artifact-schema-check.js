@@ -37,6 +37,7 @@ const COMMON_REQUIRED_SCHEMAS = [
   /^apply-readiness-checklist\/v1$/,
   /^snapshot-manifest\/v1$/,
   /^commit-metadata-summary\/v1$/,
+  /^run-metrics-summary\/v1$/,
 ]
 
 const COMMON_FIELDS = [

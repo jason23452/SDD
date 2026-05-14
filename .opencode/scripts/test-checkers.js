@@ -30,6 +30,11 @@ const CHECK_DISPATCH_LEDGER = path.join(ROOT, ".opencode", "scripts", "check-dis
 const BUILD_RUNNER_EVENT = path.join(ROOT, ".opencode", "scripts", "build-runner-event-skeleton.js")
 const CHECK_RUNNER_EVENT = path.join(ROOT, ".opencode", "scripts", "check-runner-event-completeness.js")
 const BUILD_FINAL_INDEX = path.join(ROOT, ".opencode", "scripts", "build-final-report-index.js")
+const BUILD_RUN_METRICS = path.join(ROOT, ".opencode", "scripts", "build-run-metrics-summary.js")
+const BUILD_RESUME_CURSOR = path.join(ROOT, ".opencode", "scripts", "build-resume-cursor.js")
+const CHECK_RESUME = path.join(ROOT, ".opencode", "scripts", "check-resume-readiness.js")
+const BUILD_VERIFICATION_SUMMARY = path.join(ROOT, ".opencode", "scripts", "build-verification-summary.js")
+const CHECK_RUNTIME_CLEAN = path.join(ROOT, ".opencode", "scripts", "check-runtime-artifacts-clean.js")
 
 const results = []
 
@@ -293,6 +298,17 @@ try {
     detailRefs: [],
     fallbackAction: "read full final maintained report and git history",
   })
+  writeJson(path.join(validDir, "run-metrics-summary.json"), {
+    schemaVersion: "run-metrics-summary/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full run artifacts and logs",
+  })
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [
@@ -423,6 +439,24 @@ try {
   })
   runCase("runner event rejects completed without spec", [CHECK_RUNNER_EVENT, runId, "bad-completed"], 1)
   runCase("build final report index dry-run", [BUILD_FINAL_INDEX, runId, "--check"], 0)
+  runCase("build verification summary dry-run", [BUILD_VERIFICATION_SUMMARY, runId, "--scope", "runner", "--check-id", "frontend-local", "--status", "passed", "--check"], 0)
+  runCase("build resume cursor dry-run", [BUILD_RESUME_CURSOR, runId, "--check"], 0)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "resume-cursor.json"), {
+    schemaVersion: "resume-cursor/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { dispatchLedger: require("crypto").createHash("sha256").update(require("fs").readFileSync(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"))).digest("hex") },
+    detailRefs: [],
+    fallbackAction: "read dispatch ledger and runner events",
+    nextAction: "resume-worktree",
+    cursor: { classificationId: "class-1" },
+  })
+  runCase("check resume readiness", [CHECK_RESUME, runId, "--strict"], 0)
+  runCase("build run metrics dry-run", [BUILD_RUN_METRICS, runId, "--check"], 0)
+  runCase("runtime artifacts clean", [CHECK_RUNTIME_CLEAN, "--strict"], 0)
   runCase("script contracts", [CHECK_SCRIPT_CONTRACTS], 0)
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "port-map.json"), {
     schemaVersion: "port-registry/v1",
