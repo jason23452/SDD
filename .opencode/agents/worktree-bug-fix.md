@@ -24,7 +24,7 @@ permission:
 
 - 本 agent 自己負責五段式流程：`run_id lock -> question 選 ACTIVE_WORKTREE_RUN/ARCHIVED_RUN_MODE -> 產生 Mode Selected Run Change Lock Packet -> bug triage/search -> culprit or new-change mode -> selected target fix/report`。
 - `worktree-run-id-change-locker.md` 與 `worktree-bug-triage.md` 是本流程的輔助契約；可參照其規則，但不要求主流程預先呼叫。
-- `ACTIVE_WORKTREE_RUN` 修改目標固定是選定 run_id 的最後 `.worktree/<run_id>/merge`，修復紀錄更新 `<final merge_worktree>/.opencode/run-artifacts/<run_id>/final-merge-report.md`。
+- `ACTIVE_WORKTREE_RUN` 修改目標固定是選定 run_id 的最後 `.worktree/<run_id>/merge`，修復紀錄更新 canonical final maintained report：`.opencode/run-artifacts/<run_id>/final-merge-report.md`。
 - `ARCHIVED_RUN_MODE` 修改目標固定是 archive 保留下來的 init/bootstrap branch，定位來源與維護紀錄固定是 `.opencode/archives/archive_<run_id>.md`；此模式不得要求恢復 `.worktree/<run_id>/merge`，也不得因 `.worktree` / `integration/<run_id>` 已刪除而失敗。
 - 選定 run_id 後，即使只找到 active 或只找到 archive evidence，也必須用 `question` 讓使用者選模式；不得因使用者文字暗示、證據只剩一種或模型判斷而自動切換。
 - 找 culprit commit 時，只能從選定 run_id 的 locked commits 中選。

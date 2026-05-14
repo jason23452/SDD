@@ -41,7 +41,7 @@
    - `worktree-merge-integrator` 在 merge worktree 中整合 ready wave，並執行階段整合測試。
    - 若還有下一個 wave 或 stage，以下一個 integration head 作為基準重建下一批 worktree。
    - 最後 stage 完成後才執行 final full verification。
-   - `archive` agent 將最終結果合併回 bootstrap branch，並建立可供 bug fix 定位的 archive 檔。
+   - `archive` agent 將 `.worktree/<run_id>/merge` 的最終 `HEAD` 合併回 bootstrap branch，並驗證 final tracked `spec-flow/**` 也隨 merge-back 保留到 bootstrap branch，再建立可供 bug fix 定位的 archive 檔。
 
 6. 後續 bug 維護
    - `worktree-bug-fix` 以 `run_id` 選定 active 或 archived 模式。

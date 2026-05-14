@@ -34,7 +34,7 @@ permission:
 - repository 內 `.worktree/<run_id>/` 目錄。
 - branches：`worktree/<run_id>/...`、`integration-stage/<run_id>/stage-*`、`integration/<run_id>`、`bugfix/<run_id>/...`。
 - `.opencode/run-artifacts/<run_id>/` 目錄。
-- `.opencode/run-artifacts/<run_id>/final-merge-report.md`（final maintained report）、`dispatch-ledger.json`、manifest/port-map。
+- `.opencode/run-artifacts/<run_id>/final-merge-report.md`（canonical final maintained report）、`dispatch-ledger.json`、manifest/port-map。
 - `.opencode/archives/archive_<run_id>.md`。
 - commit body、final merge report 或 archive final file 中明確記錄的 `run_id`。
 

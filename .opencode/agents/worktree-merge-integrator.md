@@ -123,11 +123,12 @@ git worktree add 只會帶出 tracked files；因此 stage/final merge worktree 
 
 - `.opencode/run-artifacts/<run_id>/final-merge-report.md`
 
-`final-merge-report.md` 必須同時包含 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。此檔也是 archive 直接複製的最終來源。
+`final-merge-report.md` 必須同時包含 final merge 結果、commit map、Bug Fix Locator Index、需求/驗收對齊、延後/排除項，以及 port cleanup map。不得只把結果寫進 dispatch ledger；ledger 僅記錄流程事件與機器可讀狀態。此檔也是 archive 直接複製的最終來源；canonical source path 固定為 repo root 的 `.opencode/run-artifacts/<run_id>/final-merge-report.md`，archive 不得額外要求 `.worktree/<run_id>/merge/.opencode/run-artifacts/<run_id>/final-merge-report.md` duplicated copy 才能繼續。
 
 Final artifact 必填內容：
 
 - run_id、需求來源、init-project bootstrap branch（若 planner/run artifacts 有記錄）、final integration branch、final integration head、final merge worktree。
+- final `spec-flow/**` tracked 結果已隨 final integration head 形成 source tree，供 archive merge-back 後驗證 target bootstrap branch 是否保留相同 tracked `spec-flow/**`。
 - 所有 stage、eligibleSetId、parallelGroupId、classification 的 merge 摘要。
 - 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change。
 - commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
