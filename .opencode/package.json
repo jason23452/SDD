@@ -2,12 +2,13 @@
   "scripts": {
     "check:agents": "node scripts/agent-contract-check.js --strict",
     "check:scripts": "node scripts/check-script-contracts.js",
+    "check:repo-preflight": "node scripts/check-repo-preflight.js --strict",
     "check:artifacts": "node scripts/artifact-schema-check.js --strict",
     "cleanup:test-artifacts": "node scripts/cleanup-test-artifacts.js --older-than-minutes 5",
     "normalize:legacy-artifacts": "node scripts/normalize-legacy-artifacts.js",
     "test:checkers": "node scripts/test-checkers.js",
     "verify": "npm run verify:contracts",
-    "verify:contracts": "npm run check:agents && npm run check:scripts && npm run test:checkers",
+    "verify:contracts": "npm run check:repo-preflight && npm run test:checkers",
     "verify:artifacts": "node scripts/artifact-schema-check.js --legacy-report --legacy-summary-only --report-only",
     "verify:all": "npm run verify:contracts && npm run verify:artifacts"
   },

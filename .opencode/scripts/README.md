@@ -9,9 +9,12 @@ Run after editing `.opencode/agents/*.md` or `.opencode/scripts/*.js`:
 ```bash
 node .opencode/scripts/agent-contract-check.js --strict
 node .opencode/scripts/test-checkers.js
+npm --prefix .opencode run verify:contracts
 ```
 
 `agent-contract-check.js` validates the canonical artifact registry, compact output fields, alias namespace blockers, stale placeholders, and immutable skill diffs.
+
+`check-repo-preflight.js --strict` is the top-level repository guard used by `verify:contracts`. It runs agent/script contract checks, verifies `.opencode/package.json` and `.opencode/package-lock.json` remain trackable, blocks staged runtime artifacts under `.opencode/run-artifacts` except maintained final reports, and blocks dirty `.opencode/skills` diffs.
 
 ## Run artifacts
 
@@ -19,15 +22,37 @@ Run when a concrete run artifact directory exists:
 
 ```bash
 node .opencode/scripts/artifact-schema-check.js .opencode/run-artifacts/<run_id> --strict
+node .opencode/scripts/artifact-schema-check.js --legacy-report --legacy-summary-only --report-only
 ```
 
 `artifact-schema-check.js` validates summary/index/lock/packet common fields, `dispatch-ledger/v1`, `runner-event/v1`, source refs/hashes, fallback actions, status values, and `worktree/<run_id>/*` branch namespace.
+
+Useful options:
+
+- `--legacy-report`: include legacy drift counts grouped by finding code.
+- `--legacy-summary-only`: suppress detailed findings while keeping legacy summary counts.
+- `--max-findings <n>`: cap detailed findings in text/JSON output.
+- `--by-file`: include per-file finding counts.
+- `--report-only`: return exit code 0 even when findings fail the schema check.
 
 Compact flow artifacts such as `run-preflight-packet/v1`, `verification-matrix/v1`, `package-decision-record/v1`, `experience-contract/v1`, and `context-slice/v1` are treated as summary artifacts. They must include common source refs, source hashes, status, blockers, detail refs, and fallback actions; they never replace the full planner, project rules, dispatch ledger, runner events, or final maintained report.
 
 Speed artifacts such as `openspec-template-contract/v1`, `apply-readiness-checklist/v1`, `snapshot-manifest/v1`, and `commit-metadata-summary/v1` follow the same common summary contract. They optimize formatting, snapshot sync, apply readiness checks, and final report generation, but stale or blocked summaries must fall back to the original OpenSpec artifacts, source worktree files, or git history.
 
 If `.opencode/run-artifacts` does not exist, the checker reports `skipped`; this is expected outside an active run.
+
+Use `normalize-legacy-artifacts.js` to inspect or repair old artifact directories. It defaults to dry-run mode and only writes when `--apply` is present:
+
+```bash
+node .opencode/scripts/normalize-legacy-artifacts.js .opencode/run-artifacts/<run_id> --json
+node .opencode/scripts/normalize-legacy-artifacts.js .opencode/run-artifacts/<run_id> --apply
+```
+
+Use `cleanup-test-artifacts.js` to remove generated `run-test-*` artifacts. `--check` is dry-run, and `--older-than-minutes <n>` keeps newer test runs for debugging.
+
+```bash
+node .opencode/scripts/cleanup-test-artifacts.js --check --older-than-minutes 5
+```
 
 ## Speed artifact builders
 
@@ -69,6 +94,7 @@ node .opencode/scripts/check-verification-matrix.js <run_id>
 node .opencode/scripts/check-artifact-freshness.js .opencode/run-artifacts/<run_id> --strict --gate runner
 node .opencode/scripts/check-artifact-crossrefs.js <run_id> --strict
 node .opencode/scripts/check-script-contracts.js
+node .opencode/scripts/check-repo-preflight.js --strict
 node .opencode/scripts/check-dispatch-ledger-readiness.js <run_id>
 node .opencode/scripts/check-runner-event-completeness.js <run_id> <classification_id>
 node .opencode/scripts/check-resume-readiness.js <run_id> --strict
@@ -94,3 +120,20 @@ node .opencode/scripts/artifact-scope-check.js <run_id> --scope final --strict
 `build-planner-index.js` stores section ranges, section hashes, keyword index, and package/experience/verification section refs. `build-final-report-index.js` stores file-to-commit, classification-to-commit, and keyword-to-commit maps for lower-token bugfix lookup.
 
 `build-run-metrics-summary.js` summarizes artifact status/schema counts, fallback risk count, and summary hit-rate proxy for speed/token tuning. `build-resume-cursor.js` and `check-resume-readiness.js` identify the next non-completed worktree from the dispatch ledger and validate cursor freshness. `build-verification-summary.js` creates compact check summaries with log refs. `check-runtime-artifacts-clean.js` prevents runtime run-artifacts from being staged, except the final maintained `final-merge-report.md`.
+
+## NPM scripts
+
+Run npm scripts from `.opencode` directly, or use `npm --prefix .opencode run <script>` from the repository root.
+
+```bash
+npm run check:agents
+npm run check:scripts
+npm run check:repo-preflight
+npm run check:artifacts
+npm run test:checkers
+npm run verify
+npm run verify:artifacts
+npm run verify:all
+```
+
+`verify` is intentionally fast and aliases `verify:contracts`. `verify:all` runs contract checks plus artifact schema reporting with legacy-compatible report-only mode.

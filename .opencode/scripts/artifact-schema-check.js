@@ -2,22 +2,9 @@
 
 const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs")
 const path = require("node:path")
-const {
-  ALLOWED_ARTIFACT_STATUSES,
-  BLOCKING_ARTIFACT_STATUSES,
-  COMMON_SUMMARY_FIELDS,
-  DISPATCH_LEDGER_SET_ARRAY_FIELDS,
-  DISPATCH_LEDGER_SET_FIELDS,
-  DISPATCH_LEDGER_STAGE_ARRAY_FIELDS,
-  DISPATCH_LEDGER_STAGE_FIELDS,
-  DISPATCH_LEDGER_TOP_FIELDS,
-  DISPATCH_LEDGER_WAVE_FIELDS,
-  DISPATCH_LEDGER_WORKTREE_FIELDS,
-  RUNNER_EVENT_COMMIT_FIELDS,
-  RUNNER_EVENT_FIELDS,
-  needsCommonFields,
-} = require("./lib/artifact-schema-rules")
+const { needsCommonFields } = require("./lib/artifact-schema-rules")
 const { ROOT, normalizeRefs, parseArgs, stripBom } = require("./lib/artifact-utils")
+const { validateCommonFields, validateDispatchLedger, validateRunnerEvent } = require("./lib/artifact-validator")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 const DEFAULT_ARTIFACTS_DIR = path.join(ROOT, ".opencode", "run-artifacts")
@@ -79,137 +66,8 @@ function walkJsonFiles(dir) {
   return files.sort()
 }
 
-function hasAny(obj, keys) {
-  return keys.some((key) => Object.prototype.hasOwnProperty.call(obj, key))
-}
-
 function rel(filePath) {
   return path.relative(ROOT, filePath).replace(/\\/g, "/")
-}
-
-function checkCommonFields(file, data) {
-  for (const field of COMMON_SUMMARY_FIELDS) {
-    if (!Object.prototype.hasOwnProperty.call(data, field)) {
-      addFinding("error", "SUMMARY_FIELD_MISSING", rel(file), `Missing required field: ${field}`)
-    }
-  }
-
-  if (!hasAny(data, ["sourceRefs", "sourceRef", "source"])) {
-    addFinding("error", "SOURCE_REFS_MISSING", rel(file), "Missing sourceRefs/sourceRef/source.")
-  }
-
-  if (!hasAny(data, ["sourceHashes", "sourceHash", "sourceHead", "head", "HEAD"])) {
-    addFinding("error", "SOURCE_HASH_MISSING", rel(file), "Missing sourceHashes/sourceHash/sourceHead/head.")
-  }
-
-  if (Object.prototype.hasOwnProperty.call(data, "blockers") && !Array.isArray(data.blockers)) {
-    addFinding("error", "BLOCKERS_NOT_ARRAY", rel(file), "blockers must be an array.")
-  }
-
-  if (Object.prototype.hasOwnProperty.call(data, "detailRefs") && !Array.isArray(data.detailRefs)) {
-    addFinding("error", "DETAIL_REFS_NOT_ARRAY", rel(file), "detailRefs must be an array.")
-  }
-
-  if (Object.prototype.hasOwnProperty.call(data, "sourceRefs") && !Array.isArray(data.sourceRefs) && typeof data.sourceRefs !== "object") {
-    addFinding("error", "SOURCE_REFS_NOT_ARRAY", rel(file), "sourceRefs must be an array or object when present.")
-  }
-
-  if (Object.prototype.hasOwnProperty.call(data, "fallbackAction") && typeof data.fallbackAction !== "string") {
-    addFinding("error", "FALLBACK_ACTION_INVALID", rel(file), "fallbackAction must be a string.")
-  }
-
-  if (typeof data.fallbackAction === "string" && data.fallbackAction.trim() === "") {
-    addFinding("error", "FALLBACK_ACTION_EMPTY", rel(file), "fallbackAction must not be empty.")
-  }
-
-  if (typeof data.status === "string" && !ALLOWED_ARTIFACT_STATUSES.has(data.status)) {
-    addFinding("warning", "STATUS_UNKNOWN", rel(file), `Unknown status value: ${data.status}`)
-  }
-
-  if (!hasAny(data, ["createdAt", "updatedAt", "created_at", "updated_at", "scanTimestamp"])) {
-    addFinding("warning", "TIMESTAMP_MISSING", rel(file), "Missing createdAt/updatedAt or equivalent timestamp.")
-  }
-
-  if (BLOCKING_ARTIFACT_STATUSES.has(data.status) && Array.isArray(data.blockers) && data.blockers.length === 0) {
-    addFinding("warning", "BLOCKED_WITHOUT_BLOCKERS", rel(file), `status=${data.status} but blockers[] is empty.`)
-  }
-}
-
-function requireField(file, obj, field, code, message) {
-  if (!Object.prototype.hasOwnProperty.call(obj, field)) {
-    addFinding("error", code, rel(file), message || `Missing required field: ${field}`)
-    return false
-  }
-  return true
-}
-
-function requireArray(file, obj, field, code) {
-  if (!requireField(file, obj, field, code, `Missing required array field: ${field}`)) return
-  if (!Array.isArray(obj[field])) addFinding("error", code, rel(file), `${field} must be an array.`)
-}
-
-function checkDispatchLedger(file, data) {
-  for (const field of DISPATCH_LEDGER_TOP_FIELDS) {
-    requireField(file, data, field, "DISPATCH_LEDGER_FIELD_MISSING")
-  }
-  requireArray(file, data, "stages", "DISPATCH_LEDGER_STAGES_INVALID")
-
-  if (!Array.isArray(data.stages)) return
-  data.stages.forEach((stage, stageIndex) => {
-    const prefix = `stages[${stageIndex}]`
-    for (const field of DISPATCH_LEDGER_STAGE_FIELDS) {
-      if (!Object.prototype.hasOwnProperty.call(stage, field)) addFinding("error", "DISPATCH_LEDGER_STAGE_FIELD_MISSING", rel(file), `${prefix}.${field} is missing.`)
-    }
-    for (const field of DISPATCH_LEDGER_STAGE_ARRAY_FIELDS) {
-      if (!Array.isArray(stage[field])) addFinding("error", "DISPATCH_LEDGER_STAGE_ARRAY_INVALID", rel(file), `${prefix}.${field} must be an array.`)
-    }
-
-    if (Array.isArray(stage.readyWaves)) {
-      stage.readyWaves.forEach((wave, waveIndex) => {
-        for (const field of DISPATCH_LEDGER_WAVE_FIELDS) {
-          if (!Object.prototype.hasOwnProperty.call(wave, field)) addFinding("error", "DISPATCH_LEDGER_WAVE_FIELD_MISSING", rel(file), `${prefix}.readyWaves[${waveIndex}].${field} is missing.`)
-        }
-      })
-    }
-
-    if (Array.isArray(stage.eligibleSets)) {
-      stage.eligibleSets.forEach((set, setIndex) => {
-        for (const field of DISPATCH_LEDGER_SET_FIELDS) {
-          if (!Object.prototype.hasOwnProperty.call(set, field)) addFinding("error", "DISPATCH_LEDGER_SET_FIELD_MISSING", rel(file), `${prefix}.eligibleSets[${setIndex}].${field} is missing.`)
-        }
-        for (const field of DISPATCH_LEDGER_SET_ARRAY_FIELDS) {
-          if (Object.prototype.hasOwnProperty.call(set, field) && !Array.isArray(set[field])) addFinding("error", "DISPATCH_LEDGER_SET_ARRAY_INVALID", rel(file), `${prefix}.eligibleSets[${setIndex}].${field} must be an array.`)
-        }
-        if (Array.isArray(set.expectedWorktrees)) {
-          set.expectedWorktrees.forEach((worktree, worktreeIndex) => {
-            for (const field of DISPATCH_LEDGER_WORKTREE_FIELDS) {
-              if (!Object.prototype.hasOwnProperty.call(worktree, field)) addFinding("error", "DISPATCH_LEDGER_WORKTREE_FIELD_MISSING", rel(file), `${prefix}.eligibleSets[${setIndex}].expectedWorktrees[${worktreeIndex}].${field} is missing.`)
-            }
-            if (typeof worktree.branch === "string" && !worktree.branch.startsWith(`worktree/${data.run_id}/`)) {
-              addFinding("error", "WORKTREE_BRANCH_NAMESPACE_INVALID", rel(file), `${prefix}.eligibleSets[${setIndex}].expectedWorktrees[${worktreeIndex}].branch is not worktree/<run_id>/*.`)
-            }
-          })
-        }
-      })
-    }
-  })
-}
-
-function checkRunnerEvent(file, data) {
-  for (const field of RUNNER_EVENT_FIELDS) {
-    requireField(file, data, field, "RUNNER_EVENT_FIELD_MISSING")
-  }
-  if (data.commits && typeof data.commits === "object") {
-    for (const field of RUNNER_EVENT_COMMIT_FIELDS) {
-      if (!Object.prototype.hasOwnProperty.call(data.commits, field)) addFinding("error", "RUNNER_EVENT_COMMITS_FIELD_MISSING", rel(file), `commits.${field} is missing.`)
-    }
-  }
-  if (data.verification && typeof data.verification === "object" && !Object.prototype.hasOwnProperty.call(data.verification, "local")) {
-    addFinding("error", "RUNNER_EVENT_VERIFICATION_LOCAL_MISSING", rel(file), "verification.local is missing.")
-  }
-  if (typeof data.branch === "string" && data.run_id && !data.branch.startsWith(`worktree/${data.run_id}/`)) {
-    addFinding("error", "WORKTREE_BRANCH_NAMESPACE_INVALID", rel(file), "runner event branch is not worktree/<run_id>/*.")
-  }
 }
 
 function checkFile(file) {
@@ -252,9 +110,9 @@ function checkFile(file) {
     return
   }
 
-  if (schemaVersion === "dispatch-ledger/v1") checkDispatchLedger(file, data)
-  else if (schemaVersion === "runner-event/v1") checkRunnerEvent(file, data)
-  else if (needsCommonFields(schemaVersion)) checkCommonFields(file, data)
+  if (schemaVersion === "dispatch-ledger/v1") validateDispatchLedger(file, data, addFinding)
+  else if (schemaVersion === "runner-event/v1") validateRunnerEvent(file, data, addFinding)
+  else if (needsCommonFields(schemaVersion)) validateCommonFields(file, data, addFinding)
 }
 
 function printSummary() {
