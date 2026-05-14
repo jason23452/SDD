@@ -86,6 +86,8 @@ Every builder accepts `--check` to print the intended output without writing fil
 
 `build-commit-metadata-summary.js` also supports `--runner-event <path>`, `--from <commit>`, `--to <commit>`, and `--commits <hashes>` so final report and bugfix indexes can be generated from exact runner commits instead of scanning recent history.
 
+`build-skill-driven-verification-contract.js` is the structured verification authority bridge between `skill.md` and `project-rules.md`. It should be generated before `build-verification-matrix.js`. If the contract is missing, stale, or blocked, downstream scripts and agents must block rather than infer tools.
+
 ## Scoped checks
 
 Use scoped checks to avoid validating the whole run artifact tree in every runner or wave.

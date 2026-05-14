@@ -322,6 +322,28 @@ try {
     detailRefs: [],
     fallbackAction: "read full planner experience contract section",
   })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "project-rules-lock.json"), {
+    schemaVersion: "project-rules-lock/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full project rules",
+  })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "skill-lock.json"), {
+    schemaVersion: "skill-lock/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read active skills and rebuild skill lock",
+  })
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
     schemaVersion: "verification-matrix/v1",
     run_id: runId,
@@ -355,7 +377,7 @@ try {
   runJsonCase("build preflight json dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check", "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.artifact && data.artifact.schemaVersion === "run-preflight-packet/v1" || "invalid script-result")
   const outPath = path.join(tempRoot, "preflight-out.json")
   runCase("build preflight custom out", [BUILD_PREFLIGHT, runId, "--planner", planner, "--out", outPath], 0)
-  runCase("build skill verification dry-run", [BUILD_SKILL_VERIFICATION, runId, "--planner", planner, "--check"], 0)
+  runCase("build skill verification dry-run", [BUILD_SKILL_VERIFICATION, runId, "--planner", planner, "--project-rules-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "project-rules-lock.json")), "--skill-lock", rootRel(path.join(".opencode", "run-artifacts", runId, "skill-lock.json")), "--check"], 0)
   runJsonCase("build matrix strict rejects missing verification", [BUILD_MATRIX, runId, "--planner", planner, "--check", "--json", "--strict"], 1)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)
