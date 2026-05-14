@@ -265,10 +265,10 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 
 - 依 README、project rules、`spec-flow` OpenSpec tasks 與既有 scripts 做最小必要驗證。
 - 執行任何測試前必須先 read-back project rules、執行 Dependency Gate，並產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
-- backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與既有 backend test entry 存在時，才可跑 Python/backend 測試；命令必須先依 active backend skill、README、`pyproject.toml` 與既有 scripts 決定。缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
-- frontend/fullstack 只有在 `frontend/package.json`、既有 scripts 或 test config 存在時，才可跑前端 local/unit 測試與 build/typecheck；命令必須先依 project rules、active frontend skill、既有 scripts 與 test config 決定。缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
-- E2E / browser verification framework 必須先依 active frontend skill、既有 browser config 與 scripts 決定。缺 skill 所需入口時必須標記未執行原因，不得進入 watch 或互動模式。
-- 測試命令必須 one-shot 且可結束：runner 先依 active skills 與既有 scripts/config 選 local test 與 browser/E2E 命令；browser/E2E 必須 headless/non-interactive；禁止 watch mode。
+- backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與既有 backend test entry 存在時，才可跑 Python/backend 測試；命令必須由 active backend skill 與既有專案入口共同決定。缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
+- frontend/fullstack 只有在 `frontend/package.json`、既有 scripts 或 test config 存在時，才可跑前端 local/unit 測試與 build/typecheck；命令必須由 active frontend skill 與既有專案入口共同決定。缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
+- E2E / browser verification framework 必須由 active frontend skill 與既有專案入口共同決定。缺 skill 所需入口時必須標記未執行原因，不得進入 watch 或互動模式。
+- 測試命令必須 one-shot 且可結束：runner 只依 active skills 與既有專案入口選 local test 與 browser/E2E 命令；browser/E2E 必須 headless/non-interactive；禁止 watch mode。
 - Python 驗證不得用 ad-hoc `python -c`、手寫 Python smoke 或互動式 Python 指令取代 active backend skill 指定的正式 backend test framework；import app、health、startup sanity、API smoke 必須寫成該正式 backend 測試或 fixture。
 - 所有 install/build/test/smoke 必須有 timeout。逾時回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或假裝通過。
 - 測試輸出採 summary-first：runner 可寫入 `.opencode/run-artifacts/<run_id>/verification-summary/<classification_id>.json`，schemaVersion=`verification-summary/v1`，記錄 command、exitCode、duration、status、logRef、errorDigest、matrixRef 與 blocker。final output 只需列摘要與 logRef；但失敗、blocked、或 merge/barrier 要求時必須提供足以重現與診斷的原始命令/錯誤來源，不得把 summary 當 passed 證據。
@@ -276,7 +276,7 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 - runner 完成或 blocked 時可寫入/更新 `resume-cursor/v1` 的本 worktree 狀態與 nextAction，但不得直接改 shared dispatch ledger。主流程/merge barrier 仍以 dispatch ledger 與 runner event 為準；cursor 只用於快速定位下一步。
 - 執行任何 install/build/test/smoke 前，必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
 - 禁止產生或執行任何 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
-- Browser smoke 必須先依 active frontend skill、既有 browser config 與 scripts 決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
+- Browser smoke 必須由 active frontend skill 與既有專案入口共同決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。沒有 helper 時不得臨時用 shell/PowerShell 拼接 server smoke。
 - 任一 assigned port 未釋放、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時，不得把 tasks checkbox 勾完成、不得 commit、不得回報 apply 完成；必須修復為非 PowerShell 受控流程或回報 blocker。
 - 驗證失敗不得 commit 完成狀態；修復通過後再 commit，或停止回報阻塞。

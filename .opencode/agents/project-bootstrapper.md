@@ -49,10 +49,10 @@ permission:
 
 - 建立或補齊後、執行任何測試前，必須輸出並檢查單點測試矩陣。
 - Frontend 必須先確認 `package.json` 存在、scripts 存在、source entry 存在；缺任一項不得跑 `npm run ...`，必須先補最小可啟動檔或回報 blocker。
-- Backend 必須先確認 `pyproject.toml` 或既有 dependency file、正式 app entrypoint、至少一個可執行 backend test 或 import/health check；缺任一項不得跑 backend 測試命令，必須先補最小可啟動檔或回報 blocker。命令先依 active backend skill、README 與既有 backend test entry 決定。
-- E2E 必須先確認既有 browser/E2E framework config、測試檔與可啟動 frontend/backend；缺任一項不得硬跑，bootstrap 階段可標記「E2E 未建立，後續功能 worktree 補齊」。framework 先依 active frontend skill 與現有 config 決定。
+- Backend 必須先確認 `pyproject.toml` 或既有 dependency file、正式 app entrypoint、至少一個可執行 backend test 或 import/health check；缺任一項不得跑 backend 測試命令，必須先補最小可啟動檔或回報 blocker。命令只能依 active backend skill 與既有 backend test entry 決定。
+- E2E 必須先確認既有 browser/E2E framework config、測試檔與可啟動 frontend/backend；缺任一項不得硬跑，bootstrap 階段可標記「E2E 未建立，後續功能 worktree 補齊」。framework 只能依 active frontend skill 與既有專案入口決定。
 - 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案。
-- 測試命令必須 one-shot；禁止 watch/interactive mode。實際前端 local test、backend test 與 browser/E2E 命令先依 active skills、README、既有 scripts 與 config 決定；只有在新專案且 skill 本身明確提供 fallback 時，才可沿用 skill-backed fallback，不得由 agent 另行指定工具名。
+- 測試命令必須 one-shot；禁止 watch/interactive mode。實際前端 local test、backend test 與 browser/E2E 命令只能依 active skills、既有 scripts、既有 config 與 skill 本身明確提供的 fallback 決定，不得由 agent 另行指定工具名。
 - 每個 install/build/test/smoke 命令都必須有 timeout 或由工具 timeout 包住。逾時時輸出 `TEST_TIMEOUT`，停止本批流程並回報可確認的殘留狀態，不能無限等待或假裝完成。
 - 執行任何 install/build/test/smoke 前，必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
 
@@ -67,7 +67,7 @@ permission:
 - 驗證必須非互動且可自動結束；不得開新 terminal/window，不得要求使用者關閉 terminal 才繼續。
 - 優先使用會結束的命令驗證：frontend install/build/typecheck/local tests；backend sync 與既有 backend test 命令。沒有正式 backend test 入口時必須先補最小 backend 測試或明確標記 blocker，不得用 ad-hoc Python 指令替代。
 - Bootstrap 階段不得產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
-- Browser smoke framework 必須先依 active frontend skill、既有 browser config 與 scripts 決定。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
+- Browser smoke framework 必須由 active frontend skill 與既有專案入口共同決定。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。沒有 helper 時不得臨時用 shell/PowerShell 拼接。
 - 禁止用 `cmd /c start`、`start`、未受控 `Start-Process` 或任何會跳出新 terminal/window 的驗證方式。
 - 任一 smoke port 未釋放、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時，不得宣稱 bootstrap 完成；必須回報 blocker 與可確認的 port/PID/command line。
@@ -81,7 +81,7 @@ permission:
 
 ## Stack 規則
 
-- Frontend 預設 Vite + React + TypeScript SPA，除非已確認其他 stack；遵守 frontend skill 與 `.opencode/project-rules.md`；需 install、build、可用 typecheck/test。新專案若尚無既有規則，可用 active skill-backed frontend local test fallback 建立最小可測基底；但 downstream runner/merge 仍必須優先依 active skills、現有 scripts 與 config 重新判斷。browser smoke framework 先依 active frontend skill 與現有 config 決定。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature 或 API 串接。
+- Frontend 預設 Vite + React + TypeScript SPA，除非已確認其他 stack；遵守 frontend skill 與 `.opencode/project-rules.md`；需 install、build、可用 typecheck/test。新專案若尚無既有規則，可用 active skill-backed frontend local test fallback 建立最小可測基底；但 downstream runner/merge 仍必須優先依 active skills，再由 project-rules 承接既有專案入口重新判斷。browser smoke framework 由 active frontend skill 與既有專案入口決定。只建 placeholder/app shell/必要 provider/驗證 route，不建需求 feature 或 API 串接。
 - Backend 預設 FastAPI + uv，除非已確認其他 stack；遵守 backend skill 與 `.opencode/project-rules.md`；新專案至少有 `app/main.py`、`app = FastAPI()`、health、dev/prod-like 命令。需 sync 與由 active backend skill 決定的正式 backend test framework；`/health`、`/docs`、import app 或 startup sanity 必須寫成正式 backend 測試或 fixture，不用 ad-hoc Python/PowerShell smoke。不建需求 schema/migration/auth/service/repository/業務流程；若規則要求 DB/Redis/Compose，只建基礎設定並註明尚無需求 schema。
 - 同時建立時，定義啟動順序、API base URL、CORS/session/cookie/token 邊界、環境變數與錯誤格式。
 - README 只摘錄/引用 `.opencode/project-rules.md`；新舊規則衝突以最新明確規則覆蓋並記錄；不改 skill 原文。

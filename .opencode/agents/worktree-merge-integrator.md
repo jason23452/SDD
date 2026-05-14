@@ -227,7 +227,7 @@ final report index 可用 `node .opencode/scripts/build-final-report-index.js <r
 
 整合後必須依 README、project rules、OpenSpec tasks 與已確認驗證門檻跑最小必要驗證。
 
-整合驗證前必須先產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。frontend local test 命令必須先依 `frontend/package.json`、既有 scripts/test config 與 active frontend skill 決定；backend Python/backend test 命令必須先依 `backend/pyproject.toml`、既有 backend test entry 與 active backend skill 決定；browser/E2E framework 必須先依既有 browser config 與 active frontend skill 決定。缺入口但來源 worktree 宣稱已完成對應功能，視為 blocker。
+整合驗證前必須先產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。frontend local test、backend Python/backend test、browser/E2E framework 都必須由 active skill 與既有專案入口共同決定；缺入口但來源 worktree 宣稱已完成對應功能，視為 blocker。
 
 所有測試必須 one-shot、非互動且有 timeout。禁止 watch mode。merge integrator 不得自行硬選前端、backend 或 browser 測試工具，必須依測試矩陣、active skills 與既有專案執行；Python/backend import app、health、startup sanity、API smoke 必須寫成 active backend skill 指定的正式 backend 測試或 fixture。逾時時必須回報 `TEST_TIMEOUT`，停止本批流程並回報可確認殘留狀態，不能無限等待或宣稱完成。
 
@@ -236,10 +236,10 @@ final report index 可用 `node .opencode/scripts/build-final-report-index.js <r
 整合驗證可寫入 `verification-summary/v1`，完整 log 以 logRef 保存；輸出與 final report 引用摘要即可。若驗證失敗、逾時、blocked 或 summary 與命令結果不一致，必須回到原始命令輸出與 logRef，不得把摘要當通過證據。
 
 常見驗證：
-- frontend install/typecheck/build/local tests（依現有 scripts/test runner 與 project rules）。
+- frontend install/typecheck/build/local tests（依 active frontend skill 與既有專案入口）。
 - backend sync/backend tests/migration/DB config；Python/backend 驗證由 active backend skill 與既有 backend test framework 決定，不用 ad-hoc Python 指令。
 - Docker Compose config 或 DB 啟動（若需求要求）。
-- fullstack/E2E smoke；browser framework 由 active frontend skill 與既有 config 決定。
+- fullstack/E2E smoke；browser framework 由 active frontend skill 與既有專案入口決定。
 - fullstack contract 驗證：確認 frontend API service、form validation、server error mapping、auth/session 狀態與 backend response/error schema 一致。
 - Experience Contract 驗證：frontend/fullstack 時確認主要 route 或流程在 mobile/desktop、loading/empty/error/success/disabled、focus-visible/accessibility 與視覺一致性上未違反 active skill；未能驗證時標 skipped/blocked。
 
@@ -247,7 +247,7 @@ Verification matrix policy：merge integrator 必須優先讀 `verification-matr
 
 Server smoke 必須 bounded 且不得使用 PowerShell：
 - 禁止產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
-- Browser smoke 必須先依 active frontend skill、既有 browser config 與 scripts 決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
+- Browser smoke 必須由 active frontend skill 與既有專案入口共同決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。
 - 未釋放 port、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時不得回報完成。
 - 若 port 被未知行程佔用，fail fast 並回報 PID/command line，不得自動換 port。

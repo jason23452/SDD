@@ -10,6 +10,7 @@ const { rootRel, validDispatchLedger, validRunnerEvent, writeJson } = require(".
 const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schema-check.js")
 const AGENT_CHECKER = path.join(ROOT, ".opencode", "scripts", "agent-contract-check.js")
 const BUILD_PREFLIGHT = path.join(ROOT, ".opencode", "scripts", "build-run-preflight-packet.js")
+const BUILD_SKILL_VERIFICATION = path.join(ROOT, ".opencode", "scripts", "build-skill-driven-verification-contract.js")
 const BUILD_MATRIX = path.join(ROOT, ".opencode", "scripts", "build-verification-matrix.js")
 const CHECK_MATRIX = path.join(ROOT, ".opencode", "scripts", "check-verification-matrix.js")
 const BUILD_CONTEXT = path.join(ROOT, ".opencode", "scripts", "build-context-slices.js")
@@ -335,10 +336,26 @@ try {
     stageIntegration: [],
     finalOnly: [],
   })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "skill-driven-verification-contract.json"), {
+    schemaVersion: "skill-driven-verification-contract/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "planned",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read active skills, project rules, and full planner verification section",
+    verificationSections: [],
+    runnerLocalChecks: [],
+    stageIntegrationChecks: [],
+    finalOnlyChecks: [],
+  })
   runCase("build preflight dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check"], 0)
   runJsonCase("build preflight json dry-run", [BUILD_PREFLIGHT, runId, "--planner", planner, "--check", "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.artifact && data.artifact.schemaVersion === "run-preflight-packet/v1" || "invalid script-result")
   const outPath = path.join(tempRoot, "preflight-out.json")
   runCase("build preflight custom out", [BUILD_PREFLIGHT, runId, "--planner", planner, "--out", outPath], 0)
+  runCase("build skill verification dry-run", [BUILD_SKILL_VERIFICATION, runId, "--planner", planner, "--check"], 0)
   runJsonCase("build matrix strict rejects missing verification", [BUILD_MATRIX, runId, "--planner", planner, "--check", "--json", "--strict"], 1)
   runCase("build matrix dry-run", [BUILD_MATRIX, runId, "--planner", planner, "--check"], 0)
   runCase("build context dry-run", [BUILD_CONTEXT, runId, "--ready-wave", "wave-1", "--check"], 0)

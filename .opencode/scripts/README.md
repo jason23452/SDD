@@ -35,7 +35,7 @@ Useful options:
 - `--by-file`: include per-file finding counts.
 - `--report-only`: return exit code 0 even when findings fail the schema check.
 
-Compact flow artifacts such as `run-preflight-packet/v1`, `verification-matrix/v1`, `package-decision-record/v1`, `experience-contract/v1`, and `context-slice/v1` are treated as summary artifacts. They must include common source refs, source hashes, status, blockers, detail refs, and fallback actions; they never replace the full planner, project rules, dispatch ledger, runner events, or final maintained report.
+Compact flow artifacts such as `run-preflight-packet/v1`, `skill-driven-verification-contract/v1`, `verification-matrix/v1`, `package-decision-record/v1`, `experience-contract/v1`, and `context-slice/v1` are treated as summary artifacts. They must include common source refs, source hashes, status, blockers, detail refs, and fallback actions; they never replace the full planner, project rules, dispatch ledger, runner events, or final maintained report.
 
 Speed artifacts such as `openspec-template-contract/v1`, `apply-readiness-checklist/v1`, `snapshot-manifest/v1`, and `commit-metadata-summary/v1` follow the same common summary contract. They optimize formatting, snapshot sync, apply readiness checks, and final report generation, but stale or blocked summaries must fall back to the original OpenSpec artifacts, source worktree files, or git history.
 
@@ -60,6 +60,7 @@ Use these after planner/classification decisions exist to reduce repeated long-c
 
 ```bash
 node .opencode/scripts/build-run-preflight-packet.js <run_id> --planner <path>
+node .opencode/scripts/build-skill-driven-verification-contract.js <run_id> --planner <path>
 node .opencode/scripts/build-verification-matrix.js <run_id> --planner <path>
 node .opencode/scripts/build-package-decision-record.js <run_id> --planner <path>
 node .opencode/scripts/build-experience-contract.js <run_id> --planner <path>

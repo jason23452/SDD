@@ -29,6 +29,7 @@ const REQUIRED_REGISTRY_SCHEMAS = [
   "cleanup-locks/v1",
   "cleanup-plan/v1",
   "run-preflight-packet/v1",
+  "skill-driven-verification-contract/v1",
   "verification-matrix/v1",
   "package-decision-record/v1",
   "experience-contract/v1",
