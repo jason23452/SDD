@@ -263,8 +263,8 @@ Package-first gate 是 propose、apply、dependency sync、verification 與 comm
 
 ## 驗證
 
-- 依 README、project rules、`spec-flow` OpenSpec tasks 與既有 scripts 做最小必要驗證。
-- 執行任何測試前必須先 read-back project rules、執行 Dependency Gate，並產生單點測試矩陣，列出 frontend/backend/E2E 是否可測、入口檔、命令、timeout、skip/blocker 原因。
+- 依 README、project rules、`spec-flow` OpenSpec tasks、`active-skill-selection-contract`、`skill-driven-verification-contract` 與 `verification-matrix` 做最小必要驗證。
+- 執行任何測試前必須先 read-back project rules、執行 Dependency Gate，並讀取單點測試矩陣與 skill-driven verification contract，列出本 worktree 需要的 checks、入口檔、命令、timeout、skip/blocker 原因。
 - backend-only 只有在 `backend/pyproject.toml` 或既有 dependency file、正式 entrypoint 與既有 backend test entry 存在時，才可跑 Python/backend 測試；命令必須由 active backend skill 與既有專案入口共同決定。缺必要入口且該分類需要後端功能時是 blocker，不能硬跑。
 - frontend/fullstack 只有在 `frontend/package.json`、既有 scripts 或 test config 存在時，才可跑前端 local/unit 測試與 build/typecheck；命令必須由 active frontend skill 與既有專案入口共同決定。缺必要入口且該分類需要前端功能時是 blocker，不能硬跑。
 - E2E / browser verification framework 必須由 active frontend skill 與既有專案入口共同決定。缺 skill 所需入口時必須標記未執行原因，不得進入 watch 或互動模式。

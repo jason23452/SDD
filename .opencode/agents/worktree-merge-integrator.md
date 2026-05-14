@@ -241,7 +241,7 @@ Verification matrix policy：merge integrator 必須優先讀 `verification-matr
 
 Server smoke 必須 bounded 且不得使用 PowerShell：
 - 禁止產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
-- Browser smoke 必須由 active frontend skill 與既有專案入口共同決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
+- Browser smoke 必須依 `skill-driven-verification-contract` 與既有專案入口共同決定 framework。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。
 - 未釋放 port、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時不得回報完成。
 - 若 port 被未知行程佔用，fail fast 並回報 PID/command line，不得自動換 port。

@@ -52,20 +52,20 @@ permission:
 - Backend 必須先確認 `pyproject.toml` 或既有 dependency file、正式 app entrypoint、至少一個可執行 backend test 或 import/health check；缺任一項不得跑 backend 測試命令，必須先補最小可啟動檔或回報 blocker。命令只能依 active backend skill 與既有 backend test entry 決定。
 - E2E 必須先確認既有 browser/E2E framework config、測試檔與可啟動 frontend/backend；缺任一項不得硬跑，bootstrap 階段可標記「E2E 未建立，後續功能 worktree 補齊」。framework 只能依 active frontend skill 與既有專案入口決定。
 - 只有 generated artifacts（`node_modules`、`.venv`、`dist`、`test-results`、`.pytest_cache`、`.ruff_cache`、`__pycache__`）不得視為可測專案。
-- 測試命令必須 one-shot；禁止 watch/interactive mode。實際前端 local test、backend test 與 browser/E2E 命令只能依 active skills、既有 scripts、既有 config 與 skill 本身明確提供的 fallback 決定，不得由 agent 另行指定工具名。
+- 測試命令必須 one-shot；禁止 watch/interactive mode。bootstrapper 不定義工具，只執行 active skills、既有 scripts、既有 config 與已確認決策已能決定的驗證命令；若 skill 與入口不足以決定命令，必須 blocked，而不是由 agent 自行補推論。
 - 每個 install/build/test/smoke 命令都必須有 timeout 或由工具 timeout 包住。逾時時輸出 `TEST_TIMEOUT`，停止本批流程並回報可確認的殘留狀態，不能無限等待或假裝完成。
 - 執行任何 install/build/test/smoke 前，必須先做可測性與 stale-state gate：確認入口存在、確認沒有已知 blocker、確認不需要 PowerShell lifecycle。未知 listener 必須 fail fast 並列 PID/command line，不得自動換 port、換 port 重試或強殺。
 
 ## 完成定義
 
-- 依賴已安裝：frontend 依 lockfile 用 npm/pnpm/yarn 等；backend 預設 `uv sync` 或既有等價命令。
+- 依賴已安裝：依既有專案 lockfile、active skills 與已確認決策使用對應 dependency tool；bootstrapper 不在此定義新的工具預設。
 - 依賴 snapshot 已就緒：install/sync 完成後保留本機 dependency directory（例如 `frontend/node_modules/`、`backend/.venv/` 或既有工具的 project-local dependency dir），並產生 `.opencode/run-artifacts/<run_id>/dependency-snapshot.json` 或等價 manifest，供 `worktree-splitter` 複製到每個 execution worktree；manifest 必須記錄 source path、target expectation、manifest/lockfile hash、install/sync command/result、readiness check、copy-ready 狀態與不適用原因。不得把 dependency directory 納入 commit。
 - 可產生 `.opencode/run-artifacts/<run_id>/project-rules-lock.json`，schemaVersion=`project-rules-lock/v1`，記錄 project rules path/hash 與 bootstrap 後 relevantRulesDigest，供後續 splitter/runner 以 hash-first 方式 read-back；此 lock 不得取代 `.opencode/project-rules.md`，hash 不一致時後續 agent 必須讀完整規則。
 - 可產生 `.opencode/run-artifacts/<run_id>/planner-index.json` 初始骨架，schemaVersion=`planner-index/v1`，在主流程產生/更新 development-detail-planner 後由主流程補齊 section refs/hash/summary；bootstrapper 不得用 index 取代 planner，只能回傳 index path/ref 供後續 prompt 瘦身。
 - 可產生 `.opencode/run-artifacts/<run_id>/skill-lock.json`，schemaVersion=`skill-lock/v1`，記錄 relevant skill file hashes、sourceHead、diffStatus 與 blockers；後續 agent 仍必須在 mutating boundary 檢查 skill diff，lock 只減少重複讀取 skill 內容。
 - 可產生 `.opencode/run-artifacts/<run_id>/dependency-readiness.json`，schemaVersion=`dependency-readiness/v1`，記錄 frontend/backend package manager、manifest/lockfile hash、dependency dir readiness、copy-ready、fallback command/result 與 blockers；lockfile 或 dependency manifest hash 改變時後續 agent 必須回完整 Dependency Gate。
 - 驗證必須非互動且可自動結束；不得開新 terminal/window，不得要求使用者關閉 terminal 才繼續。
-- 優先使用會結束的命令驗證：frontend install/build/typecheck/local tests；backend sync 與既有 backend test 命令。沒有正式 backend test 入口時必須先補最小 backend 測試或明確標記 blocker，不得用 ad-hoc Python 指令替代。
+- 驗證命令必須是會結束的 one-shot 命令。沒有正式 backend 驗證入口時必須先補最小 backend 驗證入口或明確標記 blocker，不得用 ad-hoc Python 指令替代。
 - Bootstrap 階段不得產生或執行 PowerShell smoke、PowerShell validation、PowerShell cleanup、`Start-Process`、`Stop-Process`、`Get-CimInstance`、`Get-NetTCPConnection` 或 inline process-tree cleanup script。
 - Browser smoke framework 必須由 active frontend skill 與既有專案入口共同決定。若 skill 指定的 browser framework 所需條件不存在，必須標記 `BROWSER_SMOKE_BLOCKED` 或 `BROWSER_SMOKE_SKIPPED`，不得退回 PowerShell smoke。
 - 若確實需要 runtime server smoke，必須使用 repo 內可審查的跨平台 Node/Python helper 或測試 runner fixture 管理 server lifecycle；helper 必須由 one-shot 命令呼叫並自動結束。沒有 helper 時不得臨時用 shell/PowerShell 拼接。
