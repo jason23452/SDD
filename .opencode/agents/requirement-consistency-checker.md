@@ -39,13 +39,13 @@ permission:
 - 新增或採用 frontend/backend package、UI library、state library、auth/security package、ORM/migration/cache/queue/HTTP client package，但沒有 Package Decision Record、既有專案依據或 `question` 確認 => `未經確認`。
 - 套件決策違反 active skill 底線，例如混用套件管理工具、繞過正式 backend entrypoint、用 app startup `create_all()` 取代 migration、未依 active styling skill 設定樣式、或忽略 active skill 要求的驗證 => `不一致`。
 - frontend/fullstack 草稿缺 Experience Contract，或 UI feature 缺 loading/empty/error/success/disabled、responsive、accessibility、server error mapping、主要互動回饋與 visual/browser 驗證狀態 => `不一致`。
-- 同一 fullstack 使用者能力被拆成 frontend/backend/test 等同階段互相等待分類，而非 vertical slice 或明確 foundation/contract-first stage => `不一致`。
+- 同一 fullstack 使用者能力被拆成 frontend/backend/test 等同階段互相等待分類，且沒有明確 `balanced split` 理由、contract boundary、frontend experience owner 或 backend logic owner 說明 => `不一致`。若草稿明確說明 UI/UX 驗收風險、contract 穩定度、分類重量與 `splitJustification`，則 `balanced split` 屬合法方案。
 - 多個分類共用的 package、design token、API client、auth/cache/queue/DB/migration infrastructure 沒有唯一 packageOwner 或 foundation owner，卻允許 runner 自行導入 => `不一致`。
 - `需要優先度` lane 有明確執行優先度但草稿/流程未按優先度執行，或 `不需優先度` lane 被任意序列化而非同步/平行執行 => `不一致`。
 - 分類缺 `parallelGroupId`、`eligibleSetId`、`readyWaveId`、`readSet`、`writeSet`、`contractOwner`、`touchSet`、`contractInputs`、`contractOutputs`、`conflictRisk`、`parallelSafety`，或 Stage Execution Graph 未列出 `stage + lane + priority + parallelGroupId` eligible set、canonical `eligibleSetId`、stage ready wave / `readyWaveId` / `readyEligibleSetIds`、dispatch 方式、等待條件、wave merge gate 與 stage completed gate => `不一致`。
 - 兩個分類沒有 Dependency Graph edge、沒有 Conflict Graph hard edge，且只讀已 merge/stable contract，卻被排到不同 apply stage、不同 priority、互相等待，或漏出目前 stage ready wave，而不是同批或同輪平行 dispatch => `不一致`。
 - `不需優先度` lane 被標空集合，但分類表中存在 `parallelSafety=safe-parallel` 且 dependency 已滿足的分類，或 `需要優先度` lane 包含沒有具體 dependency/hard conflict 理由的分類 => `不一致`。
-- 分類以 `conflictRisk=high`、同一大需求、同一功能群、同一頁面附近、測試較多、或「保守」作為唯一理由阻止平行，而沒有具體 `writeSet` 重疊、未穩定 contract、migration chain、form submit flow 或 fixture hard conflict => `不一致`。
+- 分類以 `conflictRisk=high`、同一大需求、同一功能群、同一頁面附近、測試較多、或「保守」作為唯一理由阻止平行，而沒有具體 `writeSet` 重疊、未穩定 contract、migration chain、form submit flow、fixture hard conflict，或 heavy fullstack slice 會拖慢 UI/UX 的具體理由 => `不一致`。
 - 草稿/流程採舊版全分類 spec-plan 雙平面、要求建立 `worktree/<run_id>/spec/<name>`、或要求 bootstrap 後一次建立所有 planning worktree => `不一致`。
 - 草稿/流程、manifest、dispatch ledger、runner packet 或任何交接 artifact 若使用 `work/<run_id>/*`、`worktrees/<run_id>/*` 或其他 alias 作為 execution worktree branch namespace，而不是唯一合法的 `worktree/<run_id>/*` => `不一致`。
 - 草稿/流程因上游尚未 merge 而預建未來 stage worktree，或允許 runner 自行 merge upstream integration => `不一致`。
