@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-const { existsSync, readdirSync, readFileSync } = require("node:fs")
+const { existsSync, readdirSync } = require("node:fs")
 const path = require("node:path")
+const { ROOT, readText } = require("./lib/artifact-utils")
 
-const ROOT = process.cwd()
 const scriptsDir = path.join(ROOT, ".opencode", "scripts")
 const findings = []
 
@@ -12,7 +12,7 @@ function rel(file) {
 
 for (const name of readdirSync(scriptsDir).filter((item) => item.endsWith(".js")).sort()) {
   const file = path.join(scriptsDir, name)
-  const text = readFileSync(file, "utf8")
+  const text = readText(file)
   if (name.startsWith("build-") && !text.includes("flags.check")) findings.push({ code: "BUILD_SCRIPT_NO_CHECK", file: rel(file) })
   if (name.startsWith("build-") && !text.includes("flags.json") && !text.includes("output(")) findings.push({ code: "BUILD_SCRIPT_NO_JSON_OUTPUT", file: rel(file) })
   if (name.startsWith("build-") && !text.includes("resolveOutPath")) findings.push({ code: "BUILD_SCRIPT_NO_OUT", file: rel(file) })

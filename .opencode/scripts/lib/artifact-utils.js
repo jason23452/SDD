@@ -2,10 +2,20 @@ const { createHash } = require("node:crypto")
 const { execFileSync } = require("node:child_process")
 const { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } = require("node:fs")
 const path = require("node:path")
+const { ALLOWED_ARTIFACT_STATUSES, BLOCKING_ARTIFACT_STATUSES } = require("./artifact-schema-rules")
 
-const ROOT = process.cwd()
-const ALLOWED_ARTIFACT_STATUSES = new Set(["passed", "completed", "blocked", "failed", "stale", "missing", "skipped", "planned", "in_progress", "not_needed"])
-const BLOCKING_ARTIFACT_STATUSES = new Set(["failed", "blocked", "stale", "missing"])
+function findRepoRoot(startDir = process.cwd()) {
+  let current = path.resolve(startDir)
+  while (true) {
+    if (existsSync(path.join(current, "opencode.json")) || existsSync(path.join(current, ".opencode", "scripts"))) return current
+    const parent = path.dirname(current)
+    if (parent === current) return path.resolve(startDir)
+    current = parent
+  }
+}
+
+const ROOT = findRepoRoot()
+const UTF8_BOM = "\uFEFF"
 
 function parseArgs(argv) {
   const positional = []
@@ -44,9 +54,30 @@ function sha256File(filePath) {
   return sha256Text(readFileSync(filePath))
 }
 
+function stripBom(text) {
+  return typeof text === "string" && text.startsWith(UTF8_BOM) ? text.slice(1) : text
+}
+
+function readText(filePath) {
+  return stripBom(readFileSync(filePath, "utf8"))
+}
+
 function readJson(filePath) {
   if (!existsSync(filePath)) return null
-  return JSON.parse(readFileSync(filePath, "utf8"))
+  return JSON.parse(readText(filePath))
+}
+
+function normalizeRefs(refs) {
+  if (!refs) return []
+  if (Array.isArray(refs)) return refs
+  if (typeof refs === "object") {
+    return Object.entries(refs).map(([kind, ref]) => {
+      if (typeof ref === "string") return { kind, path: ref }
+      if (ref && typeof ref === "object") return { kind, ...ref }
+      return { kind, value: ref }
+    })
+  }
+  return []
 }
 
 function writeJson(filePath, value, checkOnly = false) {
@@ -132,18 +163,22 @@ module.exports = {
   ROOT,
   artifactDir,
   commonArtifact,
+  findRepoRoot,
   git,
   head,
+  normalizeRefs,
   now,
   output,
   parseArgs,
   printAndExitUsage,
   readJson,
+  readText,
   rel,
   resolveRoot,
   resolveOutPath,
   sha256File,
   sha256Text,
+  stripBom,
   walkFiles,
   writeJson,
   exitForStatus,

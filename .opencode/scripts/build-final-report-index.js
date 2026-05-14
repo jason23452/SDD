@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { existsSync, readFileSync } = require("node:fs")
-const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, rel, resolveOutPath, resolveRoot, sha256File, walkFiles, readJson, writeJson } = require("./lib/artifact-utils")
+const { existsSync } = require("node:fs")
+const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readText, rel, resolveOutPath, resolveRoot, sha256File, walkFiles, readJson, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-final-report-index.js <run_id> [--report <path>] [--check] [--json] [--out <path>] [--strict]")
@@ -24,7 +24,7 @@ for (const summary of summaries) {
     }
   }
 }
-const keywords = existsSync(report) ? readFileSync(report, "utf8").split(/\W+/).filter((word) => word.length > 3).slice(0, 100) : []
+const keywords = existsSync(report) ? readText(report).split(/\W+/).filter((word) => word.length > 3).slice(0, 100) : []
 const keywordToCommits = Object.fromEntries(keywords.slice(0, 50).map((word) => [word, commits.map((commit) => commit.hash).filter(Boolean).slice(0, 20)]))
 const out = resolveOutPath(path.join(artifactDir(runId), "final-report-index.json"), flags)
 const index = commonArtifact("final-report-index/v1", runId, sha256File(report) ? "passed" : "blocked", "read full final maintained report and git history", {

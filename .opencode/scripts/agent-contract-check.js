@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 const { execFileSync } = require("node:child_process")
-const { existsSync, readdirSync, readFileSync } = require("node:fs")
+const { existsSync, readdirSync } = require("node:fs")
 const path = require("node:path")
+const { ROOT, readText } = require("./lib/artifact-utils")
 
-const ROOT = process.cwd()
 const AGENTS_DIR = path.join(ROOT, ".opencode", "agents")
 const JSON_MODE = process.argv.includes("--json")
 const STRICT_MODE = process.argv.includes("--strict")
@@ -89,7 +89,7 @@ function readAgents() {
       return {
         name,
         rel: path.relative(ROOT, filePath).replace(/\\/g, "/"),
-        text: readFileSync(filePath, "utf8"),
+        text: readText(filePath),
       }
     })
 }

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 const { execFileSync } = require("node:child_process")
-const { mkdtempSync, rmSync, mkdirSync, writeFileSync } = require("node:fs")
+const { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
+const { ROOT } = require("./lib/artifact-utils")
 
-const ROOT = process.cwd()
 const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schema-check.js")
 const AGENT_CHECKER = path.join(ROOT, ".opencode", "scripts", "agent-contract-check.js")
 const BUILD_PREFLIGHT = path.join(ROOT, ".opencode", "scripts", "build-run-preflight-packet.js")
@@ -35,6 +35,8 @@ const BUILD_RESUME_CURSOR = path.join(ROOT, ".opencode", "scripts", "build-resum
 const CHECK_RESUME = path.join(ROOT, ".opencode", "scripts", "check-resume-readiness.js")
 const BUILD_VERIFICATION_SUMMARY = path.join(ROOT, ".opencode", "scripts", "build-verification-summary.js")
 const CHECK_RUNTIME_CLEAN = path.join(ROOT, ".opencode", "scripts", "check-runtime-artifacts-clean.js")
+const CLEAN_TEST_ARTIFACTS = path.join(ROOT, ".opencode", "scripts", "cleanup-test-artifacts.js")
+const NORMALIZE_LEGACY = path.join(ROOT, ".opencode", "scripts", "normalize-legacy-artifacts.js")
 
 const results = []
 
@@ -65,6 +67,10 @@ function runJsonCase(name, command, expectedStatus, assertFn) {
 function writeJson(filePath, value) {
   mkdirSync(path.dirname(filePath), { recursive: true })
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8")
+}
+
+function rootRel(filePath) {
+  return path.relative(ROOT, filePath).replace(/\\/g, "/")
 }
 
 function validDispatchLedger(runId) {
@@ -170,6 +176,7 @@ const tempRoot = mkdtempSync(path.join(os.tmpdir(), "opencode-checkers-"))
 const runId = `run-test-${process.pid}-${Date.now()}`
 
 try {
+  execFileSync(process.execPath, [CLEAN_TEST_ARTIFACTS], { cwd: ROOT, encoding: "utf8" })
   const validDir = path.join(tempRoot, "valid")
   const invalidDir = path.join(tempRoot, "invalid")
   const staleDir = path.join(tempRoot, "stale")
@@ -309,6 +316,17 @@ try {
     detailRefs: [],
     fallbackAction: "read full run artifacts and logs",
   })
+  writeFileSync(path.join(validDir, "bom-summary.json"), `\uFEFF${JSON.stringify({
+    schemaVersion: "run-preflight-packet/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner and project rules",
+  }, null, 2)}\n`, "utf8")
   writeJson(path.join(invalidDir, "dispatch-ledger.json"), {
     ...validDispatchLedger(runId),
     stages: [
@@ -357,6 +375,24 @@ try {
   runCase("artifact checker rejects alias branch", [ARTIFACT_CHECKER, invalidDir], 1)
   const planner = path.join(tempRoot, "planner.md")
   writeFileSync(planner, "# planner\n", "utf8")
+  const sourceRefFile = path.join(tempRoot, "source-ref.md")
+  writeFileSync(sourceRefFile, "source ref\n", "utf8")
+  const sourceObjectDir = path.join(tempRoot, "source-object")
+  writeJson(path.join(sourceObjectDir, "source-object-summary.json"), {
+    schemaVersion: "planner-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: { planner: { path: rootRel(sourceRefFile), sha256: require("crypto").createHash("sha256").update(require("fs").readFileSync(sourceRefFile)).digest("hex"), requiredFor: "source refs object", fallbackAction: "read source ref" } },
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full planner",
+  })
+  runCase("artifact checker accepts sourceRefs object", [ARTIFACT_CHECKER, sourceObjectDir, "--strict"], 0)
+  runJsonCase("artifact checker legacy summary only", [ARTIFACT_CHECKER, sourceObjectDir, "--legacy-report", "--legacy-summary-only", "--max-findings", "1", "--by-file", "--json"], 0, (data) => data.legacySummary && data.findings.length === 0 || "legacy summary only failed")
+  runCase("artifact checker report-only exits zero", [ARTIFACT_CHECKER, invalidDir, "--report-only"], 0)
+  runJsonCase("normalize legacy artifacts dry-run", [NORMALIZE_LEGACY, sourceObjectDir, "--run-id", runId, "--json"], 0, (data) => data.schemaVersion === "script-result/v1" && data.mode === "check" || "invalid normalize result")
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), validDispatchLedger(runId))
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), validRunnerEvent(runId))
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "context-slices", "class-1.json"), {
@@ -424,6 +460,7 @@ try {
   runCase("build dependency dry-run", [BUILD_DEPENDENCY, runId, "--check"], 0)
   runCase("build planner index dry-run", [BUILD_PLANNER_INDEX, runId, "--planner", planner, "--check"], 0)
   runCase("freshness valid fixtures", [CHECK_FRESHNESS, validDir, "--strict"], 0)
+  runCase("freshness accepts sourceRefs object", [CHECK_FRESHNESS, sourceObjectDir, "--strict"], 0)
   runCase("freshness rejects blocked summary", [CHECK_FRESHNESS, staleDir, "--strict"], 1)
   runCase("freshness gate rejects planned", [CHECK_FRESHNESS, validDir, "--strict", "--gate", "runner"], 1)
   runCase("verification matrix rejects empty", [CHECK_MATRIX, runId], 1)
@@ -458,6 +495,8 @@ try {
   runCase("build run metrics dry-run", [BUILD_RUN_METRICS, runId, "--check"], 0)
   runCase("runtime artifacts clean", [CHECK_RUNTIME_CLEAN, "--strict"], 0)
   runCase("script contracts", [CHECK_SCRIPT_CONTRACTS], 0)
+  runCase("cleanup test artifacts dry-run", [CLEAN_TEST_ARTIFACTS, "--check"], 0)
+  runCase("cleanup test artifacts age dry-run", [CLEAN_TEST_ARTIFACTS, "--check", "--older-than-minutes", "5"], 0)
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "port-map.json"), {
     schemaVersion: "port-registry/v1",
     run_id: runId,
@@ -484,6 +523,14 @@ try {
     commits: [{ hash: validRunnerEvent(runId).commits.specCommit, touchedFiles: [] }],
   })
   runCase("artifact crossrefs", [CHECK_CROSSREFS, runId, "--strict"], 0)
+  const alternateRunnerEventPath = path.join(tempRoot, "runner-event-alt.json")
+  writeJson(alternateRunnerEventPath, validRunnerEvent(runId))
+  rmSync(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), { force: true })
+  const ledgerWithAlternateRunnerEvent = validDispatchLedger(runId)
+  ledgerWithAlternateRunnerEvent.stages[0].eligibleSets[0].expectedWorktrees[0].runnerEventPath = alternateRunnerEventPath
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "dispatch-ledger.json"), ledgerWithAlternateRunnerEvent)
+  runCase("artifact crossrefs reads runnerEventPath", [CHECK_CROSSREFS, runId, "--strict"], 0)
+  if (!existsSync(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"))) writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), validRunnerEvent(runId))
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "context-slices", "class-1.json"), {
     schemaVersion: "context-slice/v1",
     run_id: runId,

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs")
-const { BLOCKING_ARTIFACT_STATUSES, ROOT, head, parseArgs, printAndExitUsage, rel, resolveRoot, sha256File } = require("./lib/artifact-utils")
+const { existsSync, readdirSync, statSync } = require("node:fs")
+const { BLOCKING_ARTIFACT_STATUSES, ROOT, head, normalizeRefs, parseArgs, printAndExitUsage, readJson, rel, resolveRoot, sha256File } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/check-artifact-freshness.js <artifact-or-dir> [--strict] [--gate runner|merge|final]")
@@ -16,7 +16,7 @@ function files(input) {
 }
 function checkFile(file) {
   let data
-  try { data = JSON.parse(readFileSync(file, "utf8")) } catch (error) { findings.push({ code: "JSON_PARSE_FAILED", file: rel(file), message: error.message }); return }
+  try { data = readJson(file) } catch (error) { findings.push({ code: "JSON_PARSE_FAILED", file: rel(file), message: error.message }); return }
   if (!data.schemaVersion) findings.push({ code: "SCHEMA_VERSION_MISSING", file: rel(file), fallbackAction: data.fallbackAction || "read full source artifacts" })
   const needsSummaryFallback = data.schemaVersion && data.schemaVersion !== "dispatch-ledger/v1" && data.schemaVersion !== "runner-event/v1"
   if (needsSummaryFallback && (!data.fallbackAction || typeof data.fallbackAction !== "string")) findings.push({ code: "FALLBACK_ACTION_MISSING", file: rel(file) })
@@ -26,7 +26,7 @@ function checkFile(file) {
     const currentHead = head()
     if (currentHead && currentHead !== data.sourceHashes.HEAD) findings.push({ code: "HEAD_MISMATCH", file: rel(file), expected: data.sourceHashes.HEAD, actual: currentHead, fallbackAction: data.fallbackAction })
   }
-  for (const ref of data.sourceRefs || []) {
+  for (const ref of normalizeRefs(data.sourceRefs)) {
     if (!ref.requiredFor) findings.push({ code: "SOURCE_REF_REQUIREDFOR_MISSING", file: rel(file), source: ref.path || null, fallbackAction: ref.fallbackAction || data.fallbackAction })
     if (!ref.path || !ref.sha256) continue
     const source = path.resolve(ROOT, ref.path)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { existsSync, readFileSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, rel, resolveOutPath, resolveRoot, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
+const { existsSync } = require("node:fs")
+const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readText, rel, resolveOutPath, resolveRoot, sha256File, walkFiles, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-experience-contract.js <run_id> [--planner <path>] [--check] [--json] [--out <path>] [--strict]")
@@ -13,13 +13,13 @@ const blockers = planner && !plannerHash ? ["PLANNER_MISSING"] : []
 const routes = new Set()
 const routeRefs = []
 if (plannerHash) {
-  const text = readFileSync(planner, "utf8")
+  const text = readText(planner)
   for (const match of text.matchAll(/(?:route|path|page|頁面|路由)[:：\s`'"]+(\/[A-Za-z0-9_./:-]*)/gi)) routes.add(match[1])
 }
 const frontendSrc = path.join(ROOT, "frontend", "src")
 if (existsSync(frontendSrc)) {
   for (const file of walkFiles(frontendSrc).filter((item) => /\.(jsx?|tsx?)$/.test(item))) {
-    const text = readFileSync(file, "utf8")
+    const text = readText(file)
     let matched = false
     for (const match of text.matchAll(/(?:path|to)=['"](\/[A-Za-z0-9_./:-]*)['"]/g)) { routes.add(match[1]); matched = true }
     if (matched) routeRefs.push({ kind: "frontend-route", path: rel(file), sha256: sha256File(file), requiredFor: "experience contract", fallbackAction: "read route source file" })

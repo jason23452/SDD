@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { existsSync, readFileSync } = require("node:fs")
-const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, rel, resolveOutPath, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { existsSync } = require("node:fs")
+const { ROOT, artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readJson, readText, rel, resolveOutPath, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-package-decision-record.js <run_id> [--planner <path>] [--check] [--json] [--out <path>] [--strict]")
@@ -13,7 +13,7 @@ const blockers = planner && !plannerHash ? ["PLANNER_MISSING"] : []
 function readPackageJson(dir) {
   const file = path.join(ROOT, dir, "package.json")
   if (!existsSync(file)) return null
-  const data = JSON.parse(readFileSync(file, "utf8"))
+  const data = readJson(file)
   return {
     manifest: rel(file),
     manifestHash: sha256File(file),
@@ -24,7 +24,7 @@ function readPackageJson(dir) {
 function readPyproject() {
   const file = path.join(ROOT, "backend", "pyproject.toml")
   if (!existsSync(file)) return null
-  const text = readFileSync(file, "utf8")
+  const text = readText(file)
   const dependencies = []
   for (const match of text.matchAll(/^\s*"([A-Za-z0-9_.-]+)/gm)) dependencies.push(match[1])
   return { manifest: rel(file), manifestHash: sha256File(file), dependencies: [...new Set(dependencies)].sort() }

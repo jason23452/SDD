@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 const path = require("node:path")
-const { readFileSync } = require("node:fs")
-const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readJson, rel, resolveOutPath, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
+const { artifactDir, commonArtifact, exitForStatus, output, parseArgs, printAndExitUsage, readJson, readText, rel, resolveOutPath, resolveRoot, sha256File, writeJson } = require("./lib/artifact-utils")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencode/scripts/build-verification-matrix.js <run_id> --planner <path> [--planner-index <path>] [--check] [--json] [--out <path>] [--strict]")
@@ -11,7 +10,8 @@ const plannerHash = planner ? sha256File(planner) : null
 const plannerIndexPath = flags["planner-index"] ? resolveRoot(flags["planner-index"]) : path.join(artifactDir(runId), "planner-index.json")
 const plannerIndex = readJson(plannerIndexPath)
 const verificationSections = plannerIndex && plannerIndex.sectionRefs && Array.isArray(plannerIndex.sectionRefs.verification) ? plannerIndex.sectionRefs.verification : []
-const text = verificationSections.length && plannerHash ? verificationSections.map((section) => readFileSync(planner, "utf8").split(/\r?\n/).slice(section.line - 1, section.endLine).join("\n")).join("\n").toLowerCase() : plannerHash ? readFileSync(planner, "utf8").toLowerCase() : ""
+const plannerText = plannerHash ? readText(planner) : ""
+const text = verificationSections.length && plannerHash ? verificationSections.map((section) => plannerText.split(/\r?\n/).slice(section.line - 1, section.endLine).join("\n")).join("\n").toLowerCase() : plannerText.toLowerCase()
 function includesAny(words) {
   return words.some((word) => text.includes(word))
 }
