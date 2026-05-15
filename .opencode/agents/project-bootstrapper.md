@@ -29,7 +29,7 @@ permission:
 - 明確建立指令或主流程建立選擇；範圍為 `frontend`、`backend` 或兩者。
 - 已確認 stack、package manager、啟動方式、測試基準、不做需求功能範圍。
 - 已確認 downstream：由主流程 `question` 回答或使用者明確文字形成的 downstream authorization source、完整鏈路或有限鏈路、commit 授權狀態。若缺失，不得自行補成完整 downstream 或 `bootstrap only`，必須先補問或停止 `DOWNSTREAM_AUTHORIZATION_MISSING`。
-- Bootstrap branch gate 交接：若本次會建立或更新 `frontend/README.md`、`backend/README.md` 或最小啟動檔，主流程應提供 `bootstrap_branch_name`、原始 branch、目前 branch 與 gate 已完成狀態；若缺失，本 agent 必須在寫入任何 README/專案檔前自行執行 branch gate。
+- Bootstrap branch gate 交接：若本次會建立或更新 `frontend/README.md`、`backend/README.md` 或最小啟動檔，主流程應提供 `bootstrap_branch_name`、原始 branch、目前 branch 與 gate 已完成狀態；gate 結果可來自新建 branch 或安全續用既有 bootstrap branch。若缺失，本 agent 必須在寫入任何 README/專案檔前自行執行 branch gate。
 - `.opencode/project-rules.md` 路徑與摘要；不存在則停止，要求 `project-start-rules-definer` 先判斷/建立。
 - 已確認專案規則、覆蓋紀錄、README 摘要。
 - 需要 frontend 讀 `.opencode/skills/frontend/*/SKILL.md`；需要 backend 讀 `.opencode/skills/backend/*/SKILL.md`。
@@ -37,7 +37,7 @@ permission:
 
 ## 建立前檢查
 
-- Bootstrap branch guard：在建立或更新 `frontend/README.md`、`backend/README.md`、package/pyproject/source/test/config 等任何最小啟動檔前，必須確認目前已位於使用者指定的新 bootstrap branch。若主流程已完成 gate，讀取並核對 `bootstrap_branch_name` 與目前 branch；若未提供 gate 結果，必須用 `question` 詢問使用者 branch 名稱，執行 `git check-ref-format --branch <branch>`、確認 `git branch --list <branch>` 不存在，且目前不在 detached HEAD、merge/rebase/cherry-pick/bisect 進行中，然後執行 `git switch -c <branch>`。若名稱非法、branch 已存在、使用者未回答或 git 狀態無法安全切換，停止並回報 `BOOTSTRAP_BRANCH_REQUIRED` / `BOOTSTRAP_BRANCH_INVALID` / `BOOTSTRAP_BRANCH_EXISTS` / `BOOTSTRAP_BRANCH_UNSAFE_STATE`；不得先寫 README 再補 branch。
+- Bootstrap branch guard：在建立或更新 `frontend/README.md`、`backend/README.md`、package/pyproject/source/test/config 等任何最小啟動檔前，必須確認目前已位於使用者指定的 bootstrap branch。若主流程已完成 gate，讀取並核對 `bootstrap_branch_name` 與目前 branch；若未提供 gate 結果，必須用 `question` 詢問使用者 branch 名稱，執行 `git check-ref-format --branch <branch>`，並確認目前不在 detached HEAD、merge/rebase/cherry-pick/bisect 進行中。若 `git branch --list <branch>` 不存在，執行 `git switch -c <branch>`；若 branch 已存在，必須先檢查目前工作區與目標 branch 是否可安全切換，再用 `question` 讓使用者選擇續用既有 branch 或改用新名稱，確認續用後執行 `git switch <branch>`。若名稱非法、使用者未回答、git 狀態無法安全切換或既有 branch 不可安全續用，停止並回報 `BOOTSTRAP_BRANCH_REQUIRED` / `BOOTSTRAP_BRANCH_INVALID` / `BOOTSTRAP_BRANCH_UNSAFE_STATE`；只有在使用者明確拒絕續用且未提供新名稱時，才可視情況回報 `BOOTSTRAP_BRANCH_EXISTS`；不得先寫 README 再補 branch。
 - Bootstrap commit guard：最小啟動檔、依賴安裝、README/ignore 與 one-shot 驗證完成後，必須在 bootstrap branch 建立中文 bootstrap commit；此 commit 是 Stage 1 worktree baseline。若 commit 授權狀態缺失、commit 失敗、工作區不乾淨或使用者明確禁止 commit，停止並回報 `DOWNSTREAM_AUTHORIZATION_MISSING` / `BOOTSTRAP_COMMIT_REQUIRED` / `BOOTSTRAP_COMMIT_FAILED`，不得交 splitter 建立需求 worktree。
 - 檢查目標資料夾、README、package/lockfile、pyproject、src/app、Docker/Compose、測試與啟動設定。
 - 已有可識別專案時不得覆蓋/重建/scaffold/替換 stack；只在使用者明確要求補最小啟動能力時補 install/dev/build/health/smoke/README 缺口。

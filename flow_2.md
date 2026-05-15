@@ -24,7 +24,7 @@
    - `requirement-consistency-checker` 檢查需求、決策、規則與分類是否一致。
 
 3. 專案啟動與 planner
-   - 若需要建立最小專案，必須先通過 bootstrap branch gate。
+   - 若需要建立最小專案，必須先通過 bootstrap branch gate；可建立新 branch，也可在安全檢查後續用既有 bootstrap branch。
    - `project-bootstrapper` 建立或啟動 frontend/backend 最小可運作專案，完成 install、verify、README 與中文 bootstrap commit。
    - 若沿用既有專案，則讀取 README、lockfile 與既有 stack。
    - `development-detail-planner` 產出 Stage Execution Graph、ready wave、port 分配與 dispatch ledger 設計。
