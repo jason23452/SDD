@@ -18,6 +18,8 @@ permission:
 - 實踐草稿：需求整理、已確認方案、project rules 摘要、開發拆解、實作建議。
 - 技術分類結果：classification alternatives、最低相互影響方案選擇理由、ownership/mutual exclusion matrix、分類表、完整性/互斥性、ID、`run_id`、active skills、Experience Contract、Package Decision Record、apply 階段、優先度 lane、執行優先度、parallelGroupId、eligibleSetId、readyWaveId、readyEligibleSetIds、ownerCapability、ownedRequirements、excludedResponsibilities、readSet、writeSet、contractOwner、touchSet、contractInputs、contractOutputs、testImpact、impactReason、isolationStrategy、portNeeds、packageNeeds、packageOwner、packageDecisionRecordRef、manualBuildReason、conflictRisk、parallelSafety、Dependency Graph、Conflict Graph、Stage Execution Graph、dispatch ledger 規劃、bootstrap commit 規劃、dependency snapshot manifest 規劃、project-rules read-back 規劃、上游依賴、同階段阻塞依賴、可避免序列化與循環依賴檢查。
 - 檢查階段：`pre-bootstrap-planning` / `post-bootstrap-planning` / `pre-splitter-final`。pre-bootstrap 階段允許 bootstrap commit、dependency snapshot manifest、dispatch ledger 寫成 `pending-bootstrap` 或 `planned`，但必須有明確 owner、產生時機與後續驗證 gate；post-bootstrap 與 pre-splitter-final 階段必須提供具體 hash/path/schema，不能只寫 pending。
+- pre-bootstrap 階段若 `classification-compact/v1` 使用 `status=planned`，且 Stage 1 `baselineSource` 指向目前 bootstrap source branch HEAD、`bootstrapCommit=pending-bootstrap`，屬合法規劃，不得單獨據此判成 bootstrap 狀態衝突。
+- 若 stage 已同時輸出 `needs-priority` 與 `no-priority` lane，其中一條 lane 為空集合且已附原因與 `dispatchMode=none`，不得視為 lane 缺失。
 - 前次需求線索；沒有則標示無。
 
 ## 判定
