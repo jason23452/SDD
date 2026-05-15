@@ -369,7 +369,7 @@ function formatAnalysis(analysis, projectSignals, requirementText) {
     "- 推薦先經 question；未確認只能列候選/待確認。",
     "- README 存在則沿用現有專案並交叉檢查實際檔案；不要空白重規劃。",
     "- 產檔前依序 technical-practice-classifier -> requirement-consistency-checker -> project-start-rules-definer；分類 ID 用 <run_id>-featurs-<name>，分類需輸出 parallelGroupId、eligibleSetId、touchSet、contractInputs/Outputs、conflictRisk 與 Stage Execution Graph。",
-    "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
+    "- project-start-rules-definer 只管長期規則與 .opencode/project-rules.md；相關 skills 需由掃描 `.opencode/skills/**/SKILL.md` 後依 frontmatter 與需求線索選取；skill 不可刪改，刪除要求回報 ERROR: skill rules are immutable and cannot be deleted。",
     "- 只有缺現行專案且使用者要求建立時才交 project-bootstrapper；現有專案直接改既有程式。",
     "- 執行方式 question 只確認 frontend/backend/兩者/暫不初始化；一旦選擇初始化、建立、啟動或落地，預設自動續行完整 downstream：bootstrap -> development-detail-planner -> stage-scoped worktree-splitter -> 依 Stage Execution Graph 與 eligibleSetId 分批 OpenSpec propose/spec -> 依相同 eligibleSetId 分批 apply-change/fallback -> stage/final merge integration；同一 eligible set 內多個 worktree 必須由主流程同一輪平行呼叫多個 runner subagent，並用 dispatch ledger 追蹤批次、錯誤與重試；不再另問 downstream 或 commit 授權題。",
     "- project-bootstrapper 驗證必須非互動、不得開新 terminal/window；如需 server smoke，背景啟動後必須自動停止。",

@@ -34,7 +34,7 @@ permission:
 - `.opencode/project-rules.md` 的書寫語言必須優先跟隨使用者當前明確使用語言；若本輪對話、正式需求檔與既有專案規則以繁體中文為主，則主檔必須使用繁體中文，不得預設改寫成英文。
 - 只有使用者明確要求英文，或既有 `.opencode/project-rules.md` 已明確被使用者指定為英文規則檔時，才可新增或改寫為英文；否則只能維持使用者當前語言。
 - 若檔案內同時存在 user 手動中文內容與模型生成英文內容，更新時必須優先消除語言漂移，統一為使用者當前語言；不得留下中英混雜的規則骨架，除非使用者明確要求雙語。
-- 預設來源是 relevant `.opencode/skills/**/SKILL.md`；frontend 範圍讀 frontend skills，backend 範圍讀 backend skills，兩者皆需時兩邊都讀。skills 提供不可弱化的底線規則；project rules 可補充專案層採用方式與 user 覆蓋紀錄。
+- 預設來源是 relevant `.opencode/skills/**/SKILL.md`；一律先掃描可用 skill inventory，再依 skill frontmatter 的 `name`、`description`、檔案內容與需求線索選取 relevant skills。不得假設只有 frontend/backend 固定分類。skills 提供不可弱化的底線規則；project rules 可補充專案層採用方式與 user 覆蓋紀錄。
 - user 手動規則優先於模型推薦與 README；但 user 手動規則不得刪除、覆寫、截斷、清空或弱化 immutable skill 規則。若 user 規則與 skill 底線衝突，停止並回報衝突與需澄清項。
 - 每次建立或更新 `.opencode/project-rules.md` 後，必須立即重新讀取該檔並比對使用者最新明確決策；若寫入後檔案內容仍與決策不一致，必須修正到一致後才可回報完成。
 - 主流程若提供 development-detail-planner，必須比對 planner 的已確認技術選型與 `.opencode/project-rules.md`；若 planner 與 rules 不一致，不得進入 bootstrap、OpenSpec propose/spec、apply 或 verification。
@@ -52,13 +52,13 @@ permission:
 - 規則中若包含 multi-worktree/OpenSpec staged flow，必須把 artifact schema registry 視為單一命名來源：`init-project` 中列出的 summary/index/lock/cursor schemaVersion 與路徑不得在 project rules 中改名、漏列 `cleanup-locks/v1`、`classification-compact/v1` 或 `handoff-next-step/v1`，也不得另創 alias；compact output 固定保留 `status`、`blockers[]`、`commits[]`、`verification[]`、`contextRefs[]`、`artifactRefs[]`、`nextAction`、`fallbackUsed`。這只統一命名與輸出欄位，不得新增或移除任何原 gate。
 
 ## Skill 保護
-- `.opencode/skills/frontend/*/SKILL.md`、`.opencode/skills/backend/*/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。
+- `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。
 - 使用者要求刪除/移除/清空/覆蓋/弱化 skill 規則時停止並回報 `ERROR: skill rules are immutable and cannot be deleted`。
 - 可在專案層記錄最新規則覆蓋舊專案採用方式；不得宣稱 skill 原文已刪。
 - 檢查 skill 修改時，只以 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills` 判斷。只有實際內容 diff 顯示 `.opencode/skills/**/SKILL.md` 已被修改時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`；純 line-ending/stat 假異動或其他非 skill 檔的 `needs update` 不得當成 blocker，也不得把 skill 檔修改納入 project rules 更新。
 
 ## 來源與整理
-- 範圍含 frontend 讀 frontend skill；含 backend 讀 backend skill；兩者皆需兩邊都讀；不讀不相關 skill。
+- 先掃描 `.opencode/skills/**/SKILL.md` 建立可用 skill inventory，再依需求範圍、skill frontmatter 的 `name`/`description`、檔案內容與實際專案線索選 relevant skills；不讀不相關 skill，也不得把 skill 類別硬編碼成 frontend/backend。
 - 輸入應含使用者明確規則、範圍、README 摘要、skill 摘要、已確認 stack/package manager/啟動/測試。
 - 現有專案也接收實際檔案線索：package/lockfile、pyproject、entrypoint、src/app、routes、tests、config、Docker/Compose；只作專案慣例，不擴成需求功能。
 - 若有需求檔/摘要，只擷取專案層資訊，不改寫需求功能。

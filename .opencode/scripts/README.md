@@ -87,7 +87,7 @@ Every builder accepts `--check` to print the intended output without writing fil
 
 `build-commit-metadata-summary.js` also supports `--runner-event <path>`, `--from <commit>`, `--to <commit>`, and `--commits <hashes>` so final report and bugfix indexes can be generated from exact runner commits instead of scanning recent history.
 
-`build-active-skill-selection-contract.js` resolves the active skill set only from an explicit planner `Active Skills` or `Active Skill Adoption` section matched against `skill-lock`. `build-skill-driven-verification-contract.js` then reads that selection plus `project-rules-lock` and active `SKILL.md` files to build the structured verification authority. Planner verification sections are supplemental only. `build-verification-matrix.js` must read that contract instead of inferring tools.
+`build-skill-lock.js` discovers skills by scanning `.opencode/skills/**/SKILL.md` and recording each skill's frontmatter-derived metadata in `skill-lock`. `build-active-skill-selection-contract.js` resolves the active skill set only from an explicit planner `Active Skills` or `Active Skill Adoption` section matched against that discovered inventory. `build-skill-driven-verification-contract.js` then reads that selection plus `project-rules-lock` and active `SKILL.md` files to build the structured verification authority. Planner verification sections are supplemental only. `build-verification-matrix.js` must read that contract instead of inferring tools.
 
 ## Scoped checks
 

@@ -15,6 +15,7 @@ const {
   sha256File,
   writeJson,
 } = require("./lib/artifact-utils")
+const { findSkillByName } = require("./lib/skill-registry")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 if (flags.help || positional.length < 1) {
@@ -47,15 +48,16 @@ function extractExplicitActiveSkills(text, plannerIndexData) {
 
 const availableSkills = (skillLock && Array.isArray(skillLock.sourceRefs) ? skillLock.sourceRefs : [])
   .map((ref) => ({
-    name: ref.path ? ref.path.split("/").slice(-2, -1)[0] : null,
+    name: ref.name || (ref.path ? ref.path.split("/").slice(-2, -1)[0] : null),
     path: ref.path,
     sha256: ref.sha256 || null,
+    description: ref.description || "",
   }))
   .filter((item) => item.name && item.path)
 
 const explicitActiveSkillNames = extractExplicitActiveSkills(plannerText, plannerIndex)
 const activeSkills = explicitActiveSkillNames.length
-  ? availableSkills.filter((skill) => explicitActiveSkillNames.includes(skill.name))
+  ? explicitActiveSkillNames.map((name) => findSkillByName(availableSkills, name)).filter(Boolean)
   : []
 
 const blockers = []

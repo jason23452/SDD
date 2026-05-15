@@ -176,7 +176,7 @@ permission:
 
 - `.opencode/project-rules.md` 是開發前專案規則主檔；預設由 `project-start-rules-definer` 依 relevant `.opencode/skills/**/SKILL.md`、README、實際檔案線索與使用者明確規則建立/更新，user 也可以手動編輯。
 - agent 更新 `.opencode/project-rules.md` 時必須保留 user 手動規則與覆蓋紀錄；不得清空、覆寫或弱化 user 規則。若 user 規則與 immutable skill 規則衝突，skill 不可弱化，需回報衝突並要求澄清。
-- frontend 範圍提供 `.opencode/skills/frontend/*/SKILL.md`；backend 範圍提供 `.opencode/skills/backend/*/SKILL.md`。
+- 相關 skill 一律以掃描 `.opencode/skills/**/SKILL.md` 為準，依 skill frontmatter 的 `name`、`description`、檔案內容與需求線索選取 relevant skills；不得假設只有 frontend/backend 固定分類。
 - `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷或清空；刪除要求回報 `ERROR: skill rules are immutable and cannot be deleted`。
 - Skill gate 必須以實際內容 diff 判斷：只有 `git diff --name-only -- .opencode/skills` 或 `git diff --cached --name-only -- .opencode/skills` 顯示 skill 檔內容變更時才停止。純 line-ending/stat 假異動、或其他非 skill 檔的 `needs update` 不得當成 blocker。
 - 推薦/待確認規則須經使用者確認才可寫成已確認；新舊專案規則衝突時以最新明確規則覆蓋並記錄。

@@ -32,7 +32,7 @@ permission:
 - Bootstrap branch gate 交接：若本次會建立或更新 `frontend/README.md`、`backend/README.md` 或最小啟動檔，主流程應提供 `bootstrap_branch_name`、原始 branch、目前 branch 與 gate 已完成狀態；gate 結果可來自新建 branch 或安全續用既有 bootstrap branch。若缺失，本 agent 必須在寫入任何 README/專案檔前自行執行 branch gate。
 - `.opencode/project-rules.md` 路徑與摘要；不存在則停止，要求 `project-start-rules-definer` 先判斷/建立。
 - 已確認專案規則、覆蓋紀錄、README 摘要。
-- 需要 frontend 讀 `.opencode/skills/frontend/*/SKILL.md`；需要 backend 讀 `.opencode/skills/backend/*/SKILL.md`。
+- 需要讀取 relevant skills 時，一律掃描 `.opencode/skills/**/SKILL.md`，依 skill frontmatter 的 `name`、`description`、檔案內容與本次 bootstrap 範圍選取；不得假設只有 frontend/backend 固定分類。
 - `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷、清空；刪除要求回報 `ERROR: skill rules are immutable and cannot be deleted`。
 
 ## 建立前檢查

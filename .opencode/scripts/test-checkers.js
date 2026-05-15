@@ -5,6 +5,7 @@ const { existsSync, mkdtempSync, rmSync, writeFileSync } = require("node:fs")
 const os = require("node:os")
 const path = require("node:path")
 const { ROOT } = require("./lib/artifact-utils")
+const { discoverSkills } = require("./lib/skill-registry")
 const { rootRel, validDispatchLedger, validRunnerEvent, writeJson } = require("./test-fixtures/checker-fixtures")
 
 const ARTIFACT_CHECKER = path.join(ROOT, ".opencode", "scripts", "artifact-schema-check.js")
@@ -42,6 +43,8 @@ const CLEAN_TEST_ARTIFACTS = path.join(ROOT, ".opencode", "scripts", "cleanup-te
 const NORMALIZE_LEGACY = path.join(ROOT, ".opencode", "scripts", "normalize-legacy-artifacts.js")
 
 const results = []
+const DISCOVERED_SKILLS = discoverSkills()
+const SAMPLE_SKILL = DISCOVERED_SKILLS[0] || { name: "sample-skill", path: ".opencode/skills/sample-skill/SKILL.md", sha256: "abc123" }
 
 function runCase(name, command, expectedStatus) {
   try {
@@ -340,7 +343,7 @@ try {
     createdAt: "2026-05-13T00:00:00.000Z",
     status: "passed",
     blockers: [],
-    sourceRefs: [],
+    sourceRefs: [{ kind: "skill", name: SAMPLE_SKILL.name, path: SAMPLE_SKILL.path, sha256: SAMPLE_SKILL.sha256 || "abc123", requiredFor: "skill immutable gate", fallbackAction: "read full skill file" }],
     sourceHashes: { HEAD: "abc123" },
     detailRefs: [],
     fallbackAction: "read active skills and rebuild skill lock",
@@ -355,8 +358,8 @@ try {
     sourceHashes: { HEAD: "abc123" },
     detailRefs: [],
     fallbackAction: "read full planner and skill-lock to resolve active skills",
-    explicitActiveSkillNames: ["react-spa-feature-based"],
-    activeSkills: [{ name: "react-spa-feature-based", path: ".opencode/skills/frontend/react-spa-feature-based/SKILL.md", sha256: "abc123", source: "planner-active-skills-section+skill-lock" }],
+    explicitActiveSkillNames: [SAMPLE_SKILL.name],
+    activeSkills: [{ name: SAMPLE_SKILL.name, path: SAMPLE_SKILL.path, sha256: SAMPLE_SKILL.sha256 || "abc123", source: "planner-active-skills-section+skill-lock" }],
   })
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "verification-matrix.json"), {
     schemaVersion: "verification-matrix/v1",
