@@ -9,6 +9,7 @@ const copyEntries = [
   [".opencode/agents", ".opencode/agents"],
   [".opencode/lib", ".opencode/lib"],
   [".opencode/tools", ".opencode/tools"],
+  [".opencode/opencode.json", ".opencode/opencode.json"],
   [".opencode/package.json", ".opencode/package.json"],
   [".opencode/package-lock.json", ".opencode/package-lock.json"],
   [".opencode/bun.lock", ".opencode/bun.lock"],
@@ -25,6 +26,8 @@ const opencodeGitignore = [
   "!outputs/analyze-requirements/",
   "!outputs/analyze-requirements/*.md",
   "!outputs/analyze-requirements/**/*.md",
+  "!outputs/userstory/",
+  "!outputs/userstory/**",
   "",
 ].join("\n")
 
@@ -38,7 +41,7 @@ function usage() {
     "  npx git+https://github.com/jason23452/SDD.git ./my-project",
     "  npx git+https://github.com/jason23452/SDD.git -- --force",
     "",
-    "Read FLOW_1.md for the workflow details.",
+    "Read FLOW_1.md for the User Story workflow details.",
   ].join("\n")
 }
 
@@ -144,13 +147,14 @@ function main() {
   }
 
   fs.mkdirSync(path.join(targetDir, ".opencode", "outputs", "analyze-requirements"), { recursive: true })
+  fs.mkdirSync(path.join(targetDir, ".opencode", "outputs", "userstory"), { recursive: true })
   fs.mkdirSync(path.join(targetDir, ".opencode", "commands"), { recursive: true })
   fs.mkdirSync(path.join(targetDir, ".opencode", "skills"), { recursive: true })
   writeTextFile(path.join(targetDir, ".opencode", ".gitignore"), opencodeGitignore, force)
 
-  console.log("Installed .opencode requirements workflow.")
+  console.log("Installed .opencode User Story workflow.")
   console.log(`Target: ${targetDir}`)
-  console.log("Read FLOW_1.md for the workflow details.")
+  console.log("Read FLOW_1.md for the User Story workflow details.")
 }
 
 try {

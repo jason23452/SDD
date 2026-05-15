@@ -1,7 +1,9 @@
 ---
-description: 需求入口代理（查找→澄清→產檔）
+description: 停用：舊需求分析入口（目前流程改由 userstory agent 處理）
 name: 定義需求
-mode: primary
+mode: subagent
+hidden: true
+disable: true
 temperature: 0.0
 steps: 24
 permission:

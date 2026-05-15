@@ -7,3 +7,5 @@ outputs/
 !outputs/analyze-requirements/
 !outputs/analyze-requirements/*.md
 !outputs/analyze-requirements/**/*.md
+!outputs/userstory/
+!outputs/userstory/**

@@ -1,199 +1,96 @@
-# FLOW_1：.opencode 需求分析開發流程
+# FLOW_1：.opencode 圖片產生 User Story 流程
 
-這份文件說明目前 `.opencode` 自訂流程。這套流程不是直接寫程式碼，而是把使用者提出的需求先整理成可落地的需求分析文件，讓後續開發、測試與專案管理可以依同一份 Markdown 需求文件工作。
+這份文件說明目前 `.opencode` 自訂流程。此版本只處理「根據使用者提供的圖片或截圖產生 User Story」，並透過 HTML 草稿讓使用者反覆確認，直到使用者接受後才輸出最終 Markdown 與圖片 HTML。
 
 ## 核心目的
 
-- 先判斷本次需求是否和既有需求文件相關。
-- 不管是否找到既有文件，都必須先進行互動式需求澄清。
-- 澄清完成後，一定產出或更新 `.opencode/outputs/analyze-requirements` 內的 Markdown 需求分析文件。
-- 同步維護 `requirement-repo-map.md`，讓下一次需求可以更快搜尋與比對。
+- 啟動流程時建立獨立 `run_id` 資料夾。
+- 根據使用者提供的圖片/截圖整理 User Story。
+- 每次調整都覆寫同一份 `draft.html`，方便閱讀與確認。
+- 使用者明確接受後，產生 `userstory.md` 與 `final.html`。
+- `final.html` 只顯示使用者提供的截圖。
 
 ## 主要元件
 
 | 類型 | 檔案 | 角色 |
 | --- | --- | --- |
-| 入口代理 | `.opencode/agents/find-requirements-doc.md` | 固定流程入口：呼叫搜尋工具，再用 `task` 委派澄清與產檔 subagent |
-| 澄清代理 | `.opencode/agents/requirements-clarify.md` | subagent；用複選題確認需求範圍、新舊需求關係與版本決策，不可產檔 |
-| 產檔代理 | `.opencode/agents/analyze-requirements.md` | subagent；只接受澄清後欄位，呼叫產檔工具 |
-| 搜尋工具 | `.opencode/tools/find-requirements-doc.ts` | 搜尋既有需求 Markdown，判斷候選是否明確 |
-| 產檔工具 | `.opencode/tools/analyze-requirements.ts` | 建立新需求文件或迭代更新舊需求文件 |
-| 索引工具 | `.opencode/tools/rebuild-requirement-repo-map.ts` | 從既有 Markdown 重建 repo map |
-| 共用函式 | `.opencode/lib/requirement-docs.ts` | 管理輸出目錄、文件清單、repo map 讀寫 |
+| 預設設定 | `.opencode/opencode.json` | 將 `userstory` 設為預設 agent |
+| 入口代理 | `.opencode/agents/userstory.md` | 固定流程入口：看圖、產 User Story、更新 HTML、詢問確認、定稿 |
+| 初始化工具 | `.opencode/tools/init-userstory-run.ts` | 建立 `run_id` 資料夾並複製本機圖片到 `screenshots/` |
+| 草稿工具 | `.opencode/tools/write-userstory-html.ts` | 產生或覆寫 `draft.html`，內含 User Story 結構化資料 |
+| 定稿工具 | `.opencode/tools/finalize-userstory-run.ts` | 依 `draft.html` 產生 `userstory.md` 與只顯示圖片的 `final.html` |
+| 共用函式 | `.opencode/lib/userstory-runs.ts` | 管理輸出路徑、run_id、截圖清單與 HTML/Markdown 共用邏輯 |
+
+## 輸出結構
+
+```text
+.opencode/outputs/userstory/
+  <run_id>/
+    screenshots/
+      image-001.png
+      image-002.png
+    draft.html
+    userstory.md
+    final.html
+```
 
 ## 流程圖
 
 ```mermaid
 flowchart TD
-    A["使用者提出需求"] --> B["入口代理：find-requirements-doc"]
-    B --> C["工具：find-requirements-doc.ts"]
-    C --> D{是否找到相關需求文件？}
-
-    D -->|"沒有候選"| E["全新需求分支"]
-    D -->|"明確候選"| F["迭代既有需求分支"]
-    D -->|"候選不明確"| G["候選確認模式"]
-
-    G --> H["question：選舊檔、繼續搜尋或改全新需求"]
-    H --> I["確定澄清上下文"]
-
-    E --> J["task：requirements-clarify 澄清代理"]
-    F --> J
-    I --> J
-
-    J --> K["question：複選澄清目標、範圍、邊界、驗收、版本決策"]
-    K --> L{澄清是否完成？}
-    L -->|"否"| K
-    L -->|"是"| M["輸出 clarificationComplete + runAnalyze + analyzeArgs"]
-
-    M --> N["task：analyze-requirements 產檔代理"]
-    N --> O["工具：analyze-requirements.ts"]
-    O --> P{產檔意圖是否合法？}
-
-    P -->|"不合法"| Q["回到澄清或回報 gate 錯誤"]
-    Q --> J
-
-    P -->|"合法：new/create_new"| R["建立新的需求 Markdown"]
-    P -->|"合法：related/use_new 或 merge"| S["更新既有需求 Markdown"]
-
-    R --> T["更新 requirement-repo-map.md"]
-    S --> U{舊檔是否超過壓縮門檻？}
-    U -->|"否"| T
-    U -->|"是"| V["封存完整歷史到 .history.md"]
-    V --> T
-
-    T --> W["回傳最後一次 analyze-requirements 工具輸出"]
-```
-
-## 架構圖
-
-```mermaid
-flowchart LR
-    subgraph User["使用者互動層"]
-        U1["原始需求"]
-        U2["question 複選回答"]
-    end
-
-    subgraph Agents[".opencode/agents"]
-        A1["find-requirements-doc.md<br/>入口與流程編排"]
-        A2["requirements-clarify.md<br/>需求澄清 gate"]
-        A3["analyze-requirements.md<br/>產檔 gate"]
-    end
-
-    subgraph Tools[".opencode/tools"]
-        T1["find-requirements-doc.ts<br/>候選需求搜尋"]
-        T2["analyze-requirements.ts<br/>產生 / 更新需求文件"]
-        T3["list-requirement-docs.ts<br/>列出需求文件"]
-        T4["rebuild-requirement-repo-map.ts<br/>重建索引"]
-    end
-
-    subgraph Lib[".opencode/lib"]
-        L1["requirement-docs.ts<br/>路徑、清單、repo map 共用邏輯"]
-    end
-
-    subgraph Storage["需求文件儲存層"]
-        S1[".opencode/outputs/analyze-requirements/*.md"]
-        S2["requirement-repo-map.md"]
-        S3["*.history.md"]
-    end
-
-    U1 --> A1
-    A1 --> T1
-    T1 --> L1
-    L1 --> S1
-    L1 --> S2
-
-    A1 -->|task| A2
-    A2 --> U2
-    U2 --> A2
-    A2 --> A1
-
-    A1 -->|task| A3
-    A3 --> T2
-    T2 --> L1
-    T2 --> S1
-    T2 --> S2
-    T2 --> S3
-
-    T3 --> L1
-    T4 --> L1
-    T4 --> S2
+    A["使用者提供圖片或截圖"] --> B["userstory agent"]
+    B --> C["init-userstory-run：建立 run_id 資料夾"]
+    C --> D["根據圖片整理 User Story 草稿"]
+    D --> E["write-userstory-html：覆寫 draft.html"]
+    E --> F["question：詢問使用者是否可以定稿"]
+    F -->|"需要調整"| G["吸收使用者回饋"]
+    G --> D
+    F -->|"補充圖片路徑"| H["用同一 run_id 再複製截圖"]
+    H --> D
+    F -->|"可以定稿"| I{"是否已有截圖檔"}
+    I -->|"否"| H
+    I -->|"是"| J["finalize-userstory-run"]
+    J --> K["產生 userstory.md"]
+    J --> L["產生 final.html（只顯示圖片）"]
 ```
 
 ## 關鍵規則
 
-### 1. `requirements-clarify` 是必經 gate
+### 1. `run_id` 是必經起點
 
-搜尋結果不能直接拿來產檔。即使找到明確候選文件，也必須先透過 `task(requirements-clarify)` 呼叫澄清 subagent，讓使用者透過 `question` 複選題確認需求理解、開發範圍與版本決策。
+每次新流程都必須先呼叫 `init-userstory-run`。工具會建立：
 
-### 2. 產檔是澄清後的固定下一步
+- `.opencode/outputs/userstory/<run_id>/`
+- `.opencode/outputs/userstory/<run_id>/screenshots/`
 
-`requirements-clarify` 完成後必須輸出：
+若使用者有提供本機圖片路徑，工具會複製到 `screenshots/`，並命名為 `image-001.png`、`image-002.png` 等。
 
-```json
-{
-  "clarificationComplete": true,
-  "runAnalyze": true,
-  "analyzeArgs": {}
-}
-```
+### 2. HTML 是動態草稿
 
-入口代理收到合法 `analyzeArgs` 後，下一步只能透過 `task(analyze-requirements)` 呼叫產檔 subagent，不可直接呼叫同名產檔工具，也不可停在摘要、建議或版本確認文字。
+`draft.html` 是目前 User Story 的閱讀版草稿。每次使用者要求修改，都覆寫同一份 `draft.html`，不建立多份版本檔。
 
-### 3. 工具與 agent 邊界必須分離
+### 3. 使用者接受前不可定稿
 
-- 入口代理可呼叫 `find-requirements-doc` 工具，但直接 `analyze-requirements` 工具權限必須是 `deny`。
-- `requirements-clarify` 和 `analyze-requirements` 作為 agent 時，只能由入口代理透過 `permission.task` 委派。
-- `requirements-clarify` subagent 只能使用 `question`，不可搜尋、讀檔或產檔。
-- `analyze-requirements` subagent 是唯一可呼叫 `analyze-requirements` 產檔工具的角色。
+每次更新草稿後，agent 必須詢問使用者是否可以定稿。只有使用者明確表示接受，才能呼叫 `finalize-userstory-run`。
 
-### 4. 全新需求與迭代需求的決策不同
+### 4. 最終輸出必須包含截圖
 
-全新需求必須符合：
+`finalize-userstory-run` 會檢查 `screenshots/`。若沒有已複製的截圖，工具會拒絕產檔，要求先補充本機圖片路徑。
 
-- `relation=new`
-- `compatibility=compatible`
-- `versionDecision=create_new`
-- 不傳 `targetFileName`
+### 5. 只產 User Story，不產技術方案
 
-迭代既有需求必須符合：
+流程只整理使用者角色、情境、User Story、驗收條件、假設與待確認問題。不得展開 API、資料庫、架構、部署、測試框架或程式實作。
 
-- `relation=related`
-- `candidateFileName=<既有需求檔名>`
-- `targetFileName=<同一個既有需求檔名>`
-- `compatibility=compatible`
-- `versionDecision=use_new` 或 `merge`
-- `conflictResolution` 具體包含「保留舊需求」、「新版變更」、「不衝突原因」
-
-### 5. 不可用未決策狀態結束流程
-
-以下狀態只能作為澄清過程中的暫態，不可作為最終產檔輸入：
-
-- `relation=uncertain`
-- `compatibility=conflict`
-- `compatibility=needs_decision`
-- `versionDecision=keep_old`
-- `versionDecision=needs_decision`
-
-遇到這些狀態時，必須回到 `requirements-clarify` 或確認模式，繼續用 `question` 取得可產檔決策。
-
-## 輸出結果
-
-成功產檔後會產生或更新：
-
-- 需求 Markdown：`.opencode/outputs/analyze-requirements/analyze-requirements_<uuid>_<timestamp>.md`
-- 索引文件：`.opencode/outputs/analyze-requirements/requirement-repo-map.md`
-- 歷史封存：舊需求檔過長時，完整歷史會封存到同目錄的 `*.history.md`
-
-## 流程摘要
+## 使用摘要
 
 ```text
-使用者需求
-  -> 搜尋既有需求文件
-  -> 判斷全新 / 明確候選 / 候選不明確
-  -> 必經複選澄清
-  -> 輸出結構化 analyzeArgs
-  -> 透過 task 呼叫產檔代理
-  -> gate 檢查新舊需求與版本決策
-  -> 建新檔或更新舊檔
-  -> 更新 requirement-repo-map.md
+使用者圖片/截圖
+  -> 建立 run_id 資料夾
+  -> 複製截圖到 screenshots/
+  -> 產生 draft.html
+  -> 詢問使用者是否可以
+  -> 若不可以，反覆更新 draft.html
+  -> 使用者接受
+  -> 產生 userstory.md
+  -> 產生 final.html（只顯示圖片）
 ```

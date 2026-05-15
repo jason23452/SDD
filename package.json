@@ -1,7 +1,7 @@
 {
   "name": "sdd-opencode-flow",
-  "version": "0.1.1",
-  "description": "Install the custom .opencode requirements-analysis workflow without publishing to npm.",
+  "version": "0.2.0",
+  "description": "Install the custom .opencode image-to-user-story workflow without publishing to npm.",
   "private": true,
   "bin": {
     "sdd-opencode-flow": "bin/install.js"
@@ -11,6 +11,7 @@
     ".opencode/agents/",
     ".opencode/lib/",
     ".opencode/tools/",
+    ".opencode/opencode.json",
     ".opencode/package.json",
     ".opencode/package-lock.json",
     ".opencode/bun.lock",
