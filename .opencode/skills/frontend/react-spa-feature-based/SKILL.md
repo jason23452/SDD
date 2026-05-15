@@ -8,6 +8,12 @@ description: >-
 
 此 skill 是前端開發的強制執行契約。只要任務涉及任何前端開發、前端修改、前端修復、前端重構、UI、樣式、路由、狀態、API 串接、測試或瀏覽器驗證，就必須使用此 skill。目標只有三件事：交付可安裝、可啟動、可建置、可驗證的 React SPA；維持清楚的 app/page/feature/shared 邊界；優先使用成熟套件完成需求，不得把手動造輪子當成預設方案。
 
+## Bootstrap 硬規則
+
+- 只要建立、初始化、scaffold、修復或重建 frontend 專案，且 repo 原本不存在可沿用的前端基底，本 skill 內所有 baseline、setup、installation、routing、scripts、providers、alias、verification 與 browser smoke 條款都屬 bootstrap 階段硬要求，必須在 bootstrap 一次完成。
+- 不得把本 skill 的 bootstrap 條款標記為 `optional`、`deferred`、`pending`、`placeholder`、`later` 或任何等價延後語意。
+- 唯一例外是 repo 原本已存在對應檔案與可運作契約；此時必須優先沿用既有專案，但若現況不符合本 skill 契約，仍需在 bootstrap 補齊缺漏。
+
 ## 適用總則
 
 - 新專案、專案初始化、骨架建立、或使用者明確要求套用本 skill 架構時，必須完整遵守本 skill 的檔案架構、baseline 套件、啟動契約、驗證規則與瀏覽器檢查規則。

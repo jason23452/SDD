@@ -10,6 +10,12 @@ description: >-
 
 未遵守本 skill 的任一強制條款，該任務不得視為完成。
 
+## Bootstrap 硬規則
+
+- 只要建立、初始化、scaffold、修復或重建受本 skill 管轄的 frontend 專案，且 repo 原本不存在可沿用的樣式基底，本 skill 內所有 Tailwind v4 installation、plugin wiring、CSS entry、source detection、theme/token、build 與 browser verification 條款都屬 bootstrap 階段硬要求，必須在 bootstrap 一次完成。
+- 不得以「尚未開始做樣式」或「之後再接 UI」為理由延後 Tailwind v4 整合；也不得把本 skill 的 bootstrap 條款標記為 `optional`、`deferred`、`pending`、`placeholder`、`later` 或任何等價延後語意。
+- 唯一例外是 repo 原本已存在對應檔案與可運作契約；此時必須優先沿用既有專案，但若現況不符合本 skill 契約，仍需在 bootstrap 補齊缺漏。
+
 ## 不可跳過條款
 
 1. 必須先確認專案使用的前端框架、bundler、package manager、CSS entry 與 Tailwind 版本，再修改樣式或安裝套件。

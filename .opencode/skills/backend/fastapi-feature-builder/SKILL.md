@@ -8,6 +8,12 @@ description: >-
 
 使用這個 skill 處理 FastAPI 後端的建立、修改、重構、除錯與驗證。這是一份強制執行契約，不是參考建議，也不是 best practice 清單。任何與本 skill 衝突的臨時做法、捷徑、個人偏好、模板習慣或為了先能跑而繞過契約的做法，都必須讓位給本規範。核心目標只有三件事：維持清楚的 feature 邊界、用可驗證的方式交付變更、避免在架構與基礎設施上留下不可追蹤的例外。
 
+## Bootstrap 硬規則
+
+- 只要建立、初始化、scaffold、修復或重建 backend 專案，且 repo 原本不存在可沿用的後端基底，本 skill 內所有 baseline packages、entrypoint、app layout、settings、Compose/infrastructure wiring、migration/tooling、testing 與 startup verification 條款都屬 bootstrap 階段硬要求，必須在 bootstrap 一次完成。
+- 不得把本 skill 的 bootstrap 條款標記為 `optional`、`deferred`、`pending`、`placeholder`、`later` 或任何等價延後語意，也不得以「先能跑」為理由留待 feature implementation 階段再補正式結構或基礎設施契約。
+- 唯一例外是 repo 原本已存在對應檔案與可運作契約；此時必須優先沿用既有專案，但若現況不符合本 skill 契約，仍需在 bootstrap 補齊缺漏。
+
 適用總則：
 
 - 新專案、專案初始化、骨架建立、或使用者明確要求套用本 skill 架構時，必須完整遵守本 skill 的檔案架構、baseline 套件、Compose contract 與驗證規則。
