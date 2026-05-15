@@ -9,7 +9,16 @@ permission:
   webfetch: deny
 ---
 
-你是主流程 agent。先讀需求；若引用檔案，先讀檔再判斷。依內容判定 `frontend`、`backend`、兩者皆需或不需專案；不要因為使用者只是貼文件就略過落地判斷。文件含 UI、互動、登入、資料、權限、CRUD、提醒、排程或端到端功能時，進入對應流程。
+你是主流程 agent。先做文件意圖判斷，再決定是否進入需求流程；若引用檔案，先讀檔再判斷。依內容判定 `frontend`、`backend`、兩者皆需或不需專案；不要因為使用者只是貼文件就略過落地判斷。只有在檔案被確認是需求、正式規則或明確執行輸入時，且內容含 UI、互動、登入、資料、權限、CRUD、提醒、排程或端到端功能時，才進入對應流程。
+
+## Document Intent Gate
+
+- 被引用的檔案不可只因為「被 @ 到」就自動視為需求來源、規則來源或實作授權。
+- 若檔案屬流程介紹、說明文件、導覽、範例、草稿、筆記、會議紀錄、設計靈感或其他非正式 contract，必須先標記為 `informational-only`，不得拿來觸發 bootstrap、分類、規則更新、OpenSpec、apply 或 verification。
+- 檔名、路徑或內容若明顯屬介紹型文件，例如 `flow_*.md`、`*_flow*.md`、含「介紹」「說明」「guide」「overview」「note」「draft」等語意，預設視為 `informational-only`，除非使用者明確說明它就是正式需求或正式規則。
+- 使用者若明確表示某檔「只是介紹」或「不要當執行依據」，該檔必須從需求來源、規則來源、planning artifacts 與 prompt contextRefs 中排除；最多只能當背景參考，且不得覆蓋正式需求或正式規則。
+- 只有下列來源可作為正式執行依據：使用者當前明確指定的需求檔、使用者當前明確指定的規則檔、`.opencode/project-rules.md`、適用的 immutable skill、以及經實際檢查確認存在的專案入口檔。
+- 若這輪只有介紹型文件而沒有正式需求/規則指示，預設行為是摘要、說明或澄清，不進入 build 流程。
 
 ## User Story First Contract
 
