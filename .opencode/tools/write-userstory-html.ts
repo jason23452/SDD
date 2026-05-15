@@ -42,6 +42,22 @@ function renderStoryCards(items: string[]): string {
   ].join("\n")).join("\n")
 }
 
+function renderAssumptionsAndQuestions(assumptions: string[], openQuestions: string[]): string {
+  if (assumptions.length === 0 && openQuestions.length === 0) {
+    return `<p class="empty">目前沒有待確認項。</p>`
+  }
+
+  const blocks: string[] = []
+  if (assumptions.length > 0) {
+    blocks.push(`<div class="confirm-group"><h3>假設</h3>${renderList(assumptions, "無額外假設")}</div>`)
+  }
+  if (openQuestions.length > 0) {
+    blocks.push(`<div class="confirm-group question-group"><h3>待確認問題</h3>${renderList(openQuestions, "目前沒有待確認問題")}</div>`)
+  }
+
+  return `<div class="confirm-groups">${blocks.join("\n")}</div>`
+}
+
 function renderScreenshots(screenshots: string[]): string {
   if (screenshots.length === 0) {
     return `<p class="empty">尚未複製截圖。若圖片只貼在對話中，最終產檔前請提供本機圖片路徑。</p>`
@@ -73,6 +89,7 @@ function buildDraftHtml(data: DraftData): string {
     header { display: grid; gap: 12px; padding: 28px; border: 1px solid var(--line); border-radius: 28px; background: rgba(255, 255, 255, 0.86); box-shadow: 0 18px 50px rgba(31, 41, 55, 0.08); backdrop-filter: blur(12px); }
     h1 { margin: 0; font-size: clamp(2rem, 5vw, 4.6rem); line-height: 0.95; letter-spacing: -0.06em; }
     h2 { margin: 0 0 14px; font-size: 1.1rem; }
+    h3 { margin: 0 0 10px; color: var(--muted); font-size: 0.96rem; }
     p { line-height: 1.72; }
     .meta { color: var(--muted); font-size: 0.92rem; }
     .summary { margin: 0; max-width: 820px; font-size: 1.06rem; }
@@ -91,6 +108,10 @@ function buildDraftHtml(data: DraftData): string {
     figcaption { padding: 10px 12px; color: var(--muted); font-size: 0.82rem; }
     .empty { margin: 0; color: var(--muted); }
     .pill { display: inline-flex; align-items: center; width: fit-content; padding: 6px 10px; border-radius: 999px; color: #3730a3; background: var(--soft); font-weight: 700; font-size: 0.82rem; }
+    .confirm-groups { display: grid; gap: 16px; }
+    .confirm-group { padding: 14px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+    .question-group { border-color: #fbbf24; background: #fffbeb; }
+    .question-group h3 { color: #92400e; }
     @media (max-width: 860px) { main { width: min(100% - 20px, 720px); margin-top: 16px; } header, section { border-radius: 20px; padding: 18px; } .layout { grid-template-columns: 1fr; } .story-card { padding-left: 18px; } .story-id { position: static; display: inline-block; margin-bottom: 8px; } }
   </style>
 </head>
@@ -118,7 +139,7 @@ function buildDraftHtml(data: DraftData): string {
         </section>
         <section>
           <h2>假設與待確認</h2>
-          ${renderList([...data.assumptions, ...data.openQuestions], "目前沒有待確認項。")}
+          ${renderAssumptionsAndQuestions(data.assumptions, data.openQuestions)}
         </section>
       </div>
       <aside class="stack">
@@ -175,12 +196,25 @@ export default tool({
 
     await writeFile(paths.draftHtmlPath, buildDraftHtml(data), "utf-8")
 
-    return [
+    const result = [
       "User Story 草稿 HTML 已更新。",
       `- run_id：${paths.runId}`,
       `- HTML：${paths.draftHtmlPath}`,
       `- 截圖數：${data.screenshots.length}`,
-      "下一步：請詢問使用者是否可接受；不可在使用者明確同意前 final。",
-    ].join("\n")
+      `- 待確認問題數：${data.openQuestions.length}`,
+    ]
+
+    if (data.openQuestions.length > 0) {
+      result.push(
+        "",
+        "待確認問題：",
+        ...data.openQuestions.map((question) => `- ${question}`),
+        "下一步：請用 question 顯示上述待確認問題，請使用者補充或確認；不可只問是否定稿。",
+      )
+    } else {
+      result.push("下一步：請詢問使用者是否可接受；不可在使用者明確同意前 final。")
+    }
+
+    return result.join("\n")
   },
 })

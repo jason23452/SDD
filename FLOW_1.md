@@ -42,7 +42,7 @@ flowchart TD
     B --> C["init-userstory-run：建立 run_id 資料夾"]
     C --> D["根據圖片整理 User Story 草稿"]
     D --> E["write-userstory-html：覆寫 draft.html"]
-    E --> F["question：詢問使用者是否可以定稿"]
+    E --> F["question：若有待確認問題先列出，再詢問是否可以定稿"]
     F -->|"需要調整"| G["吸收使用者回饋"]
     G --> D
     F -->|"補充圖片路徑"| H["用同一 run_id 再複製截圖"]
@@ -71,7 +71,7 @@ flowchart TD
 
 ### 3. 使用者接受前不可定稿
 
-每次更新草稿後，agent 必須詢問使用者是否可以定稿。只有使用者明確表示接受，才能呼叫 `finalize-userstory-run`。
+每次更新草稿後，agent 必須詢問使用者是否可以定稿。若草稿有「待確認問題」，`question` 必須先把問題逐條顯示出來，讓使用者可補充或確認。只有使用者明確表示接受，才能呼叫 `finalize-userstory-run`。
 
 ### 4. 最終輸出必須包含截圖
 
