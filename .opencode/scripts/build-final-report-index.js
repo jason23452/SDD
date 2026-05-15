@@ -8,34 +8,58 @@ if (flags.help || positional.length < 1) printAndExitUsage("Usage: node .opencod
 const runId = positional[0]
 const report = flags.report ? resolveRoot(flags.report) : path.join(artifactDir(runId), "final-merge-report.md")
 const summariesDir = path.join(artifactDir(runId), "commit-metadata-summary")
-const summaries = walkFiles(summariesDir).filter((file) => file.endsWith(".json")).map((file) => readJson(file)).filter(Boolean)
-const commits = summaries.flatMap((summary) => summary.commits || [])
+const summaries = walkFiles(summariesDir).filter((file) => file.endsWith(".json")).map((file) => ({ file, data: readJson(file) })).filter((item) => item.data)
+const blockers = []
+const seenHashes = new Set()
+const commitMap = []
+for (const item of summaries) {
+  const summary = item.data
+  const classificationId = summary.classificationId || "unknown"
+  for (let index = 0; index < (summary.commits || []).length; index += 1) {
+    const commit = summary.commits[index]
+    const hash = commit && commit.hash
+    if (!hash) {
+      blockers.push(`COMMIT_HASH_MISSING:${classificationId}:${index}`)
+      continue
+    }
+    if (seenHashes.has(hash)) {
+      blockers.push(`COMMIT_HASH_DUPLICATE:${hash}`)
+      continue
+    }
+    seenHashes.add(hash)
+    commitMap.push({ ...commit, hash, run_id: commit.run_id || runId, classificationId: commit.classificationId || classificationId })
+  }
+}
+const commits = commitMap
 const touchedFiles = [...new Set(commits.flatMap((commit) => commit.touchedFiles || []))].sort()
 const fileToCommits = {}
 const classificationToCommits = {}
-for (const summary of summaries) {
-  const classificationId = summary.classificationId || "unknown"
-  for (const commit of summary.commits || []) {
-    if (!classificationToCommits[classificationId]) classificationToCommits[classificationId] = []
-    classificationToCommits[classificationId].push(commit.hash)
+for (const commit of commits) {
+  const classificationId = commit.classificationId || "unknown"
+  if (!classificationToCommits[classificationId]) classificationToCommits[classificationId] = []
+  classificationToCommits[classificationId].push(commit.hash)
     for (const file of commit.touchedFiles || []) {
       if (!fileToCommits[file]) fileToCommits[file] = []
       fileToCommits[file].push(commit.hash)
     }
-  }
 }
 const keywords = existsSync(report) ? readText(report).split(/\W+/).filter((word) => word.length > 3).slice(0, 100) : []
 const keywordToCommits = Object.fromEntries(keywords.slice(0, 50).map((word) => [word, commits.map((commit) => commit.hash).filter(Boolean).slice(0, 20)]))
+const commitMapByHash = Object.fromEntries(commits.map((commit) => [commit.hash, commit]))
+const reportHash = sha256File(report)
 const out = resolveOutPath(path.join(artifactDir(runId), "final-report-index.json"), flags)
-const index = commonArtifact("final-report-index/v1", runId, sha256File(report) ? "passed" : "blocked", "read full final maintained report and git history", {
-  blockers: sha256File(report) ? [] : ["FINAL_REPORT_MISSING"],
-  sourceRefs: [{ kind: "final-report", path: rel(report), sha256: sha256File(report), requiredFor: "final report index", fallbackAction: "read full final report" }],
-  sourceHashes: { finalReport: sha256File(report) },
-  commitMap: commits,
+const index = commonArtifact("final-report-index/v1", runId, reportHash && blockers.length === 0 ? "passed" : "blocked", "read full final maintained report and git history", {
+  blockers: [...(reportHash ? [] : ["FINAL_REPORT_MISSING"]), ...blockers],
+  sourceRefs: [{ kind: "final-report", path: rel(report), sha256: reportHash, requiredFor: "final report index", fallbackAction: "read full final report" }],
+  sourceHashes: { finalReport: reportHash },
+  commitMapKey: "hash",
+  commitMap,
+  commitMapByHash,
+  commitHashes: commits.map((commit) => commit.hash),
   touchedFiles,
   fileToCommits,
   classificationToCommits,
-  bugFixLocatorIndex: { keywords, touchedFiles, fileToCommits, keywordToCommits, classificationToCommits },
+  bugFixLocatorIndex: { commitMapKey: "hash", keywords, touchedFiles, fileToCommits, keywordToCommits, classificationToCommits },
   verificationRefs: [],
 })
 writeJson(out, index, Boolean(flags.check))

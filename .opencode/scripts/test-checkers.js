@@ -77,10 +77,13 @@ try {
   execFileSync(process.execPath, [CLEAN_TEST_ARTIFACTS], { cwd: ROOT, encoding: "utf8" })
   const validDir = path.join(tempRoot, "valid")
   const invalidDir = path.join(tempRoot, "invalid")
+  const badFinalIndexDir = path.join(tempRoot, "bad-final-index")
   const staleDir = path.join(tempRoot, "stale")
+  const fixtureRunnerEvent = validRunnerEvent(runId)
+  const fixtureCommitHash = fixtureRunnerEvent.commits.specCommit
 
   writeJson(path.join(validDir, "dispatch-ledger.json"), validDispatchLedger(runId))
-  writeJson(path.join(validDir, "runner-event.json"), validRunnerEvent(runId))
+  writeJson(path.join(validDir, "runner-event.json"), fixtureRunnerEvent)
   writeJson(path.join(validDir, "run-preflight-packet.json"), {
     schemaVersion: "run-preflight-packet/v1",
     run_id: runId,
@@ -202,6 +205,10 @@ try {
     sourceHashes: { HEAD: "abc123" },
     detailRefs: [],
     fallbackAction: "read full final maintained report and git history",
+    commitMapKey: "hash",
+    commitMap: [{ hash: fixtureCommitHash, run_id: runId, classificationId: "class-1", touchedFiles: [] }],
+    commitMapByHash: { [fixtureCommitHash]: { hash: fixtureCommitHash, run_id: runId, classificationId: "class-1", touchedFiles: [] } },
+    commitHashes: [fixtureCommitHash],
   })
   writeJson(path.join(validDir, "run-metrics-summary.json"), {
     schemaVersion: "run-metrics-summary/v1",
@@ -244,6 +251,18 @@ try {
       },
     ],
   })
+  writeJson(path.join(badFinalIndexDir, "final-report-index.json"), {
+    schemaVersion: "final-report-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full final maintained report and git history",
+    commitMap: [{ run_id: runId, classificationId: "class-1", touchedFiles: [] }],
+  })
   writeJson(path.join(staleDir, "blocked-summary.json"), {
     schemaVersion: "run-preflight-packet/v1",
     run_id: runId,
@@ -271,6 +290,7 @@ try {
   runCase("artifact checker valid fixtures", [ARTIFACT_CHECKER, validDir, "--strict"], 0)
   runJsonCase("artifact checker json output", [ARTIFACT_CHECKER, validDir, "--json"], 0, (data) => data.schemaVersion ? "unexpected schemaVersion" : data.status === "passed" || `status=${data.status}`)
   runCase("artifact checker rejects alias branch", [ARTIFACT_CHECKER, invalidDir], 1)
+  runCase("artifact checker rejects final index without hash", [ARTIFACT_CHECKER, badFinalIndexDir, "--strict"], 1)
   const planner = path.join(tempRoot, "planner.md")
   writeFileSync(planner, "# planner\n", "utf8")
   const sourceRefFile = path.join(tempRoot, "source-ref.md")
@@ -459,6 +479,24 @@ try {
     fallbackAction: "recompute deterministic port map from planner",
     ports: [{ owner: "class-1", classificationId: "class-1" }],
   })
+  const crossrefCommitHash = validRunnerEvent(runId).commits.specCommit
+  const validCrossrefFinalIndex = {
+    schemaVersion: "final-report-index/v1",
+    run_id: runId,
+    createdAt: "2026-05-13T00:00:00.000Z",
+    status: "passed",
+    blockers: [],
+    sourceRefs: [],
+    sourceHashes: { HEAD: "abc123" },
+    detailRefs: [],
+    fallbackAction: "read full final maintained report and git history",
+    commitMapKey: "hash",
+    commitMap: [{ hash: crossrefCommitHash, run_id: runId, classificationId: "class-1", touchedFiles: [] }],
+    commitMapByHash: { [crossrefCommitHash]: { hash: crossrefCommitHash, run_id: runId, classificationId: "class-1", touchedFiles: [] } },
+    commitHashes: [crossrefCommitHash],
+    fileToCommits: {},
+    classificationToCommits: { "class-1": [crossrefCommitHash] },
+  }
   writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "commit-metadata-summary", "class-1.json"), {
     schemaVersion: "commit-metadata-summary/v1",
     run_id: runId,
@@ -470,9 +508,16 @@ try {
     detailRefs: [],
     fallbackAction: "rebuild commit metadata from git show",
     classificationId: "class-1",
-    commits: [{ hash: validRunnerEvent(runId).commits.specCommit, touchedFiles: [] }],
+    commits: [{ hash: crossrefCommitHash, touchedFiles: [] }],
   })
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "final-report-index.json"), validCrossrefFinalIndex)
   runCase("artifact crossrefs", [CHECK_CROSSREFS, runId, "--strict"], 0)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "final-report-index.json"), {
+    ...validCrossrefFinalIndex,
+    commitMap: [...validCrossrefFinalIndex.commitMap, ...validCrossrefFinalIndex.commitMap],
+  })
+  runCase("artifact crossrefs rejects duplicate final index hash", [CHECK_CROSSREFS, runId, "--strict"], 1)
+  writeJson(path.join(ROOT, ".opencode", "run-artifacts", runId, "final-report-index.json"), validCrossrefFinalIndex)
   const alternateRunnerEventPath = path.join(tempRoot, "runner-event-alt.json")
   writeJson(alternateRunnerEventPath, validRunnerEvent(runId))
   rmSync(path.join(ROOT, ".opencode", "run-artifacts", runId, "runner-events", "class-1.json"), { force: true })

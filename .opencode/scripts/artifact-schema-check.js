@@ -4,7 +4,7 @@ const { existsSync, readdirSync, readFileSync, statSync } = require("node:fs")
 const path = require("node:path")
 const { needsCommonFields } = require("./lib/artifact-schema-rules")
 const { ROOT, normalizeRefs, parseArgs, stripBom } = require("./lib/artifact-utils")
-const { validateCommonFields, validateDispatchLedger, validateRunnerEvent } = require("./lib/artifact-validator")
+const { validateCommonFields, validateDispatchLedger, validateFinalReportIndex, validateRunnerEvent } = require("./lib/artifact-validator")
 
 const { positional, flags } = parseArgs(process.argv.slice(2))
 const DEFAULT_ARTIFACTS_DIR = path.join(ROOT, ".opencode", "run-artifacts")
@@ -112,6 +112,10 @@ function checkFile(file) {
 
   if (schemaVersion === "dispatch-ledger/v1") validateDispatchLedger(file, data, addFinding)
   else if (schemaVersion === "runner-event/v1") validateRunnerEvent(file, data, addFinding)
+  else if (schemaVersion === "final-report-index/v1") {
+    validateCommonFields(file, data, addFinding)
+    validateFinalReportIndex(file, data, addFinding)
+  }
   else if (needsCommonFields(schemaVersion)) validateCommonFields(file, data, addFinding)
 }
 

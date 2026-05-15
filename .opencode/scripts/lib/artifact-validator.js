@@ -148,7 +148,46 @@ function validateRunnerEvent(file, data, addFinding) {
   }
 }
 
+function validateFinalReportIndex(file, data, addFinding) {
+  requireArray(file, data, "commitMap", "FINAL_REPORT_INDEX_COMMIT_MAP_INVALID", addFinding)
+  if (!Array.isArray(data.commitMap)) return
+
+  const seen = new Set()
+  data.commitMap.forEach((commit, index) => {
+    const prefix = `commitMap[${index}]`
+    if (!commit || typeof commit !== "object" || Array.isArray(commit)) {
+      addFinding("error", "FINAL_REPORT_INDEX_COMMIT_ROW_INVALID", rel(file), `${prefix} must be an object.`)
+      return
+    }
+    if (typeof commit.hash !== "string" || commit.hash.trim() === "") {
+      addFinding("error", "FINAL_REPORT_INDEX_COMMIT_HASH_MISSING", rel(file), `${prefix}.hash is required as the canonical commit id.`)
+      return
+    }
+    if (seen.has(commit.hash)) addFinding("error", "FINAL_REPORT_INDEX_COMMIT_HASH_DUPLICATE", rel(file), `${prefix}.hash duplicates another commit map row.`)
+    seen.add(commit.hash)
+    if (commit.run_id !== data.run_id) addFinding("error", "FINAL_REPORT_INDEX_COMMIT_RUN_ID_MISMATCH", rel(file), `${prefix}.run_id must match final-report-index run_id.`)
+    if (typeof commit.classificationId !== "string" || commit.classificationId.trim() === "") addFinding("error", "FINAL_REPORT_INDEX_COMMIT_CLASSIFICATION_MISSING", rel(file), `${prefix}.classificationId is required.`)
+  })
+
+  if (data.commitMapByHash !== undefined) {
+    if (!data.commitMapByHash || typeof data.commitMapByHash !== "object" || Array.isArray(data.commitMapByHash)) {
+      addFinding("error", "FINAL_REPORT_INDEX_BY_HASH_INVALID", rel(file), "commitMapByHash must be an object when present.")
+      return
+    }
+    for (const [hash, commit] of Object.entries(data.commitMapByHash)) {
+      if (!seen.has(hash)) addFinding("error", "FINAL_REPORT_INDEX_BY_HASH_UNKNOWN", rel(file), `commitMapByHash.${hash} does not point to a commitMap[].hash row.`)
+      if (!commit || typeof commit !== "object" || commit.hash !== hash) addFinding("error", "FINAL_REPORT_INDEX_BY_HASH_MISMATCH", rel(file), `commitMapByHash.${hash}.hash must equal the object key.`)
+    }
+  }
+
+  if (data.commitHashes !== undefined) {
+    if (!Array.isArray(data.commitHashes)) addFinding("error", "FINAL_REPORT_INDEX_COMMIT_HASHES_INVALID", rel(file), "commitHashes must be an array when present.")
+    else for (const hash of data.commitHashes) if (!seen.has(hash)) addFinding("error", "FINAL_REPORT_INDEX_COMMIT_HASHES_UNKNOWN", rel(file), `commitHashes contains unknown hash: ${hash}`)
+  }
+}
+
 module.exports = {
+  validateFinalReportIndex,
   validateCommonFields,
   validateDispatchLedger,
   validateRunnerEvent,

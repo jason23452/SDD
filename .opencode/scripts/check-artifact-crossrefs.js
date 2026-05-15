@@ -34,6 +34,46 @@ function commitExists(hash) {
   return git(["cat-file", "-t", hash]) === "commit"
 }
 
+function validateFinalReportIndexCommitMap(index) {
+  const indexed = new Set()
+  if (!Array.isArray(index.commitMap)) {
+    findings.push({ code: "FINAL_REPORT_INDEX_COMMIT_MAP_INVALID", message: "commitMap must be an array." })
+    return indexed
+  }
+
+  for (let rowIndex = 0; rowIndex < index.commitMap.length; rowIndex += 1) {
+    const commit = index.commitMap[rowIndex]
+    if (!commit || typeof commit !== "object") {
+      findings.push({ code: "FINAL_REPORT_INDEX_COMMIT_ROW_INVALID", rowIndex })
+      continue
+    }
+    if (!commit.hash) {
+      findings.push({ code: "FINAL_REPORT_INDEX_COMMIT_HASH_MISSING", rowIndex })
+      continue
+    }
+    if (indexed.has(commit.hash)) findings.push({ code: "FINAL_REPORT_INDEX_COMMIT_HASH_DUPLICATE", rowIndex, commit: commit.hash })
+    indexed.add(commit.hash)
+    if (commit.run_id && commit.run_id !== runId) findings.push({ code: "FINAL_REPORT_INDEX_COMMIT_RUN_ID_MISMATCH", rowIndex, commit: commit.hash, actual: commit.run_id, expected: runId })
+  }
+
+  if (index.commitMapByHash && typeof index.commitMapByHash === "object" && !Array.isArray(index.commitMapByHash)) {
+    for (const [hash, commit] of Object.entries(index.commitMapByHash)) {
+      if (!indexed.has(hash)) findings.push({ code: "FINAL_REPORT_INDEX_BY_HASH_UNKNOWN", commit: hash })
+      if (!commit || typeof commit !== "object" || commit.hash !== hash) findings.push({ code: "FINAL_REPORT_INDEX_BY_HASH_MISMATCH", commit: hash })
+    }
+  }
+
+  for (const [name, value] of [["fileToCommits", index.fileToCommits], ["classificationToCommits", index.classificationToCommits]]) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue
+    for (const [key, hashes] of Object.entries(value)) {
+      if (!Array.isArray(hashes)) continue
+      for (const hash of hashes) if (!indexed.has(hash)) findings.push({ code: "FINAL_REPORT_INDEX_LOCATOR_UNKNOWN_COMMIT", locator: name, key, commit: hash })
+    }
+  }
+
+  return indexed
+}
+
 if (ledger && Array.isArray(ledger.stages)) {
   const expected = []
   for (const stage of ledger.stages) for (const set of stage.eligibleSets || []) for (const wt of set.expectedWorktrees || []) expected.push({ set, wt })
@@ -77,8 +117,8 @@ for (const item of commitSummaries) {
   }
 }
 
-if (finalReportIndex && commitSummaries.length > 0) {
-  const indexed = new Set((finalReportIndex.commitMap || []).map((commit) => commit.hash).filter(Boolean))
+if (finalReportIndex) {
+  const indexed = validateFinalReportIndexCommitMap(finalReportIndex)
   for (const item of commitSummaries) for (const commit of item.data.commits || []) if (commit.hash && !indexed.has(commit.hash)) findings.push({ code: "FINAL_REPORT_INDEX_MISSING_COMMIT", file: rel(item.file), commit: commit.hash })
 }
 

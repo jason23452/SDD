@@ -130,9 +130,9 @@ Final artifact 必填內容：
 - run_id、需求來源、init-project bootstrap branch（若 planner/run artifacts 有記錄）、final integration branch、final integration head、final merge worktree。
 - final `spec-flow/**` tracked 結果已隨 final integration head 形成 source tree，供 archive merge-back 後驗證 target bootstrap branch 是否保留相同 tracked `spec-flow/**`。
 - 所有 stage、eligibleSetId、parallelGroupId、classification 的 merge 摘要。
-- 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change。
-- commit map：每個 commit 對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
-- Bug Fix Locator Index：由 commit map 派生，至少包含 commit id、commit subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息），供 archive 後 `ARCHIVED_RUN_MODE` 不依賴 `.worktree` 快速定位。
+- 所有進入 final integration 的非 merge commit id、commit message、worktree、classification ID、OpenSpec change；commit id 的 canonical machine-readable key 固定為完整 commit hash，也就是 `final-report-index.json` 的 `commitMap[].hash`。
+- commit map：每個 commit 以完整 commit hash 作為 commit id，對齊到原始需求條目、已確認決策、驗收條件、verification result，並保留 touched files / source branch / source worktree，供後續 `worktree-run-id-change-locker` 以 `run_id -> final-report-index.json -> commitMap[].hash` 鎖定 run scope，並讓 `worktree-bug-triage` 與 `worktree-bug-fix` 依使用者 bug 線索追 culprit commit。
+- Bug Fix Locator Index：由 commit map 派生，至少包含 commit id（完整 commit hash / `commitMap[].hash`）、commit subject/body 摘要、標籤（規格/實作/測試/修正/文件/設定）、classification ID、OpenSpec change、touched files、source stage/worktree/branch、需求/驗收對齊、verification result 與可搜尋關鍵字（功能、API route、component/page、schema/model、錯誤訊息），供 archive 後 `ARCHIVED_RUN_MODE` 不依賴 `.worktree` 快速定位。
 - 延後與排除項 map：所有未實作但出現在原需求或確認決策中的 deferred/excluded requirements 必須逐項列出，不能只寫在摘要。
 - Experience / Package acceptance summary：若 run 涉及 frontend/backend/fullstack package 或 UI/UX，final report 必須列出 active skills、Experience Contract 對齊結果、Package Decision Record 採用/不採用結果、manual-build reason、套件驗證命令與 fullstack contract 驗收結果。
 - Browser smoke、DB runtime、E2E 等 skipped/blocked 項目必須明確標示為 skipped/blocked，不得標為 passed。
@@ -140,12 +140,13 @@ Final artifact 必填內容：
 
 Commit map 欄位至少包含：
 
-| commit | message | classification ID | openspec change | source branch | source worktree | touched files | requirement alignment | acceptance alignment | verification | status |
+| commit hash | message | classification ID | openspec change | source branch | source worktree | touched files | requirement alignment | acceptance alignment | verification | status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
 Commit map 規則：
 
 - 每個非 merge commit 都必須出現在 commit map。
+- commit map 的 commit id 固定為完整 commit hash；機器可讀 index 必須使用 `commitMap[].hash`，不得另造 `commit_map_id` 作為必要查找鍵。
 - 每個非 merge commit 都必須記錄 touched files；若 final report 寫入時無法取得，必須用 `git show --name-status <commit>` 補齊，不得只記 message。
 - 每個 ownedRequirement 至少要對應一個 commit，或明確標記為 `deferred`、`excluded`、`not-applicable`。
 - 若 commit 無法對齊原始需求或已確認決策，停止並回報 `COMMIT_REQUIREMENT_ALIGNMENT_MISSING`。
@@ -204,7 +205,7 @@ Schema validation scope policy：runner 只需驗證自己的 runner event、ver
 
 scope validation 優先用 `artifact-scope-check.js`：runner scope 驗證單一 classification，wave scope 驗證目前 barrier-preflight，final scope 才驗證整個 run artifact set。`check-verification-matrix.js <run_id>` 只檢查 matrix 可讀與欄位完整，不代表任何測試已通過。
 
-最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
+最後一階段產生 final maintained report 後，可另寫 `.opencode/run-artifacts/<run_id>/final-report-index.json`，schemaVersion=`final-report-index/v1`，只由 final report 派生 commit map、Bug Fix Locator Index、touched files、verification refs、keywords、source final report path/hash 與 final integration head。`commitMap[].hash` 是唯一 canonical commit id；index 可另外提供 `commitMapByHash`、`commitHashes`、`fileToCommits` 與 `classificationToCommits` 作為加速查找，但這些索引都必須指向既有 `commitMap[].hash`。archive/bugfix 可優先讀此 index；若 index missing/stale 或與 final report hash/head 不一致，必須回讀完整 final report。
 
 final report index 可用 `node .opencode/scripts/build-final-report-index.js <run_id> --report <path>` 產生，並用 `node .opencode/scripts/check-artifact-freshness.js .opencode/run-artifacts/<run_id>/final-report-index.json --strict` 確認來源 hash；stale 時不得進入 archive/bugfix shortcut。
 
