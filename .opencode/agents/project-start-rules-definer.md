@@ -51,6 +51,14 @@ permission:
 - 規則中若包含 multi-worktree/OpenSpec staged flow，可寫入 artifact read policy 與新增摘要：`skill-lock/v1`、`dependency-readiness/v1`、`resume-cursor/v1`。所有摘要必須有 schemaVersion/run_id/sourceRefs/sourceHashes/status/blockers/detailRefs/fallbackAction；缺失或 stale 時回完整 gate。這些摘要只能減少重複讀取、重複 install 判斷與 resume 搜尋，不得取代 skill diff、dependency sync、dispatch ledger 或 runner event。
 - 規則中若包含 multi-worktree/OpenSpec staged flow，必須把 artifact schema registry 視為單一命名來源：`init-project` 中列出的 summary/index/lock/cursor schemaVersion 與路徑不得在 project rules 中改名、漏列 `cleanup-locks/v1`、`classification-compact/v1` 或 `handoff-next-step/v1`，也不得另創 alias；compact output 固定保留 `status`、`blockers[]`、`commits[]`、`verification[]`、`contextRefs[]`、`artifactRefs[]`、`nextAction`、`fallbackUsed`。這只統一命名與輸出欄位，不得新增或移除任何原 gate。
 
+## Active Skill 採用規則
+
+- `.opencode/project-rules.md` 不得複製整份 `.opencode/skills/**/SKILL.md` 內容作為長期規則，避免 skill 更新後 stale；但必須記錄 active skills 是 bootstrap 與開發工作的權威執行契約，project rules 只能補充專案層採用方式，不得弱化 active skill。
+- 若規則涉及建立、初始化、啟動、最小可啟動專案、bootstrap、scaffold 或補最小啟動能力，必須寫入 Active Skill Full Adoption Gate：主流程/bootstrapper 在寫任何 frontend/backend bootstrap 產物前，必須掃描 `.opencode/skills/**/SKILL.md`，依 scope 選出 active skills，讀取每個 active skill 完整內容，記錄 path/hash、觸發原因、bootstrap hard rule adoption matrix、verification linkage 與 blockers。
+- Active skill 的 bootstrap hard rules 不得被 project rules、README、planner、bootstrapper 或使用者未明確確認的模型建議標記為 `optional`、`deferred`、`pending`、`placeholder`、`later` 或等價延後；若無法完成，必須停止並回報 `SKILL_BOOTSTRAP_RULE_UNSATISFIED` / `SKILL_BOOTSTRAP_RULE_DEFERRED_INVALID`，不得以空殼 scaffold 取代。
+- Project rules 可記錄 active skill full adoption 的摘要、hash 與採用矩陣，但不得把 summary/lock/index 當成完整 skill 內容本身；hash 不一致、summary stale、active skill 缺失或未完整讀取時，後續 agent 必須回讀完整 `SKILL.md`。
+- 若使用者明確要求「不分 scope 全部 skill 都啟用」，project rules 可記錄該覆蓋決策；否則預設只啟用本次 scope 觸發的 active skills，非 active skill 不得成為無關 blocker。
+
 ## Skill 保護
 - `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷、清空或弱化。
 - 使用者要求刪除/移除/清空/覆蓋/弱化 skill 規則時停止並回報 `ERROR: skill rules are immutable and cannot be deleted`。
@@ -58,8 +66,8 @@ permission:
 - 檢查 skill 修改時，只以 `git diff --name-only -- .opencode/skills` 與 `git diff --cached --name-only -- .opencode/skills` 判斷。只有實際內容 diff 顯示 `.opencode/skills/**/SKILL.md` 已被修改時，才停止並回報 `ERROR: skill rules are immutable and cannot be changed`；純 line-ending/stat 假異動或其他非 skill 檔的 `needs update` 不得當成 blocker，也不得把 skill 檔修改納入 project rules 更新。
 
 ## 來源與整理
-- 先掃描 `.opencode/skills/**/SKILL.md` 建立可用 skill inventory，再依需求範圍、skill frontmatter 的 `name`/`description`、檔案內容與實際專案線索選 relevant skills；不讀不相關 skill，也不得把 skill 類別硬編碼成 frontend/backend。
-- 輸入應含使用者明確規則、範圍、README 摘要、skill 摘要、已確認 stack/package manager/啟動/測試。
+- 先掃描 `.opencode/skills/**/SKILL.md` 建立可用 skill inventory，再依需求範圍、skill frontmatter 的 `name`/`description`、檔案內容與實際專案線索選 relevant skills；若規則涉及 bootstrap 或最小架構，必須要求主流程/bootstrapper 對 active skills 讀完整 `SKILL.md`，不得只依 skill 摘要或 frontmatter。
+- 輸入應含使用者明確規則、範圍、README 摘要、active skill 摘要與完整讀取/hash 狀態、已確認 stack/package manager/啟動/測試。
 - 現有專案也接收實際檔案線索：package/lockfile、pyproject、entrypoint、src/app、routes、tests、config、Docker/Compose；只作專案慣例，不擴成需求功能。
 - 若有需求檔/摘要，只擷取專案層資訊，不改寫需求功能。
 - 若需求檔或其他引用檔被標記為 `informational-only`，不得從中擷取規則寫入 `.opencode/project-rules.md`。

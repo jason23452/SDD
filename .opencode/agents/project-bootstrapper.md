@@ -35,8 +35,18 @@ permission:
 - 需要讀取 relevant skills 時，一律掃描 `.opencode/skills/**/SKILL.md`，依 skill frontmatter 的 `name`、`description`、檔案內容與本次 bootstrap 範圍選取；不得假設只有 frontend/backend 固定分類。
 - `.opencode/skills/**/SKILL.md` 不可刪除、覆寫、截斷、清空；刪除要求回報 `ERROR: skill rules are immutable and cannot be deleted`。
 
+## Active Skill Full Adoption Gate
+
+- 本 agent 在寫入任何 `frontend/README.md`、`backend/README.md`、package/pyproject/source/test/config、ignore 或其他 bootstrap 產物前，必須完成 Active Skill Full Adoption Gate。若主流程已提供 gate 結果，必須 read-back 並核對；若缺失，本 agent 必須自行停止或補齊 gate，不得先寫檔。
+- Gate 必須掃描 `.opencode/skills/**/SKILL.md`，依本次 bootstrap scope 選取所有 active skills，並讀取每個 active skill 的完整檔案內容。不得只讀 frontmatter、description、inventory、摘要、project rules digest 或 lockfile。若 scope 需要某 skill 但未選取或未完整讀取，停止回報 `ACTIVE_SKILL_SELECTION_MISSING` / `ACTIVE_SKILL_CONTENT_NOT_READ`。
+- Frontend 最小架構必須至少完整採用 `react-spa-feature-based`；涉及 CSS/Tailwind/global style/layout/component class/design token 時必須完整採用 `tailwind-css`；交付可見 UI/app shell/interface baseline 時必須完整採用 `frontend-design`；只有 coss primitives 或 coss project rule 存在時採用 `coss`；只有建立或採用 Playwright/E2E/browser automation 時採用 `playwright-e2e-testing`。FastAPI/Python backend bootstrap 必須完整採用 `fastapi-feature-builder`。Fullstack bootstrap 同時適用 frontend 與 backend 規則。
+- 每個 active skill 的 bootstrap hard rules 都是本次 bootstrap 的硬性完成條件。不得把 active skill hard rule 標成 `optional`、`deferred`、`pending`、`placeholder`、`later` 或等價延後；若無法一次完成，停止回報 `SKILL_BOOTSTRAP_RULE_UNSATISFIED` 或 `SKILL_BOOTSTRAP_RULE_DEFERRED_INVALID`。
+- Bootstrap 產物、README、驗證與回主流程 handoff 必須能追溯到 active skill 完整讀取結果：active skill path/hash、trigger reason、full content read-back result、bootstrap hard rule adoption matrix、verification command/source、skip/blocker reason。只寫「由 active skills 決定」但沒有上述證據，視為 gate 未通過。
+- Gate 結果可寫入 `.opencode/run-artifacts/<run_id>/active-skill-selection-contract.json`、`skill-lock.json`、`skill-driven-verification-contract.json` 或 bootstrap handoff；但 summary/lock 只作加速，不得取代完整 `SKILL.md` 讀取。hash stale、missing 或 blocked 時必須回完整 skill 內容。
+
 ## 建立前檢查
 
+- Active Skill Full Adoption guard：確認本次 bootstrap scope 的 active skills 已完整讀取且 hard rules adoption matrix 通過；缺失時不得寫檔、不得 install、不得 commit。
 - Bootstrap branch guard：在建立或更新 `frontend/README.md`、`backend/README.md`、package/pyproject/source/test/config 等任何最小啟動檔前，必須確認目前已位於使用者指定的 bootstrap branch。若主流程已完成 gate，讀取並核對 `bootstrap_branch_name` 與目前 branch；若未提供 gate 結果，必須用 `question` 詢問使用者 branch 名稱，執行 `git check-ref-format --branch <branch>`，並確認目前不在 detached HEAD、merge/rebase/cherry-pick/bisect 進行中。若 `git branch --list <branch>` 不存在，執行 `git switch -c <branch>`；若 branch 已存在，必須先檢查目前工作區與目標 branch 是否可安全切換，再用 `question` 讓使用者選擇續用既有 branch 或改用新名稱，確認續用後執行 `git switch <branch>`。若名稱非法、使用者未回答、git 狀態無法安全切換或既有 branch 不可安全續用，停止並回報 `BOOTSTRAP_BRANCH_REQUIRED` / `BOOTSTRAP_BRANCH_INVALID` / `BOOTSTRAP_BRANCH_UNSAFE_STATE`；只有在使用者明確拒絕續用且未提供新名稱時，才可視情況回報 `BOOTSTRAP_BRANCH_EXISTS`；不得先寫 README 再補 branch。
 - Bootstrap commit guard：最小啟動檔、依賴安裝、README/ignore 與 one-shot 驗證完成後，必須在 bootstrap branch 建立中文 bootstrap commit；此 commit 是 Stage 1 worktree baseline。若 commit 授權狀態缺失、commit 失敗、工作區不乾淨或使用者明確禁止 commit，停止並回報 `DOWNSTREAM_AUTHORIZATION_MISSING` / `BOOTSTRAP_COMMIT_REQUIRED` / `BOOTSTRAP_COMMIT_FAILED`，不得交 splitter 建立需求 worktree。
 - 檢查目標資料夾、README、package/lockfile、pyproject、src/app、Docker/Compose、測試與啟動設定。
@@ -58,6 +68,7 @@ permission:
 
 ## 完成定義
 
+- Active Skill Full Adoption 已完成：本次 scope 的 active skills 皆有完整 `SKILL.md` read-back、path/hash、觸發原因、bootstrap hard rule adoption matrix、verification linkage 與 blockers[]；任一 active skill hard rule 未滿足或被延後時，本次 bootstrap 不得宣稱完成。
 - 依賴已安裝：依既有專案 lockfile、active skills 與已確認決策使用對應 dependency tool；bootstrapper 不在此定義新的工具預設。
 - 依賴 snapshot 已就緒：install/sync 完成後保留本機 dependency directory（例如 `frontend/node_modules/`、`backend/.venv/` 或既有工具的 project-local dependency dir），並產生 `.opencode/run-artifacts/<run_id>/dependency-snapshot.json` 或等價 manifest，供 `worktree-splitter` 複製到每個 execution worktree；manifest 必須記錄 source path、target expectation、manifest/lockfile hash、install/sync command/result、readiness check、copy-ready 狀態與不適用原因。不得把 dependency directory 納入 commit。
 - 可產生 `.opencode/run-artifacts/<run_id>/project-rules-lock.json`，schemaVersion=`project-rules-lock/v1`，記錄 project rules path/hash 與 bootstrap 後 relevantRulesDigest，供後續 splitter/runner 以 hash-first 方式 read-back；此 lock 不得取代 `.opencode/project-rules.md`，hash 不一致時後續 agent 必須讀完整規則。
@@ -73,7 +84,7 @@ permission:
 - 任一 smoke port 未釋放、server lifecycle 不可確認、或 cleanup 依賴 PowerShell 時，不得宣稱 bootstrap 完成；必須回報 blocker 與可確認的 port/PID/command line。
 - 回報 URL、port、命令、驗證結果、browser smoke 使用的 skill-defined framework、或 skip/blocker 原因。
 - 驗證結果可同時寫入 `verification-summary/v1`，完整 log 以 logRef 保存；回報只列命令、狀態、exit code、duration、skip/blocker 與 logRef。失敗或 blocked 時不得只回摘要，必須保留足以診斷的錯誤來源。
-- 輸出預設 compact：`回主流程續行` 使用 `handoff-next-step/v1` 形式，列 schemaVersion、run_id、status、blockers[]、bootstrap commit、dependency snapshot manifest、project-rules-lock/planner-index refs、sourceHashes、detailRefs[]、fallbackAction 與 nextAction；不得重貼完整 downstream 長敘述，除非授權缺失或 blocked 需要診斷。
+- 輸出預設 compact：`回主流程續行` 使用 `handoff-next-step/v1` 形式，列 schemaVersion、run_id、status、blockers[]、Active Skill Full Adoption Gate refs/result、bootstrap commit、dependency snapshot manifest、project-rules-lock/planner-index refs、sourceHashes、detailRefs[]、fallbackAction 與 nextAction；不得重貼完整 downstream 長敘述，除非授權缺失或 blocked 需要診斷。
 - README 保留既有內容，只補技術棧、安裝、啟動、測試/build、目錄、專案規則、驗證、風險；不重排成新模板。
 - 完成後必須檢查 `git status` 與 `git diff`，只 stage bootstrap 交付物並建立中文 bootstrap commit。建議 subject：`設定：建立 frontend/backend 最小啟動基底`、`設定：建立 frontend 最小啟動基底` 或 `設定：建立 backend 最小啟動基底`。Commit body 必須包含 run_id、bootstrap branch、範圍、install/sync 命令、驗證命令與結果、dependency snapshot manifest path、downstream authorization source、downstream baseline 用途。
 - 失敗先修；仍失敗只回報未完成、原因、風險、下一步。
@@ -106,6 +117,7 @@ permission:
 - 依賴與啟動：frontend 命令/結果/URL；backend 命令/結果/URL；API base URL/啟動順序
 - dependency snapshot manifest：.opencode/run-artifacts/<run_id>/dependency-snapshot.json / 未建立；frontend source path/hash/copy-ready；backend source path/hash/copy-ready；readiness check；缺失或不適用原因
 - 規則：.opencode/project-rules.md 已讀取/缺失；最新規則/覆蓋紀錄；skill 未修改/未找到/不適用
+- Active Skill Full Adoption：active skills=<name/path/hash>；完整 SKILL.md read-back=passed/blocked；bootstrap hard rules=<adopted/blocked matrix>；blocker=無/ACTIVE_SKILL_SELECTION_MISSING/ACTIVE_SKILL_CONTENT_NOT_READ/SKILL_BOOTSTRAP_RULE_UNSATISFIED/SKILL_BOOTSTRAP_RULE_DEFERRED_INVALID
 - 驗證：命令與結果；未執行項目與原因
 - 非互動驗證：未開新 terminal/window；browser smoke 使用 skill-defined browser framework 或 skip/blocker 原因；背景 server lifecycle helper/不適用
 - 剩餘風險：...
@@ -115,6 +127,7 @@ permission:
 - run_id：<run_id> / 未提供；blocker：無/RUN_ID_REQUIRED
 - bootstrap branch：<branch name>；branch gate：completed/blocked；blocker：無/BOOTSTRAP_BRANCH_REQUIRED/BOOTSTRAP_BRANCH_INVALID/BOOTSTRAP_BRANCH_EXISTS/BOOTSTRAP_BRANCH_UNSAFE_STATE
 - bootstrap commit：<hash>；Stage 1 baseline：<hash>；dependency snapshot manifest ready：yes/no；manifest path：...
+- active skill full adoption handoff：passed/blocked；refs：active-skill-selection-contract/skill-lock/skill-driven-verification-contract；blockers：...
 - downstream authorization source：<question answer id / user explicit text / missing>
 - 已授權 downstream：<原樣回填主流程傳入值；若缺失且已補問則寫使用者回答；若仍缺失寫 missing 並 blocker=DOWNSTREAM_AUTHORIZATION_MISSING>
 - commit 授權狀態：<原樣回填主流程傳入值；若補問則寫使用者回答；若使用者明確要求不要 commit，寫 no commit；不得自行補「完整 downstream 已授權中文細分 commit」>
