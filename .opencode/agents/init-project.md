@@ -118,6 +118,7 @@ permission:
 - 觸發：需求已明確落地到 frontend/backend，且 README 已建立或閱讀。
 - 可先用 `analyze_requirements` 整理需求、README、偏好、套件與待確認項；工具輸出只是線索。
 - `analyze_requirements`、README 線索、skill 線索或模型推論都不得蓋過使用者當前提供的 `user story`。
+- 若要呼叫 `project-start-rules-definer` 建立或更新 `.opencode/project-rules.md`，主流程必須把使用者當前語言視為顯性約束；當前對話或正式需求以繁體中文為主時，不得讓規則檔預設漂成英文。
 - 必須實際呼叫 OpenCode `question`，不得用文字清單、Markdown 問題或待確認章節替代。
 - 未經 `question` 回答或明確授權，推薦架構、套件、計算、部署、安全方案都只能列候選/待確認。
 - 若 scope 涉及 frontend、UI、CSS、互動、route、state 或 API 串接，question 前必須讀取 frontend 相關 skill 與既有 frontend package/lockfile/source/style 線索；若 scope 涉及 backend、API、DB、auth、cache、queue、外部服務或 migration，question 前必須讀取 backend 相關 skill 與既有 backend package/lockfile/entrypoint/schema/test 線索。
