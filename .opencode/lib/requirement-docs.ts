@@ -1,7 +1,8 @@
 import { readdir, readFile, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 
-export const DEFAULT_REQUIREMENTS_DIR = path.posix.join(".opencode", "outputs", "analyze-requirements")
+// Use platform-native path separators so paths are consistent across OS
+export const DEFAULT_REQUIREMENTS_DIR = path.join(".opencode", "outputs", "analyze-requirements")
 export const REQUIREMENT_REPO_MAP_FILE = "requirement-repo-map.md"
 export const REQUIREMENT_HISTORY_SUFFIX = ".history.md"
 

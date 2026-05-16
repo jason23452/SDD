@@ -121,6 +121,7 @@ export default tool({
     runId: tool.schema.string().describe("init-userstory-run 回傳的 run_id").default(""),
     outputDir: tool.schema.string().describe("User Story 輸出根目錄").default(DEFAULT_USERSTORY_DIR),
     approvalNote: tool.schema.string().describe("使用者確認文字或定稿備註").default("使用者已確認可接受"),
+    force: tool.schema.boolean().describe("若為 true，允許在草稿缺少部分欄位時仍強制產出最終檔案").default(false),
   },
   async execute(args, context) {
     const worktree = context?.worktree ? context.worktree : process.cwd()
@@ -130,10 +131,27 @@ export default tool({
     const draftHtml = await readFile(paths.draftHtmlPath, "utf-8")
     const data = extractDraftData(draftHtml)
     const screenshots = await listScreenshots(paths.runDir)
-    assertReady(data, screenshots)
+
+    // Collect issues but allow forcing the finalize step if requested.
+    const issues = [] as string[]
+    if (!normalizeText(data.title)) issues.push("缺少標題")
+    if (!normalizeText(data.summary)) issues.push("缺少摘要")
+    if (cleanItems(data.userStories).length === 0) issues.push("缺少 User Story")
+    if (cleanItems(data.acceptanceCriteria).length === 0) issues.push("缺少驗收條件")
+    if (screenshots.length === 0) issues.push("缺少已複製截圖")
+
+    if (issues.length > 0 && !args.force) {
+      throw new Error(`User Story 尚未可定稿：${issues.join("；")}。請先補齊並重新產生 draft.html，或使用 force=true 強制產出。`)
+    }
 
     const title = normalizeText(data.title) || "User Story"
-    await writeFile(paths.markdownPath, buildMarkdown(data, screenshots, normalizeText(args.approvalNote)), "utf-8")
+
+    // If there were issues, inject a warning block into the approval note so
+    // the produced markdown makes it explicit why the finalize was forced.
+    const approvalNote = normalizeText(args.approvalNote) || "使用者已確認可接受"
+    const approvalWithWarnings = issues.length > 0 ? `${approvalNote} （定稿時發現缺項：${issues.join("、")}）` : approvalNote
+
+    await writeFile(paths.markdownPath, buildMarkdown(data, screenshots, approvalWithWarnings), "utf-8")
     await writeFile(paths.finalHtmlPath, buildImagesOnlyHtml(screenshots, title), "utf-8")
 
     return [

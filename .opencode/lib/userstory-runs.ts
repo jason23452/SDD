@@ -2,7 +2,9 @@ import { mkdir, readdir } from "node:fs/promises"
 import path from "node:path"
 import { randomUUID } from "node:crypto"
 
-export const DEFAULT_USERSTORY_DIR = path.posix.join(".opencode", "outputs", "userstory")
+// Use platform-native path separators for the default output dir so paths
+// are consistent when running on Windows or *nix hosts.
+export const DEFAULT_USERSTORY_DIR = path.join(".opencode", "outputs", "userstory")
 export const SCREENSHOTS_DIR = "screenshots"
 export const DRAFT_HTML_FILE = "draft.html"
 export const FINAL_HTML_FILE = "final.html"
@@ -117,7 +119,9 @@ export function escapeAttribute(value?: string): string {
 }
 
 export function relativeScreenshotPath(fileName: string): string {
-  return path.posix.join(SCREENSHOTS_DIR, fileName)
+  // Use POSIX-style join for web paths inside generated HTML so that
+  // src attributes use forward slashes regardless of host OS.
+  return [SCREENSHOTS_DIR, fileName].join("/")
 }
 
 export async function listScreenshots(runDir: string): Promise<string[]> {

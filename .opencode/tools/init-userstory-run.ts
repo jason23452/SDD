@@ -1,4 +1,4 @@
-import { access, copyFile } from "node:fs/promises"
+import { access, copyFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { tool } from "@opencode-ai/plugin"
@@ -10,6 +10,9 @@ import {
   imageExtension,
   listScreenshots,
   parseDelimited,
+  jsonForHtmlScript,
+  relativeScreenshotPath,
+  escapeHtml,
 } from "../lib/userstory-runs"
 
 function resolveInputPath(inputPath: string, baseDir: string): string {
@@ -65,6 +68,58 @@ export default tool({
     await ensureRunDirs(paths)
     const existingScreenshots = await listScreenshots(paths.runDir)
     const result = await copyScreenshots(imagePaths, paths.screenshotsDir, baseDir, existingScreenshots.length)
+
+    // Generate a minimal draft.html so the run has an immediate preview and
+    // a userstory-data JSON blob. The full draft (with detailed user stories
+    // and questions) should still be produced by write-userstory-html, but
+    // creating this placeholder avoids a missing-draft situation.
+    const screenshots = await listScreenshots(paths.runDir)
+    const data = {
+      title: "User Story",
+      summary: "",
+      actors: [],
+      userStories: [],
+      acceptanceCriteria: [],
+      flows: [],
+      assumptions: [],
+      openQuestions: [],
+      revisionNote: "",
+      updatedAt: new Date().toISOString(),
+      screenshots,
+    }
+
+    const screenshotHtml = screenshots
+      .map((fileName) => `
+        <figure>
+          <img src="${relativeScreenshotPath(fileName)}" alt="${escapeHtml(fileName)}">
+          <figcaption>${escapeHtml(fileName)}</figcaption>
+        </figure>`)
+      .join("\n")
+
+    const draftHtml = `<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(data.title)}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;padding:12px}figure{margin:0 0 12px;border:1px solid #ddd;padding:8px;border-radius:8px}img{max-width:100%;height:auto;display:block}</style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>${escapeHtml(data.title)}</h1>
+      <p>${escapeHtml(data.summary || "")}</p>
+    </header>
+    <section>
+      <h2>截圖</h2>
+      ${screenshotHtml || '<p class="empty">尚未複製截圖。</p>'}
+    </section>
+  </main>
+  <script id="userstory-data" type="application/json">${jsonForHtmlScript(data)}</script>
+</body>
+</html>`
+
+    await writeFile(paths.draftHtmlPath, draftHtml, "utf-8")
 
     return [
       "User Story run 已建立。",
