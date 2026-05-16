@@ -27,6 +27,37 @@ type DraftData = {
   screenshots: string[]
 }
 
+const CONFIRMATION_MARKERS = [
+  /需(?:要)?[^，。；;、\n]{0,12}確認/,
+  /需(?:要)?[^，。；;、\n]{0,12}釐清/,
+  /待確認/,
+  /待釐清/,
+  /推測/,
+  /可能/,
+  /是否/,
+  /未顯示/,
+  /未提供/,
+  /請確認/,
+  /需(?:要)?使用者決策/,
+  /無法判斷/,
+  /看不清楚/,
+  /尚不明確/,
+]
+
+function needsUserConfirmation(item: string): boolean {
+  return CONFIRMATION_MARKERS.some((pattern) => pattern.test(item))
+}
+
+function uniqueItems(items: string[]): string[] {
+  const seen = new Set<string>()
+  return items.filter((item) => {
+    const key = item.trim()
+    if (key.length === 0 || seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 function renderList(items: string[], emptyText: string): string {
   if (items.length === 0) return `<p class="empty">${escapeHtml(emptyText)}</p>`
   return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
@@ -196,21 +227,32 @@ export default tool({
 
     await writeFile(paths.draftHtmlPath, buildDraftHtml(data), "utf-8")
 
+    const assumptionsNeedingConfirmation = data.assumptions.filter(needsUserConfirmation)
+    const confirmationItems = uniqueItems([
+      ...data.openQuestions,
+      ...assumptionsNeedingConfirmation.map((item) => `假設需確認：${item}`),
+    ])
+
     const result = [
       "User Story 草稿 HTML 已更新。",
       `- run_id：${paths.runId}`,
       `- HTML：${paths.draftHtmlPath}`,
       `- 截圖數：${data.screenshots.length}`,
       `- 待確認問題數：${data.openQuestions.length}`,
+      `- 需確認假設數：${assumptionsNeedingConfirmation.length}`,
     ]
 
-    if (data.openQuestions.length > 0) {
+    if (confirmationItems.length > 0) {
       result.push(
         "",
-        "待確認問題：",
-        ...data.openQuestions.map((question) => `- ${question}`),
-        "下一步：請用 question 顯示上述待確認問題，請使用者補充或確認；不可只問是否定稿。",
+        "需透過 question 釐清的項目：",
+        ...confirmationItems.map((question) => `- ${question}`),
+        "下一步：請用 question 逐項顯示上述項目，提供確認/修正/不適用/暫不決定等選項；不可只問是否定稿。",
       )
+
+      if (assumptionsNeedingConfirmation.length > 0) {
+        result.push("下一版請將已釐清的假設移入對應章節；未釐清前請同步保留在 openQuestions。")
+      }
     } else {
       result.push("下一步：請詢問使用者是否可接受；不可在使用者明確同意前 final。")
     }
